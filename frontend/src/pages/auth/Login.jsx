@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { login, googleLogin } from '@/services/authService';
 
 function Login() {
@@ -57,29 +58,29 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="text-2xl font-semibold tracking-tight">Login</CardTitle>
+          <CardDescription>
+            Enter your email and password to access your account
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
                 {error}
               </div>
             )}
 
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -87,9 +88,15 @@ function Login() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 name="password"
@@ -99,15 +106,6 @@ function Login() {
                 onChange={handleChange}
                 required
               />
-            </div>
-
-            <div className="text-right">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot password?
-              </Link>
             </div>
           </CardContent>
 
@@ -121,7 +119,7 @@ function Login() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
 
@@ -136,7 +134,7 @@ function Login() {
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">Don't have an account? </span>
-              <Link to="/register" className="text-primary hover:underline">
+              <Link to="/register" className="text-primary hover:underline font-medium">
                 Sign up
               </Link>
             </div>

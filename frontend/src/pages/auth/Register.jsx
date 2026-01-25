@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { register, googleLogin } from '@/services/authService';
 
 function Register() {
@@ -86,29 +87,29 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Sign up to get started with Best Choice Tutors</CardDescription>
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="text-2xl font-semibold tracking-tight">Create Account</CardTitle>
+          <CardDescription>
+            Enter your information to create your account
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
                 {error}
               </div>
             )}
 
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                Name
-              </label>
+              <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
                 name="name"
                 type="text"
-                placeholder="Your full name"
+                placeholder="John Doe"
                 value={formData.name}
                 onChange={handleChange}
                 required
@@ -116,14 +117,12 @@ function Register() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -131,9 +130,7 @@ function Register() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -147,23 +144,23 @@ function Register() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="profilePhoto" className="text-sm font-medium">
-                Profile Photo (Optional)
-              </label>
+              <Label htmlFor="profilePhoto">Profile Photo (Optional)</Label>
               <Input
                 id="profilePhoto"
                 name="profilePhoto"
                 type="file"
                 accept="image/*"
                 onChange={handlePhotoChange}
+                className="cursor-pointer"
               />
               {photoPreview && (
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-2">
                   <img
                     src={photoPreview}
                     alt="Preview"
-                    className="h-20 w-20 rounded-full object-cover"
+                    className="h-16 w-16 rounded-full object-cover border-2 border-border"
                   />
+                  <span className="text-sm text-muted-foreground">Preview</span>
                 </div>
               )}
             </div>
@@ -179,7 +176,7 @@ function Register() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
 
@@ -194,7 +191,7 @@ function Register() {
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">Already have an account? </span>
-              <Link to="/login" className="text-primary hover:underline">
+              <Link to="/login" className="text-primary hover:underline font-medium">
                 Login
               </Link>
             </div>

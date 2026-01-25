@@ -1,0 +1,40 @@
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+const Field = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("space-y-2", className)}
+    {...props}
+  />
+))
+Field.displayName = "Field"
+
+const FieldLabel = React.forwardRef(({ className, ...props }, ref) => (
+  <label
+    ref={ref}
+    className={cn("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", className)}
+    {...props}
+  />
+))
+FieldLabel.displayName = "FieldLabel"
+
+const FieldControl = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("", className)}
+    {...props}
+  />
+))
+FieldControl.displayName = "FieldControl"
+
+const FieldMessage = React.forwardRef(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn("text-sm font-medium text-destructive", className)}
+    {...props}
+  />
+))
+FieldMessage.displayName = "FieldMessage"
+
+export { Field, FieldLabel, FieldControl, FieldMessage }

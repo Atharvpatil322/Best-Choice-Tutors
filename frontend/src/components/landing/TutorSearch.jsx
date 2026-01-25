@@ -1,8 +1,15 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { Field, FieldLabel, FieldControl } from "@/components/ui/field"
 import { isAuthenticated } from "@/lib/auth"
 import TutorCard from "./TutorCard"
 
@@ -106,9 +113,11 @@ export default function TutorSearch() {
   const [showMessage, setShowMessage] = useState(false)
 
   const handleFilterChange = (filterName, value) => {
+    // Convert "all" or "any" back to empty string for filtering logic
+    const filterValue = (value === "all" || value === "any") ? "" : value;
     setFilters((prev) => ({
       ...prev,
-      [filterName]: value,
+      [filterName]: filterValue,
     }))
   }
 
@@ -119,7 +128,7 @@ export default function TutorSearch() {
       navigate('/login')
       return
     }
-    
+
     // TODO: CLARIFICATION REQUIRED - What should happen when authenticated user clicks book?
     // Phase 2: No booking logic yet, just show message for now
     setShowMessage(true)
@@ -139,75 +148,108 @@ export default function TutorSearch() {
       <Card className="mb-8">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Subject</label>
-              <Select
-                value={filters.subject}
-                onChange={(e) => handleFilterChange("subject", e.target.value)}
-              >
-                <option value="">All Subjects</option>
-                <option value="mathematics">Mathematics</option>
-                <option value="physics">Physics</option>
-                <option value="chemistry">Chemistry</option>
-                <option value="biology">Biology</option>
-                <option value="english">English</option>
-                <option value="computerscience">Computer Science</option>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Price</label>
-              <Select
-                value={filters.price}
-                onChange={(e) => handleFilterChange("price", e.target.value)}
-              >
-                <option value="">Any Price</option>
-                <option value="0-30">£0 - £30</option>
-                <option value="30-40">£30 - £40</option>
-                <option value="40-50">£40 - £50</option>
-                <option value="50+">£50+</option>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Level</label>
-              <Select
-                value={filters.level}
-                onChange={(e) => handleFilterChange("level", e.target.value)}
-              >
-                <option value="">All Levels</option>
-                <option value="11+">11+</option>
-                <option value="gcse">GCSE</option>
-                <option value="alevel">A-Level</option>
-                <option value="university">University</option>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Location / Online
-              </label>
-              <Select
-                value={filters.location}
-                onChange={(e) => handleFilterChange("location", e.target.value)}
-              >
-                <option value="">All Locations</option>
-                <option value="online">Online Only</option>
-                <option value="london">London</option>
-                <option value="manchester">Manchester</option>
-                <option value="birmingham">Birmingham</option>
-                <option value="leeds">Leeds</option>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Gender</label>
-              <Select
-                value={filters.gender}
-                onChange={(e) => handleFilterChange("gender", e.target.value)}
-              >
-                <option value="">Any</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </Select>
-            </div>
+            <Field>
+              <FieldLabel>Subject</FieldLabel>
+              <FieldControl>
+                <Select
+                  value={filters.subject ? filters.subject : "all"}
+                  onValueChange={(value) => handleFilterChange("subject", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Subjects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    <SelectItem value="mathematics">Mathematics</SelectItem>
+                    <SelectItem value="physics">Physics</SelectItem>
+                    <SelectItem value="chemistry">Chemistry</SelectItem>
+                    <SelectItem value="biology">Biology</SelectItem>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="computerscience">Computer Science</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldControl>
+            </Field>
+            <Field>
+              <FieldLabel>Price</FieldLabel>
+              <FieldControl>
+                <Select
+                  value={filters.price ? filters.price : "any"}
+                  onValueChange={(value) => handleFilterChange("price", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any Price" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Price</SelectItem>
+                    <SelectItem value="0-30">£0 - £30</SelectItem>
+                    <SelectItem value="30-40">£30 - £40</SelectItem>
+                    <SelectItem value="40-50">£40 - £50</SelectItem>
+                    <SelectItem value="50+">£50+</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldControl>
+            </Field>
+            <Field>
+              <FieldLabel>Level</FieldLabel>
+              <FieldControl>
+                <Select
+                  value={filters.level ? filters.level : "all"}
+                  onValueChange={(value) => handleFilterChange("level", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Levels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    <SelectItem value="11+">11+</SelectItem>
+                    <SelectItem value="gcse">GCSE</SelectItem>
+                    <SelectItem value="alevel">A-Level</SelectItem>
+                    <SelectItem value="university">University</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldControl>
+            </Field>
+            <Field>
+              <FieldLabel>Location / Online</FieldLabel>
+              <FieldControl>
+                <Select
+                  value={filters.location ? filters.location : "all"}
+                  onValueChange={(value) => handleFilterChange("location", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Locations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    <SelectItem value="online">Online Only</SelectItem>
+                    <SelectItem value="london">London</SelectItem>
+                    <SelectItem value="manchester">Manchester</SelectItem>
+                    <SelectItem value="birmingham">Birmingham</SelectItem>
+                    <SelectItem value="leeds">Leeds</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldControl>
+            </Field>
+            <Field>
+              <FieldLabel>Gender</FieldLabel>
+              <FieldControl>
+                <Select
+                  value={filters.gender ? filters.gender : "any"}
+                  onValueChange={(value) => handleFilterChange("gender", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldControl>
+            </Field>
           </div>
         </CardContent>
       </Card>

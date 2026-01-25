@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { User } from "lucide-react"
 
@@ -31,9 +32,11 @@ export default function Header() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm">
-            Sign Up
-          </Button>
+          <Link to="/register">
+            <Button variant="ghost" size="sm">
+              Sign Up
+            </Button>
+          </Link>
           <Button variant="default" size="sm" className="gap-2">
             <User className="h-4 w-4" />
             Become a Tutor
