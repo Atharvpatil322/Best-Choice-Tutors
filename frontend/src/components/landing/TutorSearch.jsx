@@ -1,7 +1,9 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { isAuthenticated } from "@/lib/auth"
 import TutorCard from "./TutorCard"
 
 // TODO (Phase 3): Replace mock tutor data with API-backed data
@@ -93,6 +95,7 @@ const mockTutors = [
 ]
 
 export default function TutorSearch() {
+  const navigate = useNavigate()
   const [filters, setFilters] = useState({
     subject: "",
     price: "",
@@ -110,6 +113,15 @@ export default function TutorSearch() {
   }
 
   const handleBookClick = () => {
+    // Check if user is authenticated
+    if (!isAuthenticated()) {
+      // Redirect to login if not authenticated
+      navigate('/login')
+      return
+    }
+    
+    // TODO: CLARIFICATION REQUIRED - What should happen when authenticated user clicks book?
+    // Phase 2: No booking logic yet, just show message for now
     setShowMessage(true)
     setTimeout(() => setShowMessage(false), 3000)
   }
