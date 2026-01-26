@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
+import learnerProfileRoutes from './routes/learnerProfileRoutes.js';
+import learnerBookingsRoutes from './routes/learnerBookingsRoutes.js';
+import tutorRoutes from './routes/tutorRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
 // Load environment variables
@@ -21,6 +24,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/learner', learnerProfileRoutes);
+app.use('/api/learner', learnerBookingsRoutes);
+app.use('/api/tutors', tutorRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

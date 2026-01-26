@@ -26,17 +26,47 @@ function LearnerDashboard() {
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome!</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              This is a placeholder dashboard for authenticated learners.
-              Full dashboard functionality will be implemented in future phases.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome!</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                This is a placeholder dashboard for authenticated learners.
+                Full dashboard functionality will be implemented in future phases.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Button
+                onClick={() => navigate('/tutors')}
+                className="w-full"
+              >
+                Browse Tutors
+              </Button>
+              <Button
+                onClick={() => navigate('/profile')}
+                variant="outline"
+                className="w-full"
+              >
+                My Profile
+              </Button>
+              <Button
+                onClick={() => navigate('/tutor/create')}
+                variant="default"
+                className="w-full"
+              >
+                Become a Tutor
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

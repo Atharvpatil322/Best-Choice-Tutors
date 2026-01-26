@@ -33,6 +33,24 @@ const userSchema = new mongoose.Schema(
       enum: ['Learner', 'Tutor', 'Admin'],
       default: 'Learner',
     },
+    // Learner profile fields (FR-4.1.1, FR-4.1.2)
+    phoneNumber: {
+      type: String,
+      default: null,
+      trim: true,
+      // TODO: CLARIFICATION REQUIRED - Should phone number have format validation?
+    },
+    gradeLevel: {
+      type: String,
+      default: null,
+      trim: true,
+      // TODO: CLARIFICATION REQUIRED - What are the valid grade level values? (e.g., "Year 7", "GCSE", "A-Level", etc.)
+    },
+    subjectsOfInterest: {
+      type: [String],
+      default: [],
+      // TODO: CLARIFICATION REQUIRED - Should subjects be from a predefined list or free text?
+    },
     resetPasswordToken: {
       type: String,
       default: null,

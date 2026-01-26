@@ -10,7 +10,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// TODO: CLARIFICATION REQUIRED - Should we replace Cloudinary with AWS S3 in Phase 3?
+// TODO: Migrate to AWS S3 in future phase - Cloudinary logic isolated for easy replacement
 // This service is isolated to make future migration easier
 export const uploadImage = async (fileBuffer, folder = 'profile-photos') => {
   return new Promise((resolve, reject) => {

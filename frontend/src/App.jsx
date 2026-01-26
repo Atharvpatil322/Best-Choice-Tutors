@@ -6,6 +6,12 @@ import ForgotPassword from '@/pages/auth/ForgotPassword';
 import ResetPassword from '@/pages/auth/ResetPassword';
 import AuthCallbackPage from '@/components/auth/AuthCallbackPage';
 import LearnerDashboard from '@/pages/dashboard/LearnerDashboard';
+import TutorDashboard from '@/pages/dashboard/TutorDashboard';
+import MyProfile from '@/pages/profile/MyProfile';
+import MyBookings from '@/pages/bookings/MyBookings';
+import CreateTutorProfile from '@/pages/tutor/CreateTutorProfile';
+import TutorProfile from '@/pages/tutor/TutorProfile';
+import TutorListing from '@/pages/tutor/TutorListing';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
@@ -19,6 +25,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/tutors" element={<TutorListing />} />
+        <Route path="/tutors/:id" element={<TutorProfile />} />
         
         {/* Protected Routes */}
         <Route
@@ -26,6 +34,38 @@ function App() {
           element={
             <ProtectedRoute>
               <LearnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <MyProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookings"
+          element={
+            <ProtectedRoute>
+              <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor/create"
+          element={
+            <ProtectedRoute>
+              <CreateTutorProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor/dashboard"
+          element={
+            <ProtectedRoute>
+              <TutorDashboard />
             </ProtectedRoute>
           }
         />
