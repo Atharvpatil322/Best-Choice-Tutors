@@ -12,6 +12,8 @@ import MyBookings from '@/pages/bookings/MyBookings';
 import CreateTutorProfile from '@/pages/tutor/CreateTutorProfile';
 import TutorProfile from '@/pages/tutor/TutorProfile';
 import TutorListing from '@/pages/tutor/TutorListing';
+import BrowseTutors from '@/pages/tutor/BrowseTutors';
+import ManageAvailability from '@/pages/tutor/ManageAvailability';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
@@ -26,6 +28,7 @@ function App() {
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/tutors" element={<TutorListing />} />
+        <Route path="/browse-tutors" element={<BrowseTutors />} />
         <Route path="/tutors/:id" element={<TutorProfile />} />
         
         {/* Protected Routes */}
@@ -66,6 +69,14 @@ function App() {
           element={
             <ProtectedRoute>
               <TutorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor/availability"
+          element={
+            <ProtectedRoute>
+              <ManageAvailability />
             </ProtectedRoute>
           }
         />

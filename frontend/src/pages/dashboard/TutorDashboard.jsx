@@ -1,6 +1,7 @@
 /**
  * Tutor Dashboard Placeholder
  * Phase 3.5: Simple placeholder page for tutors
+ * Phase 4: Added navigation to Manage Availability
  * 
  * Accessible after tutor profile creation
  */
@@ -28,19 +29,35 @@ function TutorDashboard() {
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome!</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Tutor dashboard coming soon.
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Full dashboard functionality will be implemented in future phases.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome!</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Tutor dashboard coming soon.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Full dashboard functionality will be implemented in future phases.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Button
+                onClick={() => navigate('/tutor/availability')}
+                className="w-full"
+              >
+                Manage Availability
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

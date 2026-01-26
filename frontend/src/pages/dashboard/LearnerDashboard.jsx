@@ -45,7 +45,7 @@ function LearnerDashboard() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <Button
-                onClick={() => navigate('/tutors')}
+                onClick={() => navigate('/browse-tutors')}
                 className="w-full"
               >
                 Browse Tutors

@@ -1,15 +1,23 @@
 /**
- * Tutor Profile View Page
- * Phase 3.3: Public tutor profile view
+ * Tutor Profile View Page (Learner)
+ * UI task: Tutor Profile View for learners
  * 
- * Displays tutor profile information (read-only)
+ * Features:
+ * - Fetches tutor details using GET /api/tutors/:id
+ * - Displays: profile photo, name, bio, subjects, education, experience, hourly rate, mode, location
+ * - Fetches availability from GET /api/tutors/:id/availability
+ * - Fetches slots from GET /api/tutors/:id/slots
+ * - Displays upcoming slots (date, startTime, endTime)
+ * - Public, read-only page
+ * - No booking button logic yet
+ * - No availability editing
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getTutorById } from '@/services/tutorService';
+import { getTutorById, getTutorAvailability, getTutorSlots } from '@/services/tutorService';
 
 function TutorProfile() {
   const { id } = useParams();
@@ -17,6 +25,9 @@ function TutorProfile() {
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [availability, setAvailability] = useState(null);
 
   useEffect(() => {
     const fetchTutor = async () => {
@@ -37,6 +48,60 @@ function TutorProfile() {
     }
   }, [id]);
 
+  useEffect(() => {
+    const fetchAvailabilityAndSlots = async () => {
+      if (!id) return;
+
+      try {
+        setSlotsLoading(true);
+
+        // Fetch availability (optional, for reference)
+        try {
+          const availabilityData = await getTutorAvailability(id);
+          setAvailability(availabilityData.availability);
+        } catch (err) {
+          // Availability might not exist, that's okay
+          console.log('Availability not found:', err.message);
+        }
+
+        // Fetch slots for the next 4 weeks
+        const today = new Date();
+        const endDate = new Date();
+        endDate.setDate(today.getDate() + 28); // 4 weeks ahead
+
+        const startDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const endDateStr = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        const slotsData = await getTutorSlots(id, startDateStr, endDateStr);
+        
+        // Filter out past slots and sort by date and time
+        const now = new Date();
+        const upcomingSlots = (slotsData.slots || [])
+          .filter((slot) => {
+            const slotDateTime = new Date(`${slot.date}T${slot.startTime}`);
+            return slotDateTime > now;
+          })
+          .sort((a, b) => {
+            const dateA = new Date(`${a.date}T${a.startTime}`);
+            const dateB = new Date(`${b.date}T${b.startTime}`);
+            return dateA - dateB;
+          });
+
+        setSlots(upcomingSlots);
+      } catch (err) {
+        console.error('Failed to load availability/slots:', err);
+        // Don't show error to user, just set empty slots
+        setSlots([]);
+      } finally {
+        setSlotsLoading(false);
+      }
+    };
+
+    if (id && !loading) {
+      fetchAvailabilityAndSlots();
+    }
+  }, [id, loading]);
+
   const handleBack = () => {
     navigate(-1); // Go back to previous page
   };
@@ -45,6 +110,26 @@ function TutorProfile() {
   const Placeholder = ({ text }) => (
     <span className="text-muted-foreground italic">{text || 'Not provided'}</span>
   );
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  // Format time for display
+  const formatTime = (timeStr) => {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
 
   if (loading) {
     return (
@@ -221,6 +306,47 @@ function TutorProfile() {
                     >
                       {subject}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Availability & Slots */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Available Time Slots</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {slotsLoading ? (
+              <p className="text-center text-muted-foreground py-4">
+                Loading available slots...
+              </p>
+            ) : slots.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  No available time slots at the moment.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Showing upcoming available time slots for the next 4 weeks
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {slots.map((slot, index) => (
+                    <div
+                      key={index}
+                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="font-medium text-sm text-gray-900">
+                        {formatDate(slot.date)}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -120,3 +120,54 @@ export const getAllTutors = async () => {
 
   return data;
 };
+
+/**
+ * Get public availability for a tutor (public)
+ * UI task: Fetch availability rules for tutor profile view
+ * @param {string} tutorId - Tutor ID
+ * @returns {Promise<Object>} { availability: { timezone, weeklyRules, exceptions } }
+ */
+export const getTutorAvailability = async (tutorId) => {
+  const response = await fetch(`${API_BASE_URL}/tutors/${tutorId}/availability`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch tutor availability');
+  }
+
+  return data;
+};
+
+/**
+ * Get time slots for a tutor (public)
+ * UI task: Fetch generated slots for tutor profile view
+ * @param {string} tutorId - Tutor ID
+ * @param {string} startDate - Start date in YYYY-MM-DD format
+ * @param {string} endDate - End date in YYYY-MM-DD format
+ * @returns {Promise<Object>} { slots: [{ date, startTime, endTime }] }
+ */
+export const getTutorSlots = async (tutorId, startDate, endDate) => {
+  const response = await fetch(
+    `${API_BASE_URL}/tutors/${tutorId}/slots?startDate=${startDate}&endDate=${endDate}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch tutor slots');
+  }
+
+  return data;
+};
