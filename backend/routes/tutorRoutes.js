@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { authenticate } from '../middlewares/auth.js';
 import { upload } from '../middlewares/upload.js';
 import { createTutor, listTutors, getTutorById } from '../controllers/tutorController.js';
+import { getPublicAvailability, generateSlots } from '../controllers/availabilityController.js';
 
 const router = express.Router();
 
@@ -77,6 +78,12 @@ router.post(
 
 // GET /api/tutors - List all tutors (public)
 router.get('/', listTutors);
+
+// GET /api/tutors/:id/slots - Generate time slots for a tutor (public, read-only)
+router.get('/:id/slots', generateSlots);
+
+// GET /api/tutors/:id/availability - Get public availability for a tutor (public)
+router.get('/:id/availability', getPublicAvailability);
 
 // GET /api/tutors/:id - Get tutor by ID (public)
 router.get('/:id', getTutorById);

@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import learnerProfileRoutes from './routes/learnerProfileRoutes.js';
 import learnerBookingsRoutes from './routes/learnerBookingsRoutes.js';
 import tutorRoutes from './routes/tutorRoutes.js';
+import availabilityRoutes from './routes/availabilityRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
 // Load environment variables
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/learner', learnerProfileRoutes);
 app.use('/api/learner', learnerBookingsRoutes);
 app.use('/api/tutors', tutorRoutes);
+app.use('/api/tutors', availabilityRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
