@@ -200,9 +200,12 @@ export const getCurrentUser = () => {
 /**
  * Logout user
  * Removes token from localStorage
+ * Dispatches custom event for socket disconnection
  */
 export const logout = () => {
   removeToken();
+  // Dispatch custom event for socket context to handle disconnection
+  window.dispatchEvent(new Event('auth:logout'));
 };
 
 /**

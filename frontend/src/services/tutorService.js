@@ -4,9 +4,18 @@
  * Phase 3.2: Tutor profile creation
  * Phase 3.3: Tutor profile view
  * Phase 3.4: Tutor listing
+ * With basic in-memory caching
  */
 
 import { getAuthToken } from './authService.js';
+import {
+  getCache,
+  setCache,
+  getTutorListCacheKey,
+  getTutorProfileCacheKey,
+  getTutorAvailabilityCacheKey,
+  getTutorSlotsCacheKey,
+} from '@/utils/cache.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -83,6 +92,13 @@ export const createTutorProfile = async (tutorData) => {
  * @returns {Promise<Object>} Tutor profile data
  */
 export const getTutorById = async (tutorId) => {
+  // Check cache first
+  const cacheKey = getTutorProfileCacheKey(tutorId);
+  const cached = getCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const response = await fetch(`${API_BASE_URL}/tutors/${tutorId}`, {
     method: 'GET',
     headers: {
@@ -96,6 +112,9 @@ export const getTutorById = async (tutorId) => {
     throw new Error(data.message || 'Failed to fetch tutor profile');
   }
 
+  // Cache the response
+  setCache(cacheKey, data);
+
   return data;
 };
 
@@ -105,6 +124,13 @@ export const getTutorById = async (tutorId) => {
  * @returns {Promise<Object>} { tutors: [], count: number }
  */
 export const getAllTutors = async () => {
+  // Check cache first
+  const cacheKey = getTutorListCacheKey();
+  const cached = getCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const response = await fetch(`${API_BASE_URL}/tutors`, {
     method: 'GET',
     headers: {
@@ -118,6 +144,9 @@ export const getAllTutors = async () => {
     throw new Error(data.message || 'Failed to fetch tutors');
   }
 
+  // Cache the response
+  setCache(cacheKey, data);
+
   return data;
 };
 
@@ -128,6 +157,13 @@ export const getAllTutors = async () => {
  * @returns {Promise<Object>} { availability: { timezone, weeklyRules, exceptions } }
  */
 export const getTutorAvailability = async (tutorId) => {
+  // Check cache first
+  const cacheKey = getTutorAvailabilityCacheKey(tutorId);
+  const cached = getCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const response = await fetch(`${API_BASE_URL}/tutors/${tutorId}/availability`, {
     method: 'GET',
     headers: {
@@ -141,6 +177,9 @@ export const getTutorAvailability = async (tutorId) => {
     throw new Error(data.message || 'Failed to fetch tutor availability');
   }
 
+  // Cache the response
+  setCache(cacheKey, data);
+
   return data;
 };
 
@@ -153,6 +192,13 @@ export const getTutorAvailability = async (tutorId) => {
  * @returns {Promise<Object>} { slots: [{ date, startTime, endTime }] }
  */
 export const getTutorSlots = async (tutorId, startDate, endDate) => {
+  // Check cache first
+  const cacheKey = getTutorSlotsCacheKey(tutorId, startDate, endDate);
+  const cached = getCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const response = await fetch(
     `${API_BASE_URL}/tutors/${tutorId}/slots?startDate=${startDate}&endDate=${endDate}`,
     {
@@ -168,6 +214,9 @@ export const getTutorSlots = async (tutorId, startDate, endDate) => {
   if (!response.ok) {
     throw new Error(data.message || 'Failed to fetch tutor slots');
   }
+
+  // Cache the response
+  setCache(cacheKey, data);
 
   return data;
 };

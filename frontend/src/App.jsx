@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { SocketProvider } from '@/contexts/SocketContext';
 import LandingPage from '@/components/landing/LandingPage';
 import Login from '@/pages/auth/Login';
 import Register from '@/pages/auth/Register';
@@ -18,7 +19,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
   return (
-    <BrowserRouter>
+    <SocketProvider>
+      <BrowserRouter>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -81,7 +83,8 @@ function App() {
           }
         />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </SocketProvider>
   );
 }
 
