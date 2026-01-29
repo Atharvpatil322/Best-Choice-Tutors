@@ -29,11 +29,10 @@ const getSocketUrl = () => {
 
 /**
  * Check if backend socket server is available
- * Since backend socket server is not yet implemented, always return false
+ * Socket server is implemented for booking-scoped chat.
  */
 const isSocketServerAvailable = () => {
-  // Backend socket server not implemented yet - prevent connection attempts
-  return false;
+  return true;
 };
 
 export const SocketProvider = ({ children }) => {
@@ -181,6 +180,8 @@ export const SocketProvider = ({ children }) => {
   const value = useMemo(() => ({
     socket: socketRef.current,
     isConnected,
+    connect,
+    disconnect,
   }), [isConnected]);
 
   return (

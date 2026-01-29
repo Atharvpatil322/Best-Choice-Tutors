@@ -10,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 
 /**
  * Get authenticated learner's profile
- * @returns {Promise<Object>} { name, email, profilePhoto, phoneNumber, learningPreferences }
+ * @returns {Promise<Object>} { name, email, profilePhoto, phone: { countryCode, number }, learningPreferences }
  */
 export const getLearnerProfile = async () => {
   const token = getAuthToken();
@@ -39,7 +39,7 @@ export const getLearnerProfile = async () => {
 /**
  * Update authenticated learner's profile
  * FR-4.1.1, FR-4.1.2, UC-4.1, UC-4.2: Update basic details and learning preferences
- * @param {Object} profileData - { name?, phoneNumber?, profilePhoto? (File), gradeLevel?, subjectsOfInterest? (array) }
+ * @param {Object} profileData - { name?, phone?: { countryCode?, number? }, profilePhoto? (File), gradeLevel?, subjectsOfInterest? (array) }
  * @returns {Promise<Object>} Updated profile data
  */
 export const updateLearnerProfile = async (profileData) => {
@@ -55,8 +55,11 @@ export const updateLearnerProfile = async (profileData) => {
     formData.append('name', profileData.name);
   }
   
-  if (profileData.phoneNumber !== undefined) {
-    formData.append('phoneNumber', profileData.phoneNumber || '');
+  if (profileData.phone !== undefined && profileData.phone && typeof profileData.phone === 'object') {
+    formData.append('phone', JSON.stringify({
+      countryCode: profileData.phone.countryCode ?? '',
+      number: profileData.phone.number ?? '',
+    }));
   }
   
   if (profileData.profilePhoto instanceof File) {
@@ -69,8 +72,23 @@ export const updateLearnerProfile = async (profileData) => {
   }
 
   if (profileData.subjectsOfInterest !== undefined) {
-    // Send as JSON string for FormData (backend will parse it)
     formData.append('subjectsOfInterest', JSON.stringify(profileData.subjectsOfInterest || []));
+  }
+
+  if (profileData.dob !== undefined && profileData.dob !== null && profileData.dob !== '') {
+    formData.append('dob', profileData.dob);
+  }
+  if (profileData.preferredLanguage !== undefined) {
+    formData.append('preferredLanguage', profileData.preferredLanguage || '');
+  }
+  if (profileData.address !== undefined) {
+    formData.append('address', profileData.address || '');
+  }
+  if (profileData.instituteName !== undefined) {
+    formData.append('instituteName', profileData.instituteName || '');
+  }
+  if (profileData.learningGoal !== undefined) {
+    formData.append('learningGoal', profileData.learningGoal || '');
   }
 
   const response = await fetch(`${API_BASE_URL}/learner/profile`, {

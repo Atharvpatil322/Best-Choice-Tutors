@@ -79,10 +79,12 @@ function TutorCard({ tutor }) {
           </div>
         )}
 
-        {/* Education & Experience */}
+        {/* Qualifications & Experience */}
         <div className="space-y-1 text-sm text-muted-foreground">
-          {tutor.education && (
-            <p className="truncate">{tutor.education}</p>
+          {tutor.qualifications && tutor.qualifications.length > 0 && (
+            <p className="truncate">
+              {tutor.qualifications.map((q) => [q.title, q.institution, q.year].filter(Boolean).join(', ')).join('; ')}
+            </p>
           )}
           {tutor.experienceYears !== undefined && tutor.experienceYears !== null && (
             <p>

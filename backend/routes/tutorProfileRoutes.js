@@ -9,6 +9,23 @@ import {
 
 const router = express.Router();
 
+// Parse qualifications from FormData (sent as JSON string) so validation sees an array
+const parseQualificationsFromBody = (req, res, next) => {
+  if (req.body.qualifications !== undefined) {
+    if (typeof req.body.qualifications === 'string' && req.body.qualifications.trim()) {
+      try {
+        req.body.qualifications = JSON.parse(req.body.qualifications);
+      } catch {
+        req.body.qualifications = [];
+      }
+    }
+    if (!Array.isArray(req.body.qualifications)) {
+      req.body.qualifications = [];
+    }
+  }
+  next();
+};
+
 // Minimal validation for updating tutor profile via /api/tutor/profile
 const updateTutorProfileValidation = [
   body('bio')
@@ -17,12 +34,6 @@ const updateTutorProfileValidation = [
     .trim()
     .isLength({ max: 5000 })
     .withMessage('Bio must be a string with a reasonable length'),
-  body('phoneNumber')
-    .optional()
-    .isString()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('Phone number must be a string with a reasonable length'),
   body('availabilityTimezone')
     .optional()
     .isString()
@@ -36,6 +47,29 @@ const updateTutorProfileValidation = [
     .optional()
     .isArray()
     .withMessage('Availability exceptions must be an array'),
+  body('experienceYears')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Experience years must be a non-negative integer'),
+  body('qualifications')
+    .optional()
+    .isArray()
+    .withMessage('Qualifications must be an array'),
+  body('qualifications.*.title')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Qualification title must be a string'),
+  body('qualifications.*.institution')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Qualification institution must be a string'),
+  body('qualifications.*.year')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Qualification year must be a string'),
 ];
 
 // GET /api/tutor/profile - Get authenticated tutor's profile (tutor only)
@@ -50,6 +84,7 @@ router.put(
   '/profile',
   authenticate,
   upload.single('profilePhoto'),
+  parseQualificationsFromBody,
   updateTutorProfileValidation,
   updateMyTutorProfile
 );

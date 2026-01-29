@@ -32,19 +32,21 @@ const tutorSchema = new mongoose.Schema(
     subjects: {
       type: [String],
       required: [true, 'At least one subject is required'],
-      // TODO: CLARIFICATION REQUIRED - Should subjects be from a predefined list or free text?
-    },
-    education: {
-      type: String,
-      required: [true, 'Education is required'],
-      trim: true,
-      // TODO: CLARIFICATION REQUIRED - Should education be structured (degree, institution) or free text?
     },
     experienceYears: {
       type: Number,
       required: [true, 'Years of experience is required'],
       min: [0, 'Experience years cannot be negative'],
-      // TODO: CLARIFICATION REQUIRED - Should there be a maximum value?
+    },
+    qualifications: {
+      type: [
+        {
+          title: { type: String, trim: true, default: '' },
+          institution: { type: String, trim: true, default: '' },
+          year: { type: String, trim: true, default: '' },
+        },
+      ],
+      default: [],
     },
     hourlyRate: {
       type: Number,

@@ -22,21 +22,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 /**
  * Create tutor profile
  * Phase 3.2: Submit tutor profile creation
- * @param {Object} tutorData - { fullName, bio, subjects, education, experienceYears, hourlyRate, mode, location?, profilePhoto? (File) }
+ * @param {Object} tutorData - { fullName, bio, subjects, qualifications: [{ title, institution, year }], experienceYears, hourlyRate, mode, location?, profilePhoto? (File) }
  * @returns {Promise<Object>} Created tutor profile data
  */
 export const createTutorProfile = async (tutorData) => {
   const token = getAuthToken();
-  
+
   if (!token) {
     throw new Error('Authentication required');
   }
 
   const formData = new FormData();
-  
+
   formData.append('fullName', tutorData.fullName);
   formData.append('bio', tutorData.bio);
-  
+
   // Subjects as array - send each subject individually
   if (Array.isArray(tutorData.subjects) && tutorData.subjects.length > 0) {
     tutorData.subjects.forEach((subject) => {
@@ -45,9 +45,10 @@ export const createTutorProfile = async (tutorData) => {
   } else if (tutorData.subjects) {
     formData.append('subjects', tutorData.subjects);
   }
-  
-  formData.append('education', tutorData.education);
-  formData.append('experienceYears', tutorData.experienceYears.toString());
+
+  formData.append('qualifications', JSON.stringify(tutorData.qualifications || []));
+  const expYears = tutorData.experienceYears;
+  formData.append('experienceYears', Number.isInteger(expYears) && expYears >= 0 ? String(expYears) : '0');
   formData.append('hourlyRate', tutorData.hourlyRate.toString());
   formData.append('mode', tutorData.mode);
   

@@ -33,17 +33,23 @@ function MyProfile() {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    phoneNumber: '',
-    profilePhoto: null, // File object
-    profilePhotoPreview: null, // URL for preview
+    phone: { countryCode: '', number: '' },
+    profilePhoto: null,
+    profilePhotoPreview: null,
     gradeLevel: '',
-    subjectsOfInterest: [], // Array of selected subjects
+    subjectsOfInterest: [],
+    dob: '',
+    preferredLanguage: '',
+    address: '',
+    instituteName: '',
+    learningGoal: '',
   });
 
   // Available grade levels (UK-based)
   // TODO: CLARIFICATION REQUIRED - Should grade levels be fetched from backend or config?
+  const GRADE_NONE = '__none__'; // Radix Select disallows empty string for SelectItem value
   const gradeLevels = [
-    { value: '', label: 'Select grade level...' },
+    { value: GRADE_NONE, label: 'Select grade level...' },
     { value: 'Year 1', label: 'Year 1' },
     { value: 'Year 2', label: 'Year 2' },
     { value: 'Year 3', label: 'Year 3' },
@@ -103,14 +109,24 @@ function MyProfile() {
         setLoading(true);
         const data = await getLearnerProfile();
         setProfile(data);
-        // Initialize form data
+        const phone = data.phone || {};
+        const dobVal = data.dob;
+        const dobStr = !dobVal ? '' : (typeof dobVal === 'string' ? dobVal.slice(0, 10) : new Date(dobVal).toISOString().slice(0, 10));
         setFormData({
           name: data.name || '',
-          phoneNumber: data.phoneNumber || '',
+          phone: {
+            countryCode: phone.countryCode || '',
+            number: (phone.number || '').replace(/\D/g, ''),
+          },
           profilePhoto: null,
           profilePhotoPreview: data.profilePhoto || null,
           gradeLevel: data.learningPreferences?.gradeLevel || '',
           subjectsOfInterest: data.learningPreferences?.subjectsOfInterest || [],
+          dob: dobStr,
+          preferredLanguage: data.preferredLanguage || '',
+          address: data.address || '',
+          instituteName: data.learningPreferences?.instituteName || '',
+          learningGoal: data.learningPreferences?.learningGoal || '',
         });
         setError(null);
       } catch (err) {
@@ -145,14 +161,24 @@ function MyProfile() {
 
   const handleCancel = () => {
     setIsEditing(false);
-    // Reset form data to current profile
+    const phone = profile?.phone || {};
+    const dobVal = profile?.dob;
+    const dobStr = !dobVal ? '' : (typeof dobVal === 'string' ? dobVal.slice(0, 10) : new Date(dobVal).toISOString().slice(0, 10));
     setFormData({
       name: profile?.name || '',
-      phoneNumber: profile?.phoneNumber || '',
+      phone: {
+        countryCode: phone.countryCode || '',
+        number: (phone.number || '').replace(/\D/g, ''),
+      },
       profilePhoto: null,
       profilePhotoPreview: profile?.profilePhoto || null,
       gradeLevel: profile?.learningPreferences?.gradeLevel || '',
       subjectsOfInterest: profile?.learningPreferences?.subjectsOfInterest || [],
+      dob: dobStr,
+      preferredLanguage: profile?.preferredLanguage || '',
+      address: profile?.address || '',
+      instituteName: profile?.learningPreferences?.instituteName || '',
+      learningGoal: profile?.learningPreferences?.learningGoal || '',
     });
     setValidationErrors({});
     setSuccessMessage(null);
@@ -160,16 +186,43 @@ function MyProfile() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'phoneNumber') {
+      setFormData((prev) => ({
+        ...prev,
+        phone: { ...prev.phone, number: value.replace(/\D/g, '') },
+      }));
+      if (validationErrors.phoneNumber) {
+        setValidationErrors((prev) => {
+          const next = { ...prev };
+          delete next.phoneNumber;
+          return next;
+        });
+      }
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name];
         return newErrors;
+      });
+    }
+  };
+
+  const handlePhoneCountryCodeChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      phone: { ...prev.phone, countryCode: value === 'none' ? '' : value },
+    }));
+    if (validationErrors.phoneNumber) {
+      setValidationErrors((prev) => {
+        const next = { ...prev };
+        delete next.phoneNumber;
+        return next;
       });
     }
   };
@@ -215,7 +268,7 @@ function MyProfile() {
   const handleGradeLevelChange = (value) => {
     setFormData((prev) => ({
       ...prev,
-      gradeLevel: value,
+      gradeLevel: value === GRADE_NONE ? '' : value,
     }));
     // Clear validation error
     if (validationErrors.gradeLevel) {
@@ -260,9 +313,17 @@ function MyProfile() {
     try {
       const updateData = {
         name: formData.name.trim(),
-        phoneNumber: formData.phoneNumber.trim() || null,
-        gradeLevel: formData.gradeLevel || null, // FR-4.1.2, UC-4.2
-        subjectsOfInterest: formData.subjectsOfInterest || [], // FR-4.1.2, UC-4.2
+        phone: {
+          countryCode: formData.phone.countryCode?.trim() || null,
+          number: formData.phone.number?.trim() || null,
+        },
+        gradeLevel: formData.gradeLevel || null,
+        subjectsOfInterest: formData.subjectsOfInterest || [],
+        dob: formData.dob?.trim() || null,
+        preferredLanguage: formData.preferredLanguage?.trim() || null,
+        address: formData.address?.trim() || null,
+        instituteName: formData.instituteName?.trim() || null,
+        learningGoal: formData.learningGoal?.trim() || null,
       };
 
       if (formData.profilePhoto) {
@@ -271,18 +332,23 @@ function MyProfile() {
 
       const updatedProfile = await updateLearnerProfile(updateData);
 
-      // Update profile state
       setProfile(updatedProfile);
       setIsEditing(false);
       setSuccessMessage('Profile updated successfully!');
 
-      // Reset form photo file and update learning preferences (keep preview from updated profile)
+      const dobVal = updatedProfile.dob;
+      const dobStr = !dobVal ? '' : (typeof dobVal === 'string' ? dobVal.slice(0, 10) : new Date(dobVal).toISOString().slice(0, 10));
       setFormData((prev) => ({
         ...prev,
         profilePhoto: null,
         profilePhotoPreview: updatedProfile.profilePhoto || null,
         gradeLevel: updatedProfile.learningPreferences?.gradeLevel || '',
         subjectsOfInterest: updatedProfile.learningPreferences?.subjectsOfInterest || [],
+        dob: dobStr,
+        preferredLanguage: updatedProfile.preferredLanguage || '',
+        address: updatedProfile.address || '',
+        instituteName: updatedProfile.learningPreferences?.instituteName || '',
+        learningGoal: updatedProfile.learningPreferences?.learningGoal || '',
       }));
     } catch (err) {
       if (err.errors) {
@@ -301,6 +367,15 @@ function MyProfile() {
   const Placeholder = ({ text }) => (
     <span className="text-muted-foreground italic">{text || 'Not provided'}</span>
   );
+  const EmptyField = () => (
+    <span className="text-muted-foreground italic">Not added yet. Update in Edit Profile.</span>
+  );
+  const formatDob = (dateVal) => {
+    if (!dateVal) return null;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
 
   if (loading) {
     return (
@@ -467,18 +542,34 @@ function MyProfile() {
                   </p>
                 </div>
 
-                {/* Phone Number Field */}
+                {/* Phone (countryCode + number) */}
                 <div>
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    type="tel"
-                    value={formData.phoneNumber}
-                    onChange={handleInputChange}
-                    placeholder="e.g., +44 20 1234 5678"
-                    className="mt-1"
-                  />
+                  <Label>Phone Number</Label>
+                  <div className="mt-1 flex gap-2">
+                    <Select
+                      value={formData.phone.countryCode || 'none'}
+                      onValueChange={handlePhoneCountryCodeChange}
+                    >
+                      <SelectTrigger className="w-[120px]" id="phoneCountryCode">
+                        <SelectValue placeholder="Code" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        <SelectItem value="+91">+91 (India)</SelectItem>
+                        <SelectItem value="+44">+44 (UK)</SelectItem>
+                        <SelectItem value="+1">+1 (US/Canada)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      value={formData.phone.number}
+                      onChange={handleInputChange}
+                      placeholder="Phone number"
+                      className="flex-1"
+                    />
+                  </div>
                   {validationErrors.phoneNumber && (
                     <p className="mt-1 text-sm text-red-600">
                       {validationErrors.phoneNumber}
@@ -487,7 +578,50 @@ function MyProfile() {
                   <p className="mt-1 text-xs text-muted-foreground">Optional</p>
                 </div>
 
-                {/* Learning Preferences Section (FR-4.1.2, UC-4.2) */}
+                {/* Personal Data */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold">Personal Data</h3>
+                  <p className="text-sm text-muted-foreground">Optional.</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="dob">Date of birth</Label>
+                      <Input
+                        id="dob"
+                        name="dob"
+                        type="date"
+                        value={formData.dob}
+                        onChange={handleInputChange}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="preferredLanguage">Preferred language</Label>
+                      <Input
+                        id="preferredLanguage"
+                        name="preferredLanguage"
+                        type="text"
+                        value={formData.preferredLanguage}
+                        onChange={handleInputChange}
+                        placeholder="e.g. English"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="address">Address</Label>
+                      <textarea
+                        id="address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        placeholder="Optional"
+                        rows={3}
+                        className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Learning Preferences & Academic */}
                 <div className="space-y-4 border-t pt-6">
                   <h3 className="text-lg font-semibold">Learning Preferences</h3>
                   <p className="text-sm text-muted-foreground">
@@ -498,7 +632,7 @@ function MyProfile() {
                   <div>
                     <Label htmlFor="gradeLevel">Grade Level</Label>
                     <Select
-                      value={formData.gradeLevel}
+                      value={formData.gradeLevel || GRADE_NONE}
                       onValueChange={handleGradeLevelChange}
                     >
                       <SelectTrigger className="mt-1" id="gradeLevel">
@@ -550,6 +684,35 @@ function MyProfile() {
                     <p className="mt-2 text-xs text-muted-foreground">
                       Optional. Select all that apply. You can save with no subjects selected.
                     </p>
+                  </div>
+
+                  {/* Academic: Institute Name, Learning Goal */}
+                  <div className="space-y-4 pt-4">
+                    <h3 className="text-base font-semibold">Academic Information</h3>
+                    <div>
+                      <Label htmlFor="instituteName">Institute name</Label>
+                      <Input
+                        id="instituteName"
+                        name="instituteName"
+                        type="text"
+                        value={formData.instituteName}
+                        onChange={handleInputChange}
+                        placeholder="Optional"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="learningGoal">Learning goal</Label>
+                      <textarea
+                        id="learningGoal"
+                        name="learningGoal"
+                        value={formData.learningGoal}
+                        onChange={handleInputChange}
+                        placeholder="Optional"
+                        rows={3}
+                        className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -624,8 +787,8 @@ function MyProfile() {
                         Phone Number
                       </label>
                       <p className="mt-1">
-                        {profile?.phoneNumber ? (
-                          profile.phoneNumber
+                        {profile?.phone && (profile.phone.countryCode || profile.phone.number) ? (
+                          [profile.phone.countryCode, profile.phone.number].filter(Boolean).join(' ')
                         ) : (
                           <Placeholder />
                         )}
@@ -634,7 +797,78 @@ function MyProfile() {
                   </div>
                 </div>
 
-                {/* Learning Preferences */}
+                {/* Personal Data */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold">Personal Data</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Date of birth</label>
+                      <p className="mt-1">
+                        {formatDob(profile?.dob) ? formatDob(profile.dob) : <EmptyField />}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Preferred language</label>
+                      <p className="mt-1">
+                        {profile?.preferredLanguage?.trim() ? profile.preferredLanguage : <EmptyField />}
+                      </p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground">Address</label>
+                      <p className="mt-1">
+                        {profile?.address?.trim() ? profile.address : <EmptyField />}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Academic Information */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold">Academic Information</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Institute name</label>
+                      <p className="mt-1">
+                        {profile?.learningPreferences?.instituteName?.trim() ? (
+                          profile.learningPreferences.instituteName
+                        ) : (
+                          <EmptyField />
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Learning goal</label>
+                      <p className="mt-1">
+                        {profile?.learningPreferences?.learningGoal?.trim() ? (
+                          profile.learningPreferences.learningGoal
+                        ) : (
+                          <EmptyField />
+                        )}
+                      </p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground">Subjects of interest</label>
+                      <p className="mt-1">
+                        {profile?.learningPreferences?.subjectsOfInterest?.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {profile.learningPreferences.subjectsOfInterest.map((subject, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-0.5 text-sm font-medium text-blue-700"
+                              >
+                                {subject}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <EmptyField />
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Learning Preferences (existing) */}
                 <div className="space-y-4 border-t pt-6">
                   <h3 className="text-lg font-semibold">Learning Preferences</h3>
                   {profile?.learningPreferences ? (

@@ -629,8 +629,8 @@ function Profile() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Phone Number</label>
                   <p className="mt-1">
-                    {profile?.phoneNumber ? (
-                      profile.phoneNumber
+                    {profile?.phone && (profile.phone.countryCode || profile.phone.number) ? (
+                      [profile.phone.countryCode, profile.phone.number].filter(Boolean).join(' ')
                     ) : (
                       <Placeholder />
                     )}

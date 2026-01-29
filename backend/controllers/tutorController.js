@@ -5,6 +5,35 @@ import { validationResult } from 'express-validator';
 import { uploadImage } from '../services/cloudinaryService.js';
 
 /**
+ * Return qualifications for API response. Backward compatibility: if tutor has experienceYears
+ * but no qualifications, map to a single qualification entry.
+ * @param {Object} tutor - Tutor document (plain or mongoose)
+ * @returns {Array<{ title: string, institution: string, year: string }>}
+ */
+function getQualificationsForResponse(tutor) {
+  const quals = tutor.qualifications;
+  if (Array.isArray(quals) && quals.length > 0) {
+    return quals.map((q) => ({
+      title: q.title != null ? String(q.title).trim() : '',
+      institution: q.institution != null ? String(q.institution).trim() : '',
+      year: q.year != null ? String(q.year).trim() : '',
+    }));
+  }
+  const exp = tutor.experienceYears;
+  if (exp != null && Number(exp) >= 0) {
+    const years = Number(exp);
+    return [
+      {
+        title: `${years} ${years === 1 ? 'year' : 'years'} teaching experience`,
+        institution: '',
+        year: String(years),
+      },
+    ];
+  }
+  return [];
+}
+
+/**
  * Create tutor profile
  * Phase 3.1: Create tutor profile (auth required)
  * 
@@ -29,15 +58,33 @@ export const createTutor = async (req, res, next) => {
       });
     }
 
-    // Extract tutor data from request body
-    const { fullName, bio, subjects, education, experienceYears, hourlyRate, mode, location } = req.body;
-    
+    // Extract tutor data from request body (FormData may send qualifications as JSON string).
+    let { fullName, bio, subjects, qualifications, experienceYears, hourlyRate, mode, location } = req.body;
+    if (typeof qualifications === 'string' && qualifications.trim()) {
+      try {
+        qualifications = JSON.parse(qualifications);
+      } catch {
+        qualifications = [];
+      }
+    }
+
     // Ensure subjects is an array
-    const subjectsArray = Array.isArray(subjects) 
-      ? subjects.filter(s => s && s.trim())
-      : subjects 
-        ? [subjects].filter(s => s && s.trim())
+    const subjectsArray = Array.isArray(subjects)
+      ? subjects.filter((s) => s && s.trim())
+      : subjects
+        ? [subjects].filter((s) => s && s.trim())
         : [];
+
+    // Normalize qualifications: array of { title, institution, year }
+    const qualificationsArray = Array.isArray(qualifications)
+      ? qualifications
+          .filter((q) => q && (q.title != null || q.institution != null || q.year != null))
+          .map((q) => ({
+            title: q.title != null ? String(q.title).trim() : '',
+            institution: q.institution != null ? String(q.institution).trim() : '',
+            year: q.year != null ? String(q.year).trim() : '',
+          }))
+      : [];
 
     // Handle profile photo upload if provided
     let profilePhotoUrl = null;
@@ -46,9 +93,9 @@ export const createTutor = async (req, res, next) => {
         profilePhotoUrl = await uploadImage(req.file.buffer);
       } catch (error) {
         console.error('Error uploading profile photo:', error);
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: 'Failed to upload profile photo',
-          error: error.message 
+          error: error.message,
         });
       }
     }
@@ -59,8 +106,8 @@ export const createTutor = async (req, res, next) => {
       fullName,
       bio,
       subjects: subjectsArray,
-      education,
-      experienceYears: parseInt(experienceYears),
+      qualifications: qualificationsArray,
+      experienceYears: parseInt(experienceYears, 10),
       hourlyRate: parseFloat(hourlyRate),
       mode,
       location: location || null,
@@ -82,7 +129,7 @@ export const createTutor = async (req, res, next) => {
         fullName: tutor.fullName,
         bio: tutor.bio,
         subjects: tutor.subjects,
-        education: tutor.education,
+        qualifications: getQualificationsForResponse(tutor),
         experienceYears: tutor.experienceYears,
         hourlyRate: tutor.hourlyRate,
         mode: tutor.mode,
@@ -124,8 +171,8 @@ export const listTutors = async (req, res, next) => {
           fullName: tutor.fullName || null,
           bio: tutor.bio || null,
           subjects: Array.isArray(tutor.subjects) ? tutor.subjects : [],
-          education: tutor.education || null,
-          experienceYears: tutor.experienceYears || null,
+          qualifications: getQualificationsForResponse(tutor),
+          experienceYears: tutor.experienceYears ?? null,
           hourlyRate: tutor.hourlyRate || null,
           mode: tutor.mode || null,
           location: tutor.location || null,
@@ -168,8 +215,8 @@ export const getTutorById = async (req, res, next) => {
         fullName: tutor.fullName || null,
         bio: tutor.bio || null,
         subjects: Array.isArray(tutor.subjects) ? tutor.subjects : [],
-        education: tutor.education || null,
-        experienceYears: tutor.experienceYears || null,
+        qualifications: getQualificationsForResponse(tutor),
+        experienceYears: tutor.experienceYears ?? null,
         hourlyRate: tutor.hourlyRate || null,
         mode: tutor.mode || null,
         location: tutor.location || null,
@@ -212,27 +259,13 @@ export const getMyTutorProfile = async (req, res, next) => {
       return res.status(404).json({ message: 'Tutor profile not found' });
     }
 
-    // Normalize phone into structured object for response
-    let phone = null;
-    if (user.phone && (user.phone.countryCode || user.phone.number)) {
-      phone = {
-        countryCode: user.phone.countryCode || null,
-        number: user.phone.number || null,
-      };
-    } else if (user.phoneNumber) {
-      const legacy = (user.phoneNumber || '').trim();
-      if (legacy.startsWith('+') && legacy.length > 3) {
-        phone = {
-          countryCode: legacy.slice(0, 3),
-          number: legacy.slice(3),
-        };
-      } else {
-        phone = {
-          countryCode: null,
-          number: legacy,
-        };
-      }
-    }
+    const phone =
+      user.phone && (user.phone.countryCode || user.phone.number)
+        ? {
+            countryCode: user.phone.countryCode || null,
+            number: user.phone.number || null,
+          }
+        : null;
 
     res.json({
       tutor: {
@@ -241,8 +274,8 @@ export const getMyTutorProfile = async (req, res, next) => {
         fullName: tutor.fullName,
         bio: tutor.bio,
         subjects: tutor.subjects,
-        education: tutor.education,
-        experienceYears: tutor.experienceYears,
+        qualifications: getQualificationsForResponse(tutor),
+        experienceYears: tutor.experienceYears ?? null,
         hourlyRate: tutor.hourlyRate,
         mode: tutor.mode,
         location: tutor.location,
@@ -271,7 +304,7 @@ export const getMyTutorProfile = async (req, res, next) => {
  * Allows updating:
  * - bio (existing Tutor field)
  * - profilePhoto (via multipart/form-data)
- * - phoneNumber (on User model)
+ * - phone (on User model: countryCode, number)
  * - availability rules + exceptions (Availability model)
  *
  * Does NOT allow updating email.
@@ -301,7 +334,9 @@ export const updateMyTutorProfile = async (req, res, next) => {
 
     const {
       bio,
-      phone, // expected to be a JSON string when sent via multipart/form-data
+      qualifications: qualificationsPayload,
+      experienceYears: experienceYearsPayload,
+      phone,
       availabilityTimezone,
       availabilityWeeklyRules,
       availabilityExceptions,
@@ -310,6 +345,37 @@ export const updateMyTutorProfile = async (req, res, next) => {
     // Update tutor bio if provided
     if (bio !== undefined) {
       tutor.bio = bio.trim();
+    }
+
+    // Update experience years if provided
+    if (experienceYearsPayload !== undefined) {
+      const parsed = parseInt(experienceYearsPayload, 10);
+      if (Number.isInteger(parsed) && parsed >= 0) {
+        tutor.experienceYears = parsed;
+      }
+    }
+
+    // Update qualifications if provided
+    if (qualificationsPayload !== undefined) {
+      const parsed =
+        typeof qualificationsPayload === 'string'
+          ? (() => {
+              try {
+                return JSON.parse(qualificationsPayload);
+              } catch {
+                return [];
+              }
+            })()
+          : qualificationsPayload;
+      tutor.qualifications = Array.isArray(parsed)
+        ? parsed
+            .filter((q) => q && (q.title != null || q.institution != null || q.year != null))
+            .map((q) => ({
+              title: q.title != null ? String(q.title).trim() : '',
+              institution: q.institution != null ? String(q.institution).trim() : '',
+              year: q.year != null ? String(q.year).trim() : '',
+            }))
+        : [];
     }
 
     // Handle optional profile photo upload
@@ -354,24 +420,9 @@ export const updateMyTutorProfile = async (req, res, next) => {
           }
         }
 
-        // Persist structured phone
-        user.phone = {
-          countryCode,
-          number,
-        };
-
-        // Maintain legacy flat phoneNumber for backward compatibility
-        if (countryCode && number) {
-          user.phoneNumber = `${countryCode}${number}`;
-        } else if (!countryCode && number) {
-          user.phoneNumber = number;
-        } else {
-          user.phoneNumber = null;
-        }
+        user.phone = { countryCode, number };
       } else {
-        // Explicitly clear phone if an empty phone object was sent
         user.phone = { countryCode: null, number: null };
-        user.phoneNumber = null;
       }
 
       await user.save();
@@ -447,8 +498,8 @@ export const updateMyTutorProfile = async (req, res, next) => {
         fullName: tutor.fullName,
         bio: tutor.bio,
         subjects: tutor.subjects,
-        education: tutor.education,
-        experienceYears: tutor.experienceYears,
+        qualifications: getQualificationsForResponse(tutor),
+        experienceYears: tutor.experienceYears ?? null,
         hourlyRate: tutor.hourlyRate,
         mode: tutor.mode,
         location: tutor.location,

@@ -23,12 +23,12 @@ export const getProfile = async (req, res, next) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Return learner profile data
-    // Structure learningPreferences as an object if gradeLevel or subjectsOfInterest exist
-    const learningPreferences = (user.gradeLevel || (user.subjectsOfInterest && user.subjectsOfInterest.length > 0))
+    const learningPreferences = (user.gradeLevel || (user.subjectsOfInterest && user.subjectsOfInterest.length > 0) || user.instituteName || user.learningGoal)
       ? {
           gradeLevel: user.gradeLevel || null,
           subjectsOfInterest: user.subjectsOfInterest || [],
+          instituteName: user.instituteName ?? null,
+          learningGoal: user.learningGoal ?? null,
         }
       : null;
 
@@ -36,7 +36,10 @@ export const getProfile = async (req, res, next) => {
       name: user.name,
       email: user.email,
       profilePhoto: user.profilePhoto,
-      phoneNumber: user.phoneNumber,
+      phone: user.phone ? { countryCode: user.phone.countryCode ?? null, number: user.phone.number ?? null } : { countryCode: null, number: null },
+      dob: user.dob ?? null,
+      preferredLanguage: user.preferredLanguage ?? null,
+      address: user.address ?? null,
       learningPreferences,
     });
   } catch (error) {
@@ -51,8 +54,8 @@ export const getProfile = async (req, res, next) => {
  * UC-4.1: Learner Updates Basic Profile Information
  * UC-4.2: Learner Sets Learning Preferences
  * 
- * Allowed fields: name, phoneNumber, profilePhoto, gradeLevel, subjectsOfInterest
- * Restricted: email (cannot change), role (cannot change), tutor fields (not applicable)
+ * Allowed fields: name, phone, profilePhoto, gradeLevel, subjectsOfInterest,
+ * dob, preferredLanguage, address, instituteName, learningGoal (all optional)
  */
 export const updateProfile = async (req, res, next) => {
   try {
@@ -63,7 +66,6 @@ export const updateProfile = async (req, res, next) => {
 
     const userId = req.user._id;
 
-    // Ensure user is a Learner
     if (req.user.role !== 'Learner') {
       return res.status(403).json({ 
         message: 'This endpoint is only accessible to Learners' 
@@ -76,16 +78,21 @@ export const updateProfile = async (req, res, next) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Extract updatable fields from request body (only allowed fields)
-    const { name, phoneNumber, gradeLevel, subjectsOfInterest } = req.body;
+    const { name, phone, gradeLevel, subjectsOfInterest, dob, preferredLanguage, address, instituteName, learningGoal } = req.body;
 
     // Update basic details (FR-4.1.1) - Only allowed fields
     if (name !== undefined) {
       user.name = name.trim();
     }
 
-    if (phoneNumber !== undefined) {
-      user.phoneNumber = phoneNumber ? phoneNumber.trim() : null;
+    if (phone !== undefined) {
+      if (phone && typeof phone === 'object') {
+        const countryCode = phone.countryCode != null ? String(phone.countryCode).trim() : null;
+        const number = phone.number != null ? String(phone.number).trim() : null;
+        user.phone = { countryCode: countryCode || null, number: number || null };
+      } else {
+        user.phone = { countryCode: null, number: null };
+      }
     }
 
     // Update learning preferences (FR-4.1.2, UC-4.2)
@@ -94,10 +101,24 @@ export const updateProfile = async (req, res, next) => {
     }
 
     if (subjectsOfInterest !== undefined) {
-      // Ensure it's an array and filter out empty values
       user.subjectsOfInterest = Array.isArray(subjectsOfInterest) 
         ? subjectsOfInterest.filter(subject => subject && subject.trim()).map(subject => subject.trim())
         : [];
+    }
+    if (dob !== undefined) {
+      user.dob = dob ? new Date(dob) : null;
+    }
+    if (preferredLanguage !== undefined) {
+      user.preferredLanguage = preferredLanguage ? String(preferredLanguage).trim() : null;
+    }
+    if (address !== undefined) {
+      user.address = address ? String(address).trim() : null;
+    }
+    if (instituteName !== undefined) {
+      user.instituteName = instituteName ? String(instituteName).trim() : null;
+    }
+    if (learningGoal !== undefined) {
+      user.learningGoal = learningGoal ? String(learningGoal).trim() : null;
     }
 
     // Handle profile photo upload if provided (FR-4.1.1)
@@ -116,11 +137,12 @@ export const updateProfile = async (req, res, next) => {
 
     await user.save();
 
-    // Return updated profile (matching GET response format)
-    const learningPreferences = (user.gradeLevel || (user.subjectsOfInterest && user.subjectsOfInterest.length > 0))
+    const learningPreferences = (user.gradeLevel || (user.subjectsOfInterest && user.subjectsOfInterest.length > 0) || user.instituteName || user.learningGoal)
       ? {
           gradeLevel: user.gradeLevel || null,
           subjectsOfInterest: user.subjectsOfInterest || [],
+          instituteName: user.instituteName ?? null,
+          learningGoal: user.learningGoal ?? null,
         }
       : null;
 
@@ -129,7 +151,10 @@ export const updateProfile = async (req, res, next) => {
       name: user.name,
       email: user.email,
       profilePhoto: user.profilePhoto,
-      phoneNumber: user.phoneNumber,
+      phone: user.phone ? { countryCode: user.phone.countryCode ?? null, number: user.phone.number ?? null } : { countryCode: null, number: null },
+      dob: user.dob ?? null,
+      preferredLanguage: user.preferredLanguage ?? null,
+      address: user.address ?? null,
       learningPreferences,
     });
   } catch (error) {

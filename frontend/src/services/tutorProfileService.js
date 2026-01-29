@@ -44,7 +44,7 @@ export const getTutorProfile = async () => {
  * Availability rules/exceptions are managed via dedicated availability APIs and
  * are not sent from this service.
  *
- * @param {Object} profileData - { bio?, phone?, profilePhoto? (File) }
+ * @param {Object} profileData - { bio?, experienceYears?, qualifications?, phone?, profilePhoto? (File) }
  * @returns {Promise<Object>} Updated profile data
  */
 export const updateTutorProfile = async (profileData) => {
@@ -58,6 +58,14 @@ export const updateTutorProfile = async (profileData) => {
 
   if (profileData.bio !== undefined) {
     formData.append('bio', profileData.bio);
+  }
+
+  if (profileData.experienceYears !== undefined) {
+    formData.append('experienceYears', String(profileData.experienceYears));
+  }
+
+  if (profileData.qualifications !== undefined) {
+    formData.append('qualifications', JSON.stringify(profileData.qualifications));
   }
 
   if (profileData.phone !== undefined) {

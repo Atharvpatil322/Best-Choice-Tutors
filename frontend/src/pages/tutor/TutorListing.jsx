@@ -48,9 +48,10 @@ function TutorListing() {
     return Array.from(subjectsSet).sort();
   }, [tutors]);
 
-  // Teaching modes
+  const SUBJECT_ALL = '__subject_all__'; // Radix Select disallows empty string for SelectItem value
+  const MODE_ALL = '__mode_all__';
   const teachingModes = [
-    { value: '', label: 'All Modes' },
+    { value: MODE_ALL, label: 'All Modes' },
     { value: 'Online', label: 'Online' },
     { value: 'In-Person', label: 'In-Person' },
     { value: 'Both', label: 'Both' },
@@ -181,14 +182,14 @@ function TutorListing() {
               <div>
                 <Label htmlFor="subject">Subject</Label>
                 <Select
-                  value={filters.subject}
-                  onValueChange={(value) => handleFilterChange('subject', value)}
+                  value={filters.subject || SUBJECT_ALL}
+                  onValueChange={(value) => handleFilterChange('subject', value === SUBJECT_ALL ? '' : value)}
                 >
                   <SelectTrigger className="mt-1" id="subject">
                     <SelectValue placeholder="All Subjects" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Subjects</SelectItem>
+                    <SelectItem value={SUBJECT_ALL}>All Subjects</SelectItem>
                     {availableSubjects.map((subject) => (
                       <SelectItem key={subject} value={subject}>
                         {subject}
@@ -202,8 +203,8 @@ function TutorListing() {
               <div>
                 <Label htmlFor="mode">Teaching Mode</Label>
                 <Select
-                  value={filters.mode}
-                  onValueChange={(value) => handleFilterChange('mode', value)}
+                  value={filters.mode || MODE_ALL}
+                  onValueChange={(value) => handleFilterChange('mode', value === MODE_ALL ? '' : value)}
                 >
                   <SelectTrigger className="mt-1" id="mode">
                     <SelectValue placeholder="All Modes" />

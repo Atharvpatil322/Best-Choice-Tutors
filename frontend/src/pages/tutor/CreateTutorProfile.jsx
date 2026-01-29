@@ -33,7 +33,7 @@ function CreateTutorProfile() {
     fullName: '',
     bio: '',
     subjects: [],
-    education: '',
+    qualifications: [{ title: '', institution: '', year: '' }],
     experienceYears: '',
     hourlyRate: '',
     mode: '',
@@ -79,7 +79,6 @@ function CreateTutorProfile() {
       ...prev,
       [name]: value,
     }));
-    // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
@@ -87,6 +86,36 @@ function CreateTutorProfile() {
         return newErrors;
       });
     }
+  };
+
+  const handleQualificationChange = (index, field, value) => {
+    setFormData((prev) => {
+      const next = [...(prev.qualifications || [])];
+      if (!next[index]) next[index] = { title: '', institution: '', year: '' };
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, qualifications: next };
+    });
+    if (validationErrors.qualifications) {
+      setValidationErrors((prev) => {
+        const next = { ...prev };
+        delete next.qualifications;
+        return next;
+      });
+    }
+  };
+
+  const addQualification = () => {
+    setFormData((prev) => ({
+      ...prev,
+      qualifications: [...(prev.qualifications || []), { title: '', institution: '', year: '' }],
+    }));
+  };
+
+  const removeQualification = (index) => {
+    setFormData((prev) => {
+      const next = (prev.qualifications || []).filter((_, i) => i !== index);
+      return { ...prev, qualifications: next.length ? next : [{ title: '', institution: '', year: '' }] };
+    });
   };
 
   const handlePhotoChange = (e) => {
@@ -173,12 +202,30 @@ function CreateTutorProfile() {
     setValidationErrors({});
 
     try {
+      const qualifications = (formData.qualifications || [])
+        .map((q) => ({
+          title: (q.title || '').trim(),
+          institution: (q.institution || '').trim(),
+          year: (q.year || '').trim(),
+        }))
+        .filter((q) => q.title || q.institution || q.year);
+      if (qualifications.length === 0) {
+        setValidationErrors((prev) => ({ ...prev, qualifications: 'At least one qualification is required' }));
+        setSubmitting(false);
+        return;
+      }
+      const expYears = parseInt(formData.experienceYears, 10);
+      if (!Number.isInteger(expYears) || expYears < 0) {
+        setValidationErrors((prev) => ({ ...prev, experienceYears: 'Years of experience must be a non-negative number' }));
+        setSubmitting(false);
+        return;
+      }
       const tutorData = {
         fullName: formData.fullName.trim(),
         bio: formData.bio.trim(),
         subjects: formData.subjects,
-        education: formData.education.trim(),
-        experienceYears: parseInt(formData.experienceYears),
+        qualifications,
+        experienceYears: expYears,
         hourlyRate: parseFloat(formData.hourlyRate),
         mode: formData.mode,
         location: formData.location.trim() || null,
@@ -340,7 +387,7 @@ function CreateTutorProfile() {
                   required
                   rows={4}
                   className="mt-1 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Tell us about your teaching experience and approach..."
+                  placeholder="Tell us about your teaching approach and style..."
                 />
                 {validationErrors.bio && (
                   <p className="mt-1 text-sm text-red-600">{validationErrors.bio}</p>
@@ -377,25 +424,59 @@ function CreateTutorProfile() {
                 )}
               </div>
 
-              {/* Education */}
+              {/* Qualifications */}
               <div>
-                <Label htmlFor="education">Education *</Label>
-                <Input
-                  id="education"
-                  name="education"
-                  type="text"
-                  value={formData.education}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1"
-                  placeholder="e.g., BSc Mathematics, University of London"
-                />
-                {validationErrors.education && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.education}</p>
+                <Label>Qualifications *</Label>
+                <p className="mt-1 text-xs text-muted-foreground mb-2">
+                  Add at least one qualification (e.g. degree, certification).
+                </p>
+                {(formData.qualifications || []).map((q, index) => (
+                  <div key={index} className="mb-3 p-3 border rounded-md space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-muted-foreground">Qualification {index + 1}</span>
+                      {(formData.qualifications?.length ?? 0) > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeQualification(index)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <Input
+                        placeholder="Title (e.g. BSc Mathematics)"
+                        value={q.title || ''}
+                        onChange={(e) => handleQualificationChange(index, 'title', e.target.value)}
+                        className="mt-1"
+                      />
+                      <Input
+                        placeholder="Institution"
+                        value={q.institution || ''}
+                        onChange={(e) => handleQualificationChange(index, 'institution', e.target.value)}
+                        className="mt-1"
+                      />
+                      <Input
+                        placeholder="Year"
+                        value={q.year || ''}
+                        onChange={(e) => handleQualificationChange(index, 'year', e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addQualification}>
+                  Add another qualification
+                </Button>
+                {validationErrors.qualifications && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.qualifications}</p>
                 )}
               </div>
 
-              {/* Experience Years */}
+              {/* Years of Experience */}
               <div>
                 <Label htmlFor="experienceYears">Years of Experience *</Label>
                 <Input

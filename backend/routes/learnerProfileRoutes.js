@@ -6,26 +6,28 @@ import { getProfile, updateProfile } from '../controllers/learnerProfileControll
 
 const router = express.Router();
 
-// Validation rules for profile update (FR-4.1.1, FR-4.1.2, UC-4.1, UC-4.2)
-// Allowed fields: name, phoneNumber, profilePhoto, gradeLevel, subjectsOfInterest
+// Validation rules for profile update (FR-4.1.1, FR-4.1.2 + personal/academic)
+// Allowed fields: name, phone, profilePhoto, gradeLevel, subjectsOfInterest, dob, preferredLanguage, address, instituteName, learningGoal
 const updateProfileValidation = [
   body('name')
     .optional()
     .trim()
     .notEmpty()
     .withMessage('Name cannot be empty if provided'),
-  body('phoneNumber')
+  body('phone')
+    .optional()
+    .custom((value) => value === null || value === undefined || (typeof value === 'object' && value !== null))
+    .withMessage('Phone must be an object with countryCode and number'),
+  body('phone.countryCode')
     .optional()
     .trim()
-    // TODO: CLARIFICATION REQUIRED - Should phone number have format validation? (e.g., UK phone format)
-    .custom((value) => {
-      if (value === null || value === undefined || value === '') {
-        return true; // Allow null/empty values
-      }
-      // Basic validation - can be enhanced with specific format requirements
-      return value.length >= 10; // Minimum length check
-    })
-    .withMessage('Phone number must be at least 10 characters if provided'),
+    .isLength({ max: 10 })
+    .withMessage('Phone country code must be a string with reasonable length'),
+  body('phone.number')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Phone number must be a string with reasonable length'),
   body('gradeLevel')
     .optional()
     .trim()
@@ -40,19 +42,16 @@ const updateProfileValidation = [
   body('subjectsOfInterest')
     .optional()
     .custom((value) => {
-      // Allow null, undefined, or empty array (preferences are optional per FR-4.1.2)
-      if (value === null || value === undefined) {
-        return true;
-      }
-      // Must be an array if provided
-      if (!Array.isArray(value)) {
-        return false;
-      }
-      // All items must be non-empty strings
+      if (value === null || value === undefined) return true;
+      if (!Array.isArray(value)) return false;
       return value.every(subject => typeof subject === 'string' && subject.trim().length > 0);
     })
     .withMessage('Subjects of interest must be an array of non-empty strings'),
-  // Note: profilePhoto is handled via multipart/form-data upload, not validated here
+  body('dob').optional().custom((v) => v === null || v === undefined || v === '' || !isNaN(Date.parse(v))).withMessage('dob must be a valid date'),
+  body('preferredLanguage').optional().trim().isLength({ max: 50 }),
+  body('address').optional().trim().isLength({ max: 500 }),
+  body('instituteName').optional().trim().isLength({ max: 200 }),
+  body('learningGoal').optional().trim().isLength({ max: 1000 }),
 ];
 
 // All routes require authentication
@@ -67,8 +66,19 @@ const parseSubjectsOfInterest = (req, res, next) => {
     try {
       req.body.subjectsOfInterest = JSON.parse(req.body.subjectsOfInterest);
     } catch (error) {
-      // If parsing fails, treat as empty array
       req.body.subjectsOfInterest = [];
+    }
+  }
+  next();
+};
+
+// Middleware to parse JSON string for phone from FormData
+const parsePhoneFromBody = (req, res, next) => {
+  if (req.body.phone !== undefined && typeof req.body.phone === 'string' && req.body.phone.trim()) {
+    try {
+      req.body.phone = JSON.parse(req.body.phone);
+    } catch (error) {
+      req.body.phone = { countryCode: null, number: null };
     }
   }
   next();
@@ -77,8 +87,9 @@ const parseSubjectsOfInterest = (req, res, next) => {
 // PATCH /api/learner/profile - Update learner profile (FR-4.1.1, FR-4.1.2, UC-4.1, UC-4.2)
 router.patch(
   '/profile',
-  upload.single('profilePhoto'), // Optional profile photo upload
-  parseSubjectsOfInterest, // Parse JSON string for subjectsOfInterest
+  upload.single('profilePhoto'),
+  parseSubjectsOfInterest,
+  parsePhoneFromBody,
   updateProfileValidation,
   updateProfile
 );

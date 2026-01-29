@@ -54,6 +54,8 @@ function TutorMyProfile() {
 
   // Local editable fields
   const [bio, setBio] = useState('');
+  const [experienceYears, setExperienceYears] = useState('');
+  const [qualifications, setQualifications] = useState([{ title: '', institution: '', year: '' }]);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('');
   const [phoneError, setPhoneError] = useState('');
@@ -92,21 +94,29 @@ function TutorMyProfile() {
 
         setTutorProfile(tutor);
         setBio(tutor.bio || '');
+        setExperienceYears(
+          tutor.experienceYears !== undefined && tutor.experienceYears !== null
+            ? String(tutor.experienceYears)
+            : ''
+        );
+        const quals = tutor.qualifications;
+        if (Array.isArray(quals) && quals.length > 0) {
+          setQualifications(
+            quals.map((q) => ({
+              title: q.title != null ? String(q.title).trim() : '',
+              institution: q.institution != null ? String(q.institution).trim() : '',
+              year: q.year != null ? String(q.year).trim() : '',
+            }))
+          );
+        } else {
+          setQualifications([{ title: '', institution: '', year: '' }]);
+        }
 
-        // Initialize phone from structured object, with legacy fallback
+        // Initialize phone from structured object only
         const phone = user?.phone || null;
         if (phone && (phone.countryCode || phone.number)) {
           setCountryCode(phone.countryCode || '');
           setPhoneNumber((phone.number || '').replace(/\D/g, ''));
-        } else if (user?.phoneNumber) {
-          const legacy = (user.phoneNumber || '').trim();
-          if (legacy.startsWith('+91') && legacy.length > 3) {
-            setCountryCode('+91');
-            setPhoneNumber(legacy.slice(3).replace(/\D/g, ''));
-          } else {
-            setCountryCode('');
-            setPhoneNumber(legacy.replace(/\D/g, ''));
-          }
         } else {
           setCountryCode('');
           setPhoneNumber('');
@@ -200,12 +210,50 @@ function TutorMyProfile() {
     setPhoneError(validatePhone(value, phoneNumber));
   };
 
+  const handleQualificationChange = (index, field, value) => {
+    setQualifications((prev) => {
+      const next = prev.map((q, i) =>
+        i === index ? { ...q, [field]: value } : q
+      );
+      return next;
+    });
+  };
+
+  const addQualification = () => {
+    setQualifications((prev) => [...prev, { title: '', institution: '', year: '' }]);
+  };
+
+  const removeQualification = (index) => {
+    setQualifications((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length ? next : [{ title: '', institution: '', year: '' }];
+    });
+  };
+
   const handleSave = async () => {
+    const nonEmptyQualifications = qualifications
+      .map((q) => ({
+        title: (q.title || '').trim(),
+        institution: (q.institution || '').trim(),
+        year: (q.year || '').trim(),
+      }))
+      .filter((q) => q.title || q.institution || q.year);
+
+    if (nonEmptyQualifications.length === 0) {
+      toast.error('Add at least one qualification (title, institution, or year).');
+      return;
+    }
+
     try {
       setSaving(true);
 
       const result = await updateTutorProfile({
         bio: bio || '',
+        experienceYears:
+          experienceYears !== '' && experienceYears !== null
+            ? parseInt(experienceYears, 10)
+            : undefined,
+        qualifications: nonEmptyQualifications,
         phone: {
           countryCode: countryCode || null,
           number: phoneNumber || null,
@@ -216,6 +264,21 @@ function TutorMyProfile() {
       if (result.tutor) {
         setTutorProfile(result.tutor);
         setBio(result.tutor.bio || '');
+        setExperienceYears(
+          result.tutor.experienceYears !== undefined && result.tutor.experienceYears !== null
+            ? String(result.tutor.experienceYears)
+            : ''
+        );
+        const quals = result.tutor.qualifications;
+        if (Array.isArray(quals) && quals.length > 0) {
+          setQualifications(
+            quals.map((q) => ({
+              title: q.title != null ? String(q.title).trim() : '',
+              institution: q.institution != null ? String(q.institution).trim() : '',
+              year: q.year != null ? String(q.year).trim() : '',
+            }))
+          );
+        }
       }
 
       if (result.user && result.user.phone) {
@@ -409,8 +472,87 @@ function TutorMyProfile() {
                 onChange={(e) => setBio(e.target.value)}
                 rows={4}
                 className="mt-1 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Describe your teaching experience, style, and what learners can expect."
+                placeholder="Describe your teaching style and what learners can expect."
               />
+            </div>
+
+            <div>
+              <Label htmlFor="experienceYears">Years of Experience</Label>
+              <Input
+                id="experienceYears"
+                type="number"
+                min={0}
+                value={experienceYears}
+                onChange={(e) => setExperienceYears(e.target.value)}
+                placeholder="e.g. 5"
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label>Qualifications</Label>
+              <p className="mt-1 text-xs text-muted-foreground mb-2">
+                Add at least one qualification. Empty rows are ignored on save.
+              </p>
+              <div className="space-y-3">
+                {qualifications.map((q, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-wrap items-end gap-2 rounded-md border border-input p-3"
+                  >
+                    <div className="grid flex-1 gap-2 min-w-0 sm:grid-cols-3">
+                      <div>
+                        <Label htmlFor={`qual-title-${index}`} className="text-xs">
+                          Title
+                        </Label>
+                        <Input
+                          id={`qual-title-${index}`}
+                          placeholder="e.g. BSc Mathematics"
+                          value={q.title}
+                          onChange={(e) => handleQualificationChange(index, 'title', e.target.value)}
+                          className="mt-1 h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`qual-institution-${index}`} className="text-xs">
+                          Institution
+                        </Label>
+                        <Input
+                          id={`qual-institution-${index}`}
+                          placeholder="e.g. University of London"
+                          value={q.institution}
+                          onChange={(e) => handleQualificationChange(index, 'institution', e.target.value)}
+                          className="mt-1 h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`qual-year-${index}`} className="text-xs">
+                          Year
+                        </Label>
+                        <Input
+                          id={`qual-year-${index}`}
+                          placeholder="e.g. 2020"
+                          value={q.year}
+                          onChange={(e) => handleQualificationChange(index, 'year', e.target.value)}
+                          className="mt-1 h-9"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeQualification(index)}
+                      className="text-destructive hover:text-destructive shrink-0"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addQualification}>
+                  Add more
+                </Button>
+              </div>
             </div>
 
             <div className="flex justify-end">

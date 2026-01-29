@@ -34,6 +34,35 @@ const parseSubjectsArray = (req, res, next) => {
   next();
 };
 
+// Middleware to parse qualifications from FormData (sent as JSON string)
+const parseQualificationsFromBody = (req, res, next) => {
+  if (req.body.qualifications !== undefined) {
+    if (typeof req.body.qualifications === 'string' && req.body.qualifications.trim()) {
+      try {
+        req.body.qualifications = JSON.parse(req.body.qualifications);
+      } catch {
+        req.body.qualifications = [];
+      }
+    }
+    if (!Array.isArray(req.body.qualifications)) {
+      req.body.qualifications = [];
+    }
+  }
+  next();
+};
+
+// Middleware to parse phone from FormData (sent as JSON string)
+const parsePhoneFromBody = (req, res, next) => {
+  if (req.body.phone !== undefined && typeof req.body.phone === 'string' && req.body.phone.trim()) {
+    try {
+      req.body.phone = JSON.parse(req.body.phone);
+    } catch {
+      req.body.phone = { countryCode: null, number: null };
+    }
+  }
+  next();
+};
+
 // Validation rules for creating tutor profile
 const createTutorValidation = [
   body('fullName')
@@ -54,13 +83,27 @@ const createTutorValidation = [
       return subjects.every(subject => typeof subject === 'string' && subject.trim().length > 0);
     })
     .withMessage('At least one subject is required and all subjects must be non-empty strings'),
-  body('education')
-    .trim()
-    .notEmpty()
-    .withMessage('Education is required'),
   body('experienceYears')
     .isInt({ min: 0 })
     .withMessage('Experience years must be a non-negative integer'),
+  body('qualifications')
+    .isArray({ min: 1 })
+    .withMessage('At least one qualification is required'),
+  body('qualifications.*.title')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Qualification title must be a string'),
+  body('qualifications.*.institution')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Qualification institution must be a string'),
+  body('qualifications.*.year')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Qualification year must be a string'),
   body('hourlyRate')
     .isFloat({ min: 0 })
     .withMessage('Hourly rate must be a non-negative number'),
@@ -84,6 +127,7 @@ router.post(
   authenticate, // Auth required for creating tutor profile
   upload.single('profilePhoto'), // Optional profile photo upload
   parseSubjectsArray, // Parse subjects array from FormData
+  parseQualificationsFromBody, // Parse qualifications JSON string from FormData
   createTutorValidation,
   createTutor
 );
@@ -106,12 +150,20 @@ const updateTutorProfileValidation = [
     .trim()
     .isLength({ max: 5000 })
     .withMessage('Bio must be a string with a reasonable length'),
-  body('phoneNumber')
+  body('phone')
     .optional()
-    .isString()
+    .custom((value) => value === null || value === undefined || (typeof value === 'object' && value !== null))
+    .withMessage('Phone must be an object with countryCode and number'),
+  body('phone.countryCode')
+    .optional()
     .trim()
-    .isLength({ max: 50 })
-    .withMessage('Phone number must be a string with a reasonable length'),
+    .isLength({ max: 10 })
+    .withMessage('Phone country code must be a string with reasonable length'),
+  body('phone.number')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Phone number must be a string with reasonable length'),
   body('availabilityTimezone')
     .optional()
     .isString()
@@ -132,6 +184,7 @@ router.put(
   '/me/profile',
   authenticate,
   upload.single('profilePhoto'),
+  parsePhoneFromBody,
   updateTutorProfileValidation,
   updateMyTutorProfile
 );

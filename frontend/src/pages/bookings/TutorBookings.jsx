@@ -1,17 +1,17 @@
 /**
- * My Bookings Page (Learner)
- * Read-only dashboard: tutor name, date & time, status (Pending / Paid / Failed).
- * No cancellation or payment actions.
+ * Tutor Bookings Page
+ * Read-only list under tutor dashboard: learner name, date, time, status (Upcoming / Paid / Completed).
+ * Each booking is clickable (navigate to chat). No cancel or reschedule.
  */
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getLearnerBookings } from '@/services/learnerBookingsService';
+import { getTutorBookings } from '@/services/tutorBookingsService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
 
-function MyBookings() {
+function TutorBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ function MyBookings() {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const data = await getLearnerBookings();
+        const data = await getTutorBookings();
         setBookings(data.bookings || []);
         setError(null);
       } catch (err) {
@@ -57,13 +57,6 @@ function MyBookings() {
     return `${fmt(start)} – ${fmt(end)}`;
   };
 
-  const statusLabel = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'PAID') return 'Paid';
-    if (s === 'FAILED') return 'Failed';
-    return 'Pending';
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
@@ -86,7 +79,7 @@ function MyBookings() {
             <CardContent className="p-6">
               <p className="text-center text-destructive">{error}</p>
               <div className="mt-4 flex justify-center">
-                <Button variant="outline" onClick={() => navigate('/dashboard')}>
+                <Button variant="outline" onClick={() => navigate('/tutor/dashboard')}>
                   Back to Dashboard
                 </Button>
               </div>
@@ -102,7 +95,7 @@ function MyBookings() {
       <div className="container mx-auto max-w-4xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold">My Bookings</h1>
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
+          <Button variant="outline" onClick={() => navigate('/tutor/dashboard')}>
             Dashboard
           </Button>
         </div>
@@ -121,29 +114,42 @@ function MyBookings() {
                 {bookings.map((b) => {
                   const sessionStatus = getSessionStatus(b.date, b.startTime, b.endTime);
                   const canJoin = sessionStatus === 'upcoming' || sessionStatus === 'ongoing';
+                  const sessionLabel = getSessionStatusLabel(sessionStatus);
                   return (
                     <li
                       key={b.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0 sm:flex-nowrap"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/tutor/bookings/${b.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/tutor/bookings/${b.id}`);
+                        }
+                      }}
+                      className="flex cursor-pointer flex-wrap items-center justify-between gap-2 py-3 transition-colors hover:bg-muted/50 first:pt-0 last:pb-0 sm:flex-nowrap rounded-md px-2 -mx-2"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">{b.tutorName || 'Tutor'}</p>
+                        <p className="font-medium">{b.learnerName || 'Learner'}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatDate(b.date)} · {formatTime(b.startTime, b.endTime)}
                         </p>
                         <span
                           className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium ${
-                            sessionStatus === 'upcoming'
+                            sessionLabel === 'Upcoming'
                               ? 'bg-blue-100 text-blue-800'
-                              : sessionStatus === 'ongoing'
+                              : sessionLabel === 'Ongoing'
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-gray-100 text-gray-700'
                           }`}
                         >
-                          {getSessionStatusLabel(sessionStatus)}
+                          {sessionLabel}
                         </span>
                       </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <div
+                        className="flex shrink-0 flex-wrap items-center gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {canJoin && (
                           <Button
                             variant="default"
@@ -157,21 +163,23 @@ function MyBookings() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/bookings/${b.id}/chat`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/tutor/bookings/${b.id}`);
+                          }}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/bookings/${b.id}/chat`);
+                          }}
                         >
                           Chat
                         </Button>
-                        <span
-                          className={`rounded px-2 py-0.5 text-sm font-medium ${
-                            (b.status || '').toUpperCase() === 'PAID'
-                              ? 'bg-green-100 text-green-800'
-                              : (b.status || '').toUpperCase() === 'FAILED'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {statusLabel(b.status)}
-                        </span>
                       </div>
                     </li>
                   );
@@ -185,4 +193,4 @@ function MyBookings() {
   );
 }
 
-export default MyBookings;
+export default TutorBookings;

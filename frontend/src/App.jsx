@@ -11,6 +11,9 @@ import LearnerDashboard from '@/pages/dashboard/LearnerDashboard';
 import TutorDashboard from '@/pages/dashboard/TutorDashboard';
 import ProfileRouter from '@/pages/profile/ProfileRouter';
 import MyBookings from '@/pages/bookings/MyBookings';
+import TutorBookings from '@/pages/bookings/TutorBookings';
+import TutorBookingDetail from '@/pages/bookings/TutorBookingDetail';
+import BookingChat from '@/pages/bookings/BookingChat';
 import CreateTutorProfile from '@/pages/tutor/CreateTutorProfile';
 import TutorProfile from '@/pages/tutor/TutorProfile';
 import TutorMyProfile from '@/pages/tutor/TutorMyProfile';
@@ -84,6 +87,14 @@ function App() {
           }
         />
         <Route
+          path="/bookings/:bookingId/chat"
+          element={
+            <ProtectedRoute>
+              <BookingChat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/tutor/create"
           element={
             <ProtectedRoute>
@@ -112,6 +123,22 @@ function App() {
           element={
             <ProtectedRoute>
               <TutorMyProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor/bookings/:bookingId"
+          element={
+            <ProtectedRoute>
+              <TutorBookingDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor/bookings"
+          element={
+            <ProtectedRoute>
+              <TutorBookings />
             </ProtectedRoute>
           }
         />

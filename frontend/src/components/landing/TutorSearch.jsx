@@ -63,7 +63,7 @@ const mockTutors = [
     subject: "Chemistry",
     rating: 4.9,
     reviews: 98,
-    bio: "Chemistry specialist with hands-on laboratory experience. Makes complex concepts easy to understand.",
+    bio: "Chemistry specialist with hands-on laboratory work. Makes complex concepts easy to understand.",
     levels: ["GCSE", "A-Level"],
     location: "Leeds",
     online: true,

@@ -33,7 +33,6 @@ const userSchema = new mongoose.Schema(
       enum: ['Learner', 'Tutor', 'Admin'],
       default: 'Learner',
     },
-    // Structured phone field (shared by learners and tutors)
     phone: {
       countryCode: {
         type: String,
@@ -46,9 +45,17 @@ const userSchema = new mongoose.Schema(
         trim: true,
       },
     },
-    // Legacy flat phone number (kept for backward compatibility with existing data)
-    // New code should prefer the structured `phone` object instead of this field.
-    phoneNumber: {
+    // Personal (learner profile extension)
+    dob: {
+      type: Date,
+      default: null,
+    },
+    preferredLanguage: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    address: {
       type: String,
       default: null,
       trim: true,
@@ -57,12 +64,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
       trim: true,
-      // TODO: CLARIFICATION REQUIRED - What are the valid grade level values? (e.g., "Year 7", "GCSE", "A-Level", etc.)
+    },
+    // Academic (learner profile extension)
+    instituteName: {
+      type: String,
+      default: null,
+      trim: true,
     },
     subjectsOfInterest: {
       type: [String],
       default: [],
-      // TODO: CLARIFICATION REQUIRED - Should subjects be from a predefined list or free text?
+    },
+    learningGoal: {
+      type: String,
+      default: null,
+      trim: true,
     },
     resetPasswordToken: {
       type: String,

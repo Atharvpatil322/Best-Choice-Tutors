@@ -4,7 +4,7 @@
  * 
  * Features:
  * - Fetches tutor details using GET /api/tutors/:id
- * - Displays: profile photo, name, bio, subjects, education, experience, hourly rate, mode, location
+ * - Displays: profile photo, name, bio, subjects, qualifications, experience, hourly rate, mode, location
  * - Fetches availability from GET /api/tutors/:id/availability
  * - Fetches slots from GET /api/tutors/:id/slots
  * - Displays upcoming slots (date, startTime, endTime)
@@ -18,6 +18,22 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { getTutorById, getTutorAvailability, getTutorSlots } from '@/services/tutorService';
 import { createBooking } from '@/services/bookingService.js';
 import { createBookingPaymentOrder } from '@/services/bookingPaymentService.js';
@@ -44,6 +60,8 @@ function TutorProfile({ tutorId: propTutorId }) {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
+  /** Confirm booking dialog (open on Book Session click; Continue starts booking + payment) */
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchTutor = async () => {
@@ -369,15 +387,23 @@ function TutorProfile({ tutorId: propTutorId }) {
               <h3 className="text-lg font-semibold">Professional Details</h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Education</label>
-                  <p className="mt-1">
-                    {tutor.education || <Placeholder />}
-                  </p>
+                  <label className="text-sm font-medium text-muted-foreground">Qualifications</label>
+                  <div className="mt-1">
+                    {tutor.qualifications && tutor.qualifications.length > 0 ? (
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        {tutor.qualifications.map((q, i) => (
+                          <li key={i}>
+                            {[q.title, q.institution, q.year].filter(Boolean).join(' · ') || <Placeholder />}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <Placeholder />
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Years of Experience
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground">Years of Experience</label>
                   <p className="mt-1">
                     {tutor.experienceYears !== undefined && tutor.experienceYears !== null ? (
                       `${tutor.experienceYears} ${tutor.experienceYears === 1 ? 'year' : 'years'}`
@@ -531,7 +557,7 @@ function TutorProfile({ tutorId: propTutorId }) {
                       Selected: {formatDate(selectedSlot.date)} — {formatTime(selectedSlot.startTime)}–{formatTime(selectedSlot.endTime)}
                     </p>
                     <Button
-                      onClick={handleBookSession}
+                      onClick={() => setConfirmDialogOpen(true)}
                       disabled={bookingLoading || paymentLoading}
                     >
                       {bookingLoading
@@ -540,6 +566,32 @@ function TutorProfile({ tutorId: propTutorId }) {
                           ? 'Opening payment…'
                           : 'Book Session'}
                     </Button>
+
+                    <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm booking</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            You are about to book the following slot. The slot will be reserved only after successful payment.
+                            <span className="mt-2 block font-medium text-foreground">
+                              {formatDate(selectedSlot.date)} — {formatTime(selectedSlot.startTime)}–{formatTime(selectedSlot.endTime)}
+                            </span>
+                            Continue to create the booking and complete payment?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              setConfirmDialogOpen(false);
+                              handleBookSession();
+                            }}
+                          >
+                            Continue
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     {createdBookingId && !paymentSuccess && !paymentError && (
                       <p className="text-sm text-muted-foreground">
                         Booking created (ID: {createdBookingId}). Complete payment in the Razorpay window.
@@ -552,41 +604,40 @@ function TutorProfile({ tutorId: propTutorId }) {
                     )}
                   </div>
                 )}
-                <div className="space-y-4">
+                <Accordion type="single" collapsible className="w-full">
                   {groupedDates.map((date) => (
-                    <div
-                      key={date}
-                      className="border rounded-lg p-4"
-                    >
-                      <div className="font-medium text-sm text-gray-900 mb-2">
+                    <AccordionItem key={date} value={date}>
+                      <AccordionTrigger className="text-sm py-2 hover:no-underline">
                         {formatDate(date)}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {groupedSlotsByDate[date].map((slot, index) => {
-                          const unavailable = isSlotUnavailable(slot);
-                          const selected = isSlotSelected(slot);
-                          return (
-                            <Button
-                              key={`${date}-${index}`}
-                              type="button"
-                              variant={selected ? 'default' : 'outline'}
-                              size="sm"
-                              disabled={unavailable}
-                              onClick={() => handleSlotClick(slot)}
-                              className={
-                                selected
-                                  ? 'ring-2 ring-primary ring-offset-2'
-                                  : ''
-                              }
-                            >
-                              {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-wrap gap-2">
+                          {groupedSlotsByDate[date].map((slot, index) => {
+                            const unavailable = isSlotUnavailable(slot);
+                            const selected = isSlotSelected(slot);
+                            return (
+                              <Button
+                                key={`${date}-${index}`}
+                                type="button"
+                                variant={selected ? 'default' : 'outline'}
+                                size="sm"
+                                disabled={unavailable}
+                                onClick={() => handleSlotClick(slot)}
+                                className={
+                                  selected
+                                    ? 'ring-2 ring-primary ring-offset-2'
+                                    : ''
+                                }
+                              >
+                                {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </div>
+                </Accordion>
               </div>
             )}
           </CardContent>

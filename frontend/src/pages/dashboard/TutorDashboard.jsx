@@ -57,6 +57,13 @@ function TutorDashboard() {
                 My Profile
               </Button>
               <Button
+                onClick={() => navigate('/tutor/bookings')}
+                className="w-full"
+                variant="outline"
+              >
+                My Bookings
+              </Button>
+              <Button
                 onClick={() => navigate('/tutor/availability')}
                 className="w-full"
               >
