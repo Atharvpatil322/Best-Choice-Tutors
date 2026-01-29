@@ -2,9 +2,13 @@ import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { User } from "lucide-react"
 import { isAuthenticated } from "@/lib/auth"
+import { getCurrentRole } from "@/services/authService"
 
 export default function Header() {
   const authenticated = isAuthenticated();
+  const role = getCurrentRole();
+  const normalizedRole = typeof role === 'string' ? role.toLowerCase() : null;
+  const isTutor = normalizedRole === 'tutor';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -64,12 +68,14 @@ export default function Header() {
               </Link>
             </>
           ) : (
-            <Link to="/tutor/create">
-              <Button variant="default" size="sm" className="gap-2">
-                <User className="h-4 w-4" />
-                Become a Tutor
-              </Button>
-            </Link>
+            !isTutor ? (
+              <Link to="/tutor/create">
+                <Button variant="default" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  Become a Tutor
+                </Button>
+              </Link>
+            ) : null
           )}
         </div>
       </div>

@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createTutorProfile } from '@/services/tutorService';
-import { logout } from '@/services/authService';
+import { getStoredUser, logout } from '@/services/authService';
 
 function CreateTutorProfile() {
   const navigate = useNavigate();
@@ -191,6 +191,17 @@ function CreateTutorProfile() {
       const result = await createTutorProfile(tutorData);
 
       setSuccessMessage('Tutor profile created successfully!');
+
+      // Role sync (frontend): mark user as Tutor for role-based UI gating
+      // (Role persistence is the backend source of truth; this improves immediate UX.)
+      try {
+        const existing = getStoredUser();
+        if (existing) {
+          localStorage.setItem('auth_user', JSON.stringify({ ...existing, role: 'Tutor' }));
+        }
+      } catch {
+        // ignore
+      }
       
       // Redirect to tutor dashboard after a short delay
       setTimeout(() => {
@@ -203,10 +214,10 @@ function CreateTutorProfile() {
         setError(err.message || 'Validation failed');
       } else {
         setError(err.message || 'Failed to create tutor profile');
-        // If unauthorized, redirect to login
+        // If unauthorized, redirect to landing page
         if (err.message.includes('Authentication') || err.message.includes('401')) {
           logout();
-          navigate('/login');
+          navigate('/', { replace: true });
         }
       }
     } finally {

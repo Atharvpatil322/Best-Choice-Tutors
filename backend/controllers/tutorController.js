@@ -1,5 +1,6 @@
 import Tutor from '../models/Tutor.js';
 import User from '../models/User.js';
+import Availability from '../models/Availability.js';
 import { validationResult } from 'express-validator';
 import { uploadImage } from '../services/cloudinaryService.js';
 
@@ -66,6 +67,10 @@ export const createTutor = async (req, res, next) => {
       profilePhoto: profilePhotoUrl,
     });
 
+    // Phase 5.5: Role sync - user becomes a Tutor after creating tutor profile
+    // Do not change auth logic; persist role in User document.
+    await User.findByIdAndUpdate(userId, { role: 'Tutor' });
+
     // Populate user reference for response
     await tutor.populate('userId', 'name email');
 
@@ -109,20 +114,25 @@ export const listTutors = async (req, res, next) => {
       .sort({ createdAt: -1 }); // Newest first
 
     res.json({
-      tutors: tutors.map((tutor) => ({
-        id: tutor._id,
-        userId: tutor.userId._id,
-        fullName: tutor.fullName,
-        bio: tutor.bio,
-        subjects: tutor.subjects,
-        education: tutor.education,
-        experienceYears: tutor.experienceYears,
-        hourlyRate: tutor.hourlyRate,
-        mode: tutor.mode,
-        location: tutor.location,
-        profilePhoto: tutor.profilePhoto,
-        createdAt: tutor.createdAt,
-      })),
+      tutors: tutors.map((tutor) => {
+        // Safely extract userId - handle cases where populate might fail
+        const userId = tutor.userId && tutor.userId._id ? tutor.userId._id : tutor.userId;
+
+        return {
+          id: tutor._id,
+          userId,
+          fullName: tutor.fullName || null,
+          bio: tutor.bio || null,
+          subjects: Array.isArray(tutor.subjects) ? tutor.subjects : [],
+          education: tutor.education || null,
+          experienceYears: tutor.experienceYears || null,
+          hourlyRate: tutor.hourlyRate || null,
+          mode: tutor.mode || null,
+          location: tutor.location || null,
+          profilePhoto: tutor.profilePhoto || null,
+          createdAt: tutor.createdAt || null,
+        };
+      }),
       count: tutors.length,
     });
   } catch (error) {
@@ -148,10 +158,86 @@ export const getTutorById = async (req, res, next) => {
       return res.status(404).json({ message: 'Tutor not found' });
     }
 
+    // Safely extract userId - handle cases where populate might fail
+    const userId = tutor.userId && tutor.userId._id ? tutor.userId._id : tutor.userId;
+
     res.json({
       tutor: {
         id: tutor._id,
-        userId: tutor.userId._id,
+        userId,
+        fullName: tutor.fullName || null,
+        bio: tutor.bio || null,
+        subjects: Array.isArray(tutor.subjects) ? tutor.subjects : [],
+        education: tutor.education || null,
+        experienceYears: tutor.experienceYears || null,
+        hourlyRate: tutor.hourlyRate || null,
+        mode: tutor.mode || null,
+        location: tutor.location || null,
+        profilePhoto: tutor.profilePhoto || null,
+        createdAt: tutor.createdAt || null,
+      },
+    });
+  } catch (error) {
+    // Handle invalid ObjectId format
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid tutor ID format' });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Get authenticated tutor's own profile
+ * GET /api/tutor/profile
+ *
+ * Authenticated tutor only.
+ * Returns tutor profile data linked to the current user.
+ */
+export const getMyTutorProfile = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Role must be Tutor
+    if (user.role !== 'Tutor') {
+      return res.status(403).json({ message: 'Access denied: Tutor role required' });
+    }
+
+    const tutor = await Tutor.findOne({ userId: user._id });
+
+    if (!tutor) {
+      return res.status(404).json({ message: 'Tutor profile not found' });
+    }
+
+    // Normalize phone into structured object for response
+    let phone = null;
+    if (user.phone && (user.phone.countryCode || user.phone.number)) {
+      phone = {
+        countryCode: user.phone.countryCode || null,
+        number: user.phone.number || null,
+      };
+    } else if (user.phoneNumber) {
+      const legacy = (user.phoneNumber || '').trim();
+      if (legacy.startsWith('+') && legacy.length > 3) {
+        phone = {
+          countryCode: legacy.slice(0, 3),
+          number: legacy.slice(3),
+        };
+      } else {
+        phone = {
+          countryCode: null,
+          number: legacy,
+        };
+      }
+    }
+
+    res.json({
+      tutor: {
+        id: tutor._id,
+        userId: tutor.userId,
         fullName: tutor.fullName,
         bio: tutor.bio,
         subjects: tutor.subjects,
@@ -163,12 +249,223 @@ export const getTutorById = async (req, res, next) => {
         profilePhoto: tutor.profilePhoto,
         createdAt: tutor.createdAt,
       },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone,
+        profilePhoto: user.profilePhoto || null,
+      },
     });
   } catch (error) {
-    // Handle invalid ObjectId format
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid tutor ID format' });
+    next(error);
+  }
+};
+
+/**
+ * Update authenticated tutor's own profile and availability
+ * PUT /api/tutor/profile
+ *
+ * Authenticated tutor only.
+ * Allows updating:
+ * - bio (existing Tutor field)
+ * - profilePhoto (via multipart/form-data)
+ * - phoneNumber (on User model)
+ * - availability rules + exceptions (Availability model)
+ *
+ * Does NOT allow updating email.
+ */
+export const updateMyTutorProfile = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
     }
+
+    // Role must be Tutor
+    if (user.role !== 'Tutor') {
+      return res.status(403).json({ message: 'Access denied: Tutor role required' });
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+    }
+
+    const tutor = await Tutor.findOne({ userId: user._id });
+    if (!tutor) {
+      return res.status(404).json({ message: 'Tutor profile not found' });
+    }
+
+    const {
+      bio,
+      phone, // expected to be a JSON string when sent via multipart/form-data
+      availabilityTimezone,
+      availabilityWeeklyRules,
+      availabilityExceptions,
+    } = req.body;
+
+    // Update tutor bio if provided
+    if (bio !== undefined) {
+      tutor.bio = bio.trim();
+    }
+
+    // Handle optional profile photo upload
+    if (req.file) {
+      try {
+        const profilePhotoUrl = await uploadImage(req.file.buffer);
+        tutor.profilePhoto = profilePhotoUrl;
+      } catch (error) {
+        console.error('Error uploading tutor profile photo:', error);
+        return res.status(500).json({
+          message: 'Failed to upload profile photo',
+          error: error.message,
+        });
+      }
+    }
+
+    await tutor.save();
+
+    // Parse and validate structured phone object if provided
+    if (phone !== undefined) {
+      let parsedPhone = null;
+      if (typeof phone === 'string' && phone.trim() !== '') {
+        try {
+          parsedPhone = JSON.parse(phone);
+        } catch (err) {
+          return res.status(400).json({ message: 'Invalid phone format: must be a JSON object' });
+        }
+      } else if (typeof phone === 'object' && phone !== null) {
+        parsedPhone = phone;
+      }
+
+      if (parsedPhone) {
+        const countryCode = parsedPhone.countryCode || null;
+        const number = parsedPhone.number || null;
+
+        // Simple validation: enforce rules based on countryCode
+        if (countryCode === '+91' && number) {
+          if (!/^\d{10}$/.test(number)) {
+            return res.status(400).json({
+              message: 'For +91, phone number must be exactly 10 digits.',
+            });
+          }
+        }
+
+        // Persist structured phone
+        user.phone = {
+          countryCode,
+          number,
+        };
+
+        // Maintain legacy flat phoneNumber for backward compatibility
+        if (countryCode && number) {
+          user.phoneNumber = `${countryCode}${number}`;
+        } else if (!countryCode && number) {
+          user.phoneNumber = number;
+        } else {
+          user.phoneNumber = null;
+        }
+      } else {
+        // Explicitly clear phone if an empty phone object was sent
+        user.phone = { countryCode: null, number: null };
+        user.phoneNumber = null;
+      }
+
+      await user.save();
+    }
+
+    // Update availability if any availability fields are present
+    const hasAvailabilityPayload =
+      availabilityTimezone !== undefined ||
+      availabilityWeeklyRules !== undefined ||
+      availabilityExceptions !== undefined;
+
+    let updatedAvailability = null;
+
+    if (hasAvailabilityPayload) {
+      // Find or create availability for this tutor
+      let availability = await Availability.findOne({ tutorId: tutor._id });
+
+      if (!availability) {
+        // If no availability exists yet, create a new document
+        availability = new Availability({
+          tutorId: tutor._id,
+          timezone: availabilityTimezone || 'Europe/London',
+          weeklyRules: Array.isArray(availabilityWeeklyRules)
+            ? availabilityWeeklyRules
+            : [],
+          exceptions: Array.isArray(availabilityExceptions)
+            ? availabilityExceptions
+            : [],
+        });
+      } else {
+        if (availabilityTimezone !== undefined) {
+          availability.timezone = availabilityTimezone;
+        }
+        if (availabilityWeeklyRules !== undefined) {
+          availability.weeklyRules = Array.isArray(availabilityWeeklyRules)
+            ? availabilityWeeklyRules
+            : [];
+        }
+        if (availabilityExceptions !== undefined) {
+          availability.exceptions = Array.isArray(availabilityExceptions)
+            ? availabilityExceptions
+            : [];
+        }
+      }
+
+      await availability.save();
+
+      updatedAvailability = {
+        id: availability._id,
+        tutorId: availability.tutorId,
+        timezone: availability.timezone,
+        weeklyRules: availability.weeklyRules,
+        exceptions: availability.exceptions,
+        createdAt: availability.createdAt,
+        updatedAt: availability.updatedAt,
+      };
+    }
+
+    // Normalize phone for response
+    let phoneResponse = null;
+    if (user.phone && (user.phone.countryCode || user.phone.number)) {
+      phoneResponse = {
+        countryCode: user.phone.countryCode || null,
+        number: user.phone.number || null,
+      };
+    }
+
+    res.json({
+      message: 'Tutor profile updated successfully',
+      tutor: {
+        id: tutor._id,
+        userId: tutor.userId,
+        fullName: tutor.fullName,
+        bio: tutor.bio,
+        subjects: tutor.subjects,
+        education: tutor.education,
+        experienceYears: tutor.experienceYears,
+        hourlyRate: tutor.hourlyRate,
+        mode: tutor.mode,
+        location: tutor.location,
+        profilePhoto: tutor.profilePhoto,
+        createdAt: tutor.createdAt,
+      },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: phoneResponse,
+        profilePhoto: user.profilePhoto || null,
+      },
+      availability: updatedAvailability,
+    });
+  } catch (error) {
     next(error);
   }
 };

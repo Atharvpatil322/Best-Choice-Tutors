@@ -66,9 +66,9 @@ function ResetPassword() {
       await resetPassword(token, formData.password);
       setSuccess(true);
       
-      // Redirect to login after 2 seconds
+      // Redirect to landing page after 2 seconds
       setTimeout(() => {
-        navigate('/login');
+        navigate('/', { replace: true });
       }, 2000);
     } catch (err) {
       setError(err.message || 'Password reset failed. Please try again.');

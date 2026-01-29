@@ -67,10 +67,15 @@ export const createAvailability = async (availabilityData) => {
     // Handle validation errors
     if (response.status === 400 && data.errors) {
       const validationErrors = {};
+      // express-validator errors array format: [{ msg, param, ... }]
       data.errors.forEach((error) => {
-        validationErrors[error.path || error.param] = error.msg || error.message;
+        const key = error.path || error.param || error.field || 'unknown';
+        validationErrors[key] = error.msg || error.message || 'Validation error';
       });
-      throw { message: data.message || 'Validation failed', errors: validationErrors };
+      const errorObj = { message: data.message || 'Validation failed', errors: validationErrors };
+      // Also include raw errors for debugging
+      errorObj.rawErrors = data.errors;
+      throw errorObj;
     }
     throw new Error(data.message || 'Failed to create availability');
   }
@@ -105,10 +110,15 @@ export const updateAvailability = async (availabilityData) => {
     // Handle validation errors
     if (response.status === 400 && data.errors) {
       const validationErrors = {};
+      // express-validator errors array format: [{ msg, param, ... }]
       data.errors.forEach((error) => {
-        validationErrors[error.path || error.param] = error.msg || error.message;
+        const key = error.path || error.param || error.field || 'unknown';
+        validationErrors[key] = error.msg || error.message || 'Validation error';
       });
-      throw { message: data.message || 'Validation failed', errors: validationErrors };
+      const errorObj = { message: data.message || 'Validation failed', errors: validationErrors };
+      // Also include raw errors for debugging
+      errorObj.rawErrors = data.errors;
+      throw errorObj;
     }
     throw new Error(data.message || 'Failed to update availability');
   }

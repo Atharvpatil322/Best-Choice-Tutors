@@ -8,6 +8,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 
 // JWT token storage key
 const TOKEN_KEY = 'auth_token';
+// Minimal persisted user info (for role-based UI gating)
+const USER_KEY = 'auth_user';
 
 /**
  * Store JWT token in localStorage
@@ -17,6 +19,29 @@ const setToken = (token) => {
     localStorage.setItem(TOKEN_KEY, token);
   } else {
     localStorage.removeItem(TOKEN_KEY);
+  }
+};
+
+/**
+ * Store user info in localStorage (safe fields only)
+ */
+const setUser = (user) => {
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_KEY);
+  }
+};
+
+/**
+ * Get stored user info from localStorage
+ */
+export const getStoredUser = () => {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
 };
 
@@ -32,6 +57,7 @@ const getToken = () => {
  */
 const removeToken = () => {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 };
 
 /**
@@ -85,6 +111,10 @@ export const register = async (userData) => {
   if (data.token) {
     setToken(data.token);
   }
+  // Store minimal user info for role-based UI
+  if (data.user) {
+    setUser(data.user);
+  }
 
   return data;
 };
@@ -112,6 +142,10 @@ export const login = async (credentials) => {
   // Store token
   if (data.token) {
     setToken(data.token);
+  }
+  // Store minimal user info for role-based UI
+  if (data.user) {
+    setUser(data.user);
   }
 
   return data;
@@ -206,6 +240,15 @@ export const logout = () => {
   removeToken();
   // Dispatch custom event for socket context to handle disconnection
   window.dispatchEvent(new Event('auth:logout'));
+};
+
+/**
+ * Convenience helper for UI: current role from stored user info.
+ * Falls back to null if not available.
+ */
+export const getCurrentRole = () => {
+  const user = getStoredUser();
+  return user?.role || null;
 };
 
 /**

@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getLearnerProfile, updateLearnerProfile } from '@/services/learnerProfileService';
-import { logout } from '@/services/authService';
+import { logout, getCurrentRole } from '@/services/authService';
 
 function Profile() {
   const navigate = useNavigate();
@@ -97,6 +97,15 @@ function Profile() {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      // Only learners should call learner profile API
+      const role = getCurrentRole();
+      const normalizedRole = typeof role === 'string' ? role.toLowerCase() : null;
+      if (normalizedRole && normalizedRole !== 'learner') {
+        setLoading(false);
+        setError('Learner profile is only available for learner accounts.');
+        return;
+      }
+
       try {
         setLoading(true);
         const data = await getLearnerProfile();
@@ -112,10 +121,10 @@ function Profile() {
         setError(null);
       } catch (err) {
         setError(err.message || 'Failed to load profile');
-        // If unauthorized, redirect to login
+        // If unauthorized, redirect to landing page
         if (err.message.includes('Authentication') || err.message.includes('401')) {
           logout();
-          navigate('/login');
+          navigate('/', { replace: true });
         }
       } finally {
         setLoading(false);
@@ -127,7 +136,7 @@ function Profile() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/', { replace: true });
   };
 
   const handleBackToDashboard = () => {

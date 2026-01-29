@@ -1,7 +1,7 @@
 /**
  * Protected Route Component
- * Redirects unauthenticated users to login page
- * Used for routes that require authentication (e.g., booking)
+ * Redirects unauthenticated users to landing page
+ * All routes except "/" require authentication
  */
 
 import { Navigate } from 'react-router-dom';
@@ -11,8 +11,8 @@ function ProtectedRoute({ children }) {
   const authenticated = isAuthenticated();
 
   if (!authenticated) {
-    // Redirect to login if not authenticated
-    return <Navigate to="/login" replace />;
+    // Redirect to landing page if not authenticated
+    return <Navigate to="/" replace />;
   }
 
   return children;

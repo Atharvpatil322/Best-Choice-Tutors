@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ function Register() {
     password: '',
     profilePhoto: null,
   });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
 
@@ -24,8 +24,6 @@ function Register() {
       ...prev,
       [name]: value,
     }));
-    // Clear error when user starts typing
-    if (error) setError('');
   };
 
   const handlePhotoChange = (e) => {
@@ -47,19 +45,18 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     // Basic validation
     if (!formData.name || !formData.email || !formData.password) {
-      setError('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       setLoading(false);
       return;
     }
 
     // Password validation
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      toast.error('Password must be at least 6 characters long');
       setLoading(false);
       return;
     }
@@ -73,10 +70,12 @@ function Register() {
       });
 
       // Token is already stored by authService
+      // Show success toast
+      toast.success('Account created successfully');
       // Redirect to Learner Dashboard
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      toast.error(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -97,12 +96,6 @@ function Register() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input

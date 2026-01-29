@@ -124,8 +124,8 @@ export default function TutorSearch() {
   const handleBookClick = () => {
     // Check if user is authenticated
     if (!isAuthenticated()) {
-      // Redirect to login if not authenticated
-      navigate('/login')
+      // Redirect to landing page if not authenticated (login is now protected)
+      navigate('/', { replace: true })
       return
     }
 

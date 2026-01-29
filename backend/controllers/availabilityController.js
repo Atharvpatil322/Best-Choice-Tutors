@@ -153,26 +153,28 @@ export const getAvailability = async (req, res, next) => {
 export const generateSlots = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { startDate, endDate } = req.query;
+    // Support both 'from/to' and 'startDate/endDate' for backward compatibility
+    const fromDate = req.query.from || req.query.startDate;
+    const toDate = req.query.to || req.query.endDate;
 
     // Validate required query parameters
-    if (!startDate || !endDate) {
+    if (!fromDate || !toDate) {
       return res.status(400).json({
-        message: 'Both startDate and endDate query parameters are required (format: YYYY-MM-DD)',
+        message: 'Both from/to (or startDate/endDate) query parameters are required (format: YYYY-MM-DD)',
       });
     }
 
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+    if (!dateRegex.test(fromDate) || !dateRegex.test(toDate)) {
       return res.status(400).json({
         message: 'Dates must be in YYYY-MM-DD format',
       });
     }
 
     // Parse dates
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T23:59:59');
+    const start = new Date(fromDate + 'T00:00:00');
+    const end = new Date(toDate + 'T23:59:59');
 
     // Validate date range
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -183,7 +185,7 @@ export const generateSlots = async (req, res, next) => {
 
     if (start > end) {
       return res.status(400).json({
-        message: 'startDate must be before or equal to endDate',
+        message: 'from/startDate must be before or equal to to/endDate',
       });
     }
 
@@ -201,8 +203,9 @@ export const generateSlots = async (req, res, next) => {
       return res.json({ slots: [] });
     }
 
-    // Generate slots
-    const slots = [];
+    // Generate slots with deduplication
+    // Use a Map keyed by "date|startTime|endTime" to prevent duplicates
+    const slotsMap = new Map();
     const SLOT_DURATION_MINUTES = 60;
     const currentDate = new Date(start);
 
@@ -234,7 +237,11 @@ export const generateSlots = async (req, res, next) => {
           overrideException.endTime,
           SLOT_DURATION_MINUTES
         );
-        slots.push(...slotsForDay);
+        // Add slots to map (deduplicates automatically)
+        slotsForDay.forEach((slot) => {
+          const key = `${slot.date}|${slot.startTime}|${slot.endTime}`;
+          slotsMap.set(key, slot);
+        });
       } else if (weeklyRule) {
         // Generate slots based on weekly rule
         let slotsForDay = generateSlotsForTimeRange(
@@ -259,12 +266,32 @@ export const generateSlots = async (req, res, next) => {
           });
         }
 
-        slots.push(...slotsForDay);
+        // Add slots to map (deduplicates automatically)
+        slotsForDay.forEach((slot) => {
+          const key = `${slot.date}|${slot.startTime}|${slot.endTime}`;
+          slotsMap.set(key, slot);
+        });
       }
 
       // Move to next day
       currentDate.setDate(currentDate.getDate() + 1);
     }
+
+    // Convert map to array and sort for consistent output
+    // Sort by date first, then by startTime
+    let slots = Array.from(slotsMap.values()).sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+      return a.startTime.localeCompare(b.startTime);
+    });
+
+    // Filter out past slots server-side for deterministic output
+    const now = new Date();
+    slots = slots.filter((slot) => {
+      const slotDateTime = new Date(`${slot.date}T${slot.startTime}`);
+      return slotDateTime > now;
+    });
 
     res.json({ slots });
   } catch (error) {

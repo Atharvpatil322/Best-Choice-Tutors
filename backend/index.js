@@ -5,8 +5,10 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import learnerProfileRoutes from './routes/learnerProfileRoutes.js';
 import learnerBookingsRoutes from './routes/learnerBookingsRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
 import tutorRoutes from './routes/tutorRoutes.js';
-import availabilityRoutes from './routes/availabilityRoutes.js';
+import tutorProfileRoutes from './routes/tutorProfileRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
 // Load environment variables
@@ -20,15 +22,24 @@ connectDB();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      // Keep a copy of the raw body for webhook signature verification
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/learner', learnerProfileRoutes);
 app.use('/api/learner', learnerBookingsRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/webhooks', webhookRoutes);
 app.use('/api/tutors', tutorRoutes);
-app.use('/api/tutors', availabilityRoutes);
+app.use('/api/tutor', tutorProfileRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

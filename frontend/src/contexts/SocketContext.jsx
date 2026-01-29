@@ -1,13 +1,15 @@
 /**
  * Socket Context
- * Foundation for WebSocket connection management
+ * Foundation for WebSocket connection management (infrastructure only)
  * 
  * Features:
  * - Manages a single WebSocket connection
- * - Connects only when user is authenticated
+ * - Connects only when user is authenticated AND backend socket server is available
  * - Disconnects on logout
- * - Reconnects on page refresh if token exists
+ * - No auto-connect or repeated reconnect attempts
  * - Uses JWT from localStorage to authenticate socket
+ * 
+ * Note: Backend socket server not yet implemented - connection attempts are disabled
  */
 
 import { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
@@ -25,16 +27,32 @@ const getSocketUrl = () => {
   return apiUrl.replace(/\/api$/, '');
 };
 
+/**
+ * Check if backend socket server is available
+ * Since backend socket server is not yet implemented, always return false
+ */
+const isSocketServerAvailable = () => {
+  // Backend socket server not implemented yet - prevent connection attempts
+  return false;
+};
+
 export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
 
   /**
    * Connect to WebSocket server
+   * Only connects if backend socket server is available
    */
   const connect = () => {
     // Don't connect if already connected
     if (socketRef.current?.connected) {
+      return;
+    }
+
+    // Check if backend socket server is available
+    if (!isSocketServerAvailable()) {
+      // Backend socket server not available - don't attempt connection
       return;
     }
 
@@ -55,16 +73,15 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Create new socket connection with authentication
+    // autoConnect: false - manual connection only
+    // reconnection: false - no repeated reconnect attempts
     const socketUrl = getSocketUrl();
     const socket = io(socketUrl, {
       auth: {
         token: token,
       },
-      autoConnect: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      autoConnect: false, // Disable auto-connect
+      reconnection: false, // Disable reconnection attempts
     });
 
     // Connection event handlers
@@ -81,9 +98,13 @@ export const SocketProvider = ({ children }) => {
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
       setIsConnected(false);
+      // Don't attempt reconnection - backend server may not be available
     });
 
     socketRef.current = socket;
+    
+    // Manually connect (since autoConnect is false)
+    socket.connect();
   };
 
   /**
@@ -98,7 +119,8 @@ export const SocketProvider = ({ children }) => {
   };
 
   /**
-   * Check authentication and connect/disconnect accordingly
+   * Handle authentication changes and socket connection/disconnection
+   * Only connects if backend socket server is available
    */
   useEffect(() => {
     let wasAuthenticated = isAuthenticated();
@@ -109,8 +131,10 @@ export const SocketProvider = ({ children }) => {
       
       // Only reconnect/disconnect if auth state changed
       if (currentlyAuthenticated && !wasAuthenticated) {
-        // User just logged in
-        connect();
+        // User just logged in - only connect if server is available
+        if (isSocketServerAvailable()) {
+          connect();
+        }
         wasAuthenticated = true;
       } else if (!currentlyAuthenticated && wasAuthenticated) {
         // User just logged out
@@ -118,11 +142,14 @@ export const SocketProvider = ({ children }) => {
         wasAuthenticated = false;
       } else if (currentlyAuthenticated && !socketRef.current?.connected) {
         // User is authenticated but socket not connected (e.g., page refresh)
-        connect();
+        // Only connect if server is available
+        if (isSocketServerAvailable()) {
+          connect();
+        }
       }
     };
 
-    // Initial check
+    // Initial check (will not connect if server unavailable)
     checkAuthAndConnect();
 
     // Listen for storage changes (token added/removed in other tabs)
@@ -142,17 +169,10 @@ export const SocketProvider = ({ children }) => {
 
     window.addEventListener('auth:logout', handleLogout);
 
-    // Check periodically (in case token is removed in same window)
-    // This handles cases where localStorage is modified directly
-    const interval = setInterval(() => {
-      checkAuthAndConnect();
-    }, 2000);
-
     // Cleanup on unmount
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('auth:logout', handleLogout);
-      clearInterval(interval);
       disconnect();
     };
   }, []);

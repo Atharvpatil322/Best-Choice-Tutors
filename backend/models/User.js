@@ -33,12 +33,25 @@ const userSchema = new mongoose.Schema(
       enum: ['Learner', 'Tutor', 'Admin'],
       default: 'Learner',
     },
-    // Learner profile fields (FR-4.1.1, FR-4.1.2)
+    // Structured phone field (shared by learners and tutors)
+    phone: {
+      countryCode: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+      number: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+    },
+    // Legacy flat phone number (kept for backward compatibility with existing data)
+    // New code should prefer the structured `phone` object instead of this field.
     phoneNumber: {
       type: String,
       default: null,
       trim: true,
-      // TODO: CLARIFICATION REQUIRED - Should phone number have format validation?
     },
     gradeLevel: {
       type: String,

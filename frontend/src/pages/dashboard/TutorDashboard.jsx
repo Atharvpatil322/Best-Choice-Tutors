@@ -16,7 +16,7 @@ function TutorDashboard() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/', { replace: true });
   };
 
   return (
@@ -49,6 +49,13 @@ function TutorDashboard() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
+              <Button
+                onClick={() => navigate('/tutor/profile')}
+                className="w-full"
+                variant="outline"
+              >
+                My Profile
+              </Button>
               <Button
                 onClick={() => navigate('/tutor/availability')}
                 className="w-full"

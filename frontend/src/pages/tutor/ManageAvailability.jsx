@@ -24,14 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { getMyAvailability, createAvailability, updateAvailability } from '@/services/availabilityService';
 
 function ManageAvailability() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [hasExistingAvailability, setHasExistingAvailability] = useState(false);
 
   // Form state
@@ -70,12 +69,11 @@ function ManageAvailability() {
         } else {
           setHasExistingAvailability(false);
           setTimezone('Europe/London');
-          setWeeklyRules([]);
-          setExceptions([]);
+        setWeeklyRules([]);
+        setExceptions([]);
         }
-        setError(null);
       } catch (err) {
-        setError(err.message || 'Failed to load availability');
+        toast.error(err.message || 'Failed to load availability');
       } finally {
         setLoading(false);
       }
@@ -132,35 +130,59 @@ function ManageAvailability() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      setError(null);
-      setSuccess(null);
 
+      // Ensure data types and formats are correct before sending
       const availabilityData = {
-        timezone,
-        weeklyRules,
-        exceptions,
+        timezone: timezone?.trim() || 'Europe/London',
+        weeklyRules: weeklyRules.map((rule) => ({
+          dayOfWeek: typeof rule.dayOfWeek === 'number' ? rule.dayOfWeek : parseInt(rule.dayOfWeek, 10),
+          startTime: rule.startTime || '09:00',
+          endTime: rule.endTime || '17:00',
+        })),
+        exceptions: exceptions.map((exception) => ({
+          date: exception.date,
+          startTime: exception.startTime || '09:00',
+          endTime: exception.endTime || '17:00',
+          type: exception.type || 'unavailable',
+        })),
       };
+
+      // Validate timezone is not empty
+      if (!availabilityData.timezone || availabilityData.timezone.trim() === '') {
+        toast.error('Timezone is required');
+        return;
+      }
 
       let result;
       if (hasExistingAvailability) {
         result = await updateAvailability(availabilityData);
+        // Show success toast
+        toast.success(result.message || 'Availability updated successfully');
       } else {
         result = await createAvailability(availabilityData);
+        // Show success toast
+        toast.success(result.message || 'Availability created successfully');
       }
 
-      setSuccess(result.message || 'Availability saved successfully');
       setHasExistingAvailability(true);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
+      console.error('Availability save error:', err);
+      let errorMessage = 'Failed to save availability';
+      
       if (err.errors) {
-        // Validation errors
+        // Validation errors - show detailed messages
         const errorMessages = Object.values(err.errors).join(', ');
-        setError(err.message + ': ' + errorMessages);
+        errorMessage = err.message + ': ' + errorMessages;
+      } else if (err.rawErrors && Array.isArray(err.rawErrors)) {
+        // Raw express-validator errors
+        const errorMessages = err.rawErrors.map(e => e.msg || e.message).filter(Boolean).join(', ');
+        errorMessage = (err.message || 'Validation failed') + ': ' + errorMessages;
       } else {
-        setError(err.message || 'Failed to save availability');
+        errorMessage = err.message || 'Failed to save availability';
       }
+      
+      // Show error toast
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -195,18 +217,6 @@ function ManageAvailability() {
             Back to Dashboard
           </Button>
         </div>
-
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="mb-4 rounded-md bg-green-50 p-4 text-green-800 border border-green-200">
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4 text-red-800 border border-red-200">
-            {error}
-          </div>
-        )}
 
         {/* Timezone */}
         <Card className="mb-6">

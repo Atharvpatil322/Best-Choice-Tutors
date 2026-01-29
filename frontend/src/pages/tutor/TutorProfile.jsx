@@ -8,19 +8,24 @@
  * - Fetches availability from GET /api/tutors/:id/availability
  * - Fetches slots from GET /api/tutors/:id/slots
  * - Displays upcoming slots (date, startTime, endTime)
+ * - Learner can select ONE available slot, create booking, then pay via Razorpay checkout (test mode).
  * - Public, read-only page
- * - No booking button logic yet
  * - No availability editing
+ * - No webhook logic; success/failure handled in frontend callbacks only.
  */
 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getTutorById, getTutorAvailability, getTutorSlots } from '@/services/tutorService';
+import { createBooking } from '@/services/bookingService.js';
+import { createBookingPaymentOrder } from '@/services/bookingPaymentService.js';
+import { loadRazorpayScript, openRazorpayCheckout } from '@/lib/razorpay.js';
 
-function TutorProfile() {
-  const { id } = useParams();
+function TutorProfile({ tutorId: propTutorId }) {
+  const { id: routeId } = useParams();
+  const id = propTutorId || routeId;
   const navigate = useNavigate();
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +33,17 @@ function TutorProfile() {
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [availability, setAvailability] = useState(null);
+  /** Selected slot. Single selection. */
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  /** Booking creation: loading and error */
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
+  /** Created booking id from backend (after successful create) */
+  const [createdBookingId, setCreatedBookingId] = useState(null);
+  /** Payment: loading (opening checkout), success, error (cancelled/failed) */
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
 
   useEffect(() => {
     const fetchTutor = async () => {
@@ -50,6 +66,7 @@ function TutorProfile() {
 
   useEffect(() => {
     const fetchAvailabilityAndSlots = async () => {
+      // Do not call slots API if tutorId is undefined
       if (!id) return;
 
       try {
@@ -65,32 +82,27 @@ function TutorProfile() {
         }
 
         // Fetch slots for the next 4 weeks
+        // Backend generates, deduplicates, filters past slots, and sorts deterministically
         const today = new Date();
         const endDate = new Date();
         endDate.setDate(today.getDate() + 28); // 4 weeks ahead
 
-        const startDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-        const endDateStr = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const fromDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const toDateStr = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-        const slotsData = await getTutorSlots(id, startDateStr, endDateStr);
-        
-        // Filter out past slots and sort by date and time
-        const now = new Date();
-        const upcomingSlots = (slotsData.slots || [])
-          .filter((slot) => {
-            const slotDateTime = new Date(`${slot.date}T${slot.startTime}`);
-            return slotDateTime > now;
-          })
-          .sort((a, b) => {
-            const dateA = new Date(`${a.date}T${a.startTime}`);
-            const dateB = new Date(`${b.date}T${b.startTime}`);
-            return dateA - dateB;
-          });
+        // Ensure required query params are provided
+        if (!fromDateStr || !toDateStr) {
+          throw new Error('Invalid date range');
+        }
 
-        setSlots(upcomingSlots);
+        const slotsData = await getTutorSlots(id, fromDateStr, toDateStr);
+
+        // Backend returns slots already filtered (past slots removed) and sorted
+        // Frontend only renders - no generation, filtering, or sorting logic
+        setSlots(slotsData.slots || []);
       } catch (err) {
         console.error('Failed to load availability/slots:', err);
-        // Don't show error to user, just set empty slots
+        // Handle backend 400/500 responses gracefully without crashing UI
         setSlots([]);
       } finally {
         setSlotsLoading(false);
@@ -129,6 +141,113 @@ function TutorProfile() {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  // Group slots by date for display so that we only render
+  // date sections that actually have at least one available slot.
+  const groupedSlotsByDate = slots.reduce((acc, slot) => {
+    if (!slot?.date) return acc;
+    if (!acc[slot.date]) {
+      acc[slot.date] = [];
+    }
+    acc[slot.date].push(slot);
+    return acc;
+  }, {});
+
+  const groupedDates = Object.keys(groupedSlotsByDate).sort();
+
+  // Stable key for slot identity (for selection comparison)
+  const getSlotKey = (slot) =>
+    slot ? `${slot.date}-${slot.startTime}-${slot.endTime}` : '';
+  const isSlotSelected = (slot) =>
+    selectedSlot !== null && getSlotKey(selectedSlot) === getSlotKey(slot);
+  // Backend returns only available slots; if it later adds slot.available we disable when false
+  const isSlotUnavailable = (slot) => slot?.available === false;
+
+  const handleSlotClick = (slot) => {
+    if (isSlotUnavailable(slot)) return;
+    setSelectedSlot((prev) =>
+      prev && getSlotKey(prev) === getSlotKey(slot) ? null : slot
+    );
+    setBookingError(null);
+    setCreatedBookingId(null);
+    setPaymentSuccess(false);
+    setPaymentError(null);
+  };
+
+  const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
+
+  const handleBookSession = async () => {
+    if (!selectedSlot || !id) return;
+    setBookingLoading(true);
+    setBookingError(null);
+    setPaymentSuccess(false);
+    setPaymentError(null);
+    try {
+      const data = await createBooking({
+        tutorId: id,
+        date: selectedSlot.date,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      });
+      const bookingId = data.booking?.id ?? null;
+      setCreatedBookingId(bookingId);
+
+      if (!bookingId) return;
+
+      if (!razorpayKeyId) {
+        setPaymentError('Razorpay key not configured');
+        return;
+      }
+      await openPaymentCheckout(bookingId);
+    } catch (err) {
+      setBookingError(err.message || 'Failed to create booking');
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const openPaymentCheckout = async (bookingIdToPay) => {
+    if (!bookingIdToPay || !razorpayKeyId) return;
+    setPaymentError(null);
+    setPaymentLoading(true);
+    try {
+      const payData = await createBookingPaymentOrder(bookingIdToPay);
+      const order = payData.order;
+      if (!order?.id) {
+        setPaymentError('Payment order missing');
+        return;
+      }
+      await loadRazorpayScript();
+      openRazorpayCheckout({
+        key: razorpayKeyId,
+        order,
+        onSuccess() {
+          setPaymentSuccess(true);
+          setPaymentError(null);
+        },
+        onDismiss() {
+          setPaymentError('Payment cancelled or failed');
+        },
+      });
+    } catch (payErr) {
+      setPaymentError(payErr.message || 'Failed to open payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleRetryPayment = () => {
+    if (!createdBookingId) return;
+    openPaymentCheckout(createdBookingId);
+  };
+
+  const handleBookAnother = () => {
+    setSelectedSlot(null);
+    setCreatedBookingId(null);
+    setPaymentSuccess(false);
+    setPaymentError(null);
+    setBookingError(null);
   };
 
   if (loading) {
@@ -313,6 +432,75 @@ function TutorProfile() {
           </CardContent>
         </Card>
 
+        {/* Booking confirmation (payment success) */}
+        {paymentSuccess && selectedSlot && tutor && (
+          <Card className="mt-6 border-green-200 bg-green-50/50">
+            <CardHeader>
+              <CardTitle className="text-green-800">Booking confirmed</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Your session with {tutor.fullName || 'the tutor'} is confirmed.
+              </p>
+              <dl className="grid gap-2 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Tutor</dt>
+                  <dd className="font-medium">{tutor.fullName || '—'}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Date</dt>
+                  <dd className="font-medium">{formatDate(selectedSlot.date)}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Time</dt>
+                  <dd className="font-medium">
+                    {formatTime(selectedSlot.startTime)} – {formatTime(selectedSlot.endTime)}
+                  </dd>
+                </div>
+                {createdBookingId && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground">Booking ID</dt>
+                    <dd className="font-mono text-xs">{createdBookingId}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button asChild variant="default">
+                  <Link to="/bookings">View my bookings</Link>
+                </Button>
+                <Button variant="outline" onClick={handleBookAnother}>
+                  Book another session
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Payment failed / pending (retry option) */}
+        {paymentError && createdBookingId && !paymentSuccess && (
+          <Card className="mt-6 border-destructive/50 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="text-destructive">Payment not completed</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {paymentError}. Your booking is still pending. Complete payment to confirm your session.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleRetryPayment}
+                  disabled={paymentLoading}
+                >
+                  {paymentLoading ? 'Opening payment…' : 'Retry payment'}
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/bookings">View my bookings</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Availability & Slots */}
         <Card className="mt-6">
           <CardHeader>
@@ -334,17 +522,67 @@ function TutorProfile() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Showing upcoming available time slots for the next 4 weeks
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {slots.map((slot, index) => (
-                    <div
-                      key={index}
-                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                <p className="text-sm text-muted-foreground mb-2">
+                  Select one time slot, then click Book Session. Razorpay checkout opens after booking (test mode).
+                </p>
+                {selectedSlot && (
+                  <div className="mb-3 space-y-2">
+                    <p className="text-sm font-medium text-primary">
+                      Selected: {formatDate(selectedSlot.date)} — {formatTime(selectedSlot.startTime)}–{formatTime(selectedSlot.endTime)}
+                    </p>
+                    <Button
+                      onClick={handleBookSession}
+                      disabled={bookingLoading || paymentLoading}
                     >
-                      <div className="font-medium text-sm text-gray-900">
-                        {formatDate(slot.date)}
+                      {bookingLoading
+                        ? 'Creating…'
+                        : paymentLoading
+                          ? 'Opening payment…'
+                          : 'Book Session'}
+                    </Button>
+                    {createdBookingId && !paymentSuccess && !paymentError && (
+                      <p className="text-sm text-muted-foreground">
+                        Booking created (ID: {createdBookingId}). Complete payment in the Razorpay window.
+                      </p>
+                    )}
+                    {bookingError && (
+                      <p className="text-sm text-destructive" role="alert">
+                        {bookingError}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="space-y-4">
+                  {groupedDates.map((date) => (
+                    <div
+                      key={date}
+                      className="border rounded-lg p-4"
+                    >
+                      <div className="font-medium text-sm text-gray-900 mb-2">
+                        {formatDate(date)}
                       </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                      <div className="flex flex-wrap gap-2">
+                        {groupedSlotsByDate[date].map((slot, index) => {
+                          const unavailable = isSlotUnavailable(slot);
+                          const selected = isSlotSelected(slot);
+                          return (
+                            <Button
+                              key={`${date}-${index}`}
+                              type="button"
+                              variant={selected ? 'default' : 'outline'}
+                              size="sm"
+                              disabled={unavailable}
+                              onClick={() => handleSlotClick(slot)}
+                              className={
+                                selected
+                                  ? 'ring-2 ring-primary ring-offset-2'
+                                  : ''
+                              }
+                            >
+                              {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                            </Button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

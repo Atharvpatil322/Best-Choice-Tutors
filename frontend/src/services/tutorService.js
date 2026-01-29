@@ -186,21 +186,33 @@ export const getTutorAvailability = async (tutorId) => {
 /**
  * Get time slots for a tutor (public)
  * UI task: Fetch generated slots for tutor profile view
+ * Backend generates and deduplicates slots deterministically
  * @param {string} tutorId - Tutor ID
- * @param {string} startDate - Start date in YYYY-MM-DD format
- * @param {string} endDate - End date in YYYY-MM-DD format
+ * @param {string} fromDate - Start date in YYYY-MM-DD format
+ * @param {string} toDate - End date in YYYY-MM-DD format
  * @returns {Promise<Object>} { slots: [{ date, startTime, endTime }] }
  */
-export const getTutorSlots = async (tutorId, startDate, endDate) => {
-  // Check cache first
-  const cacheKey = getTutorSlotsCacheKey(tutorId, startDate, endDate);
-  const cached = getCache(cacheKey);
-  if (cached) {
-    return cached;
+export const getTutorSlots = async (tutorId, fromDate, toDate) => {
+  // Validate required parameters
+  if (!tutorId) {
+    throw new Error('Tutor ID is required');
   }
 
+  if (!fromDate || !toDate) {
+    throw new Error('Both from and to dates are required (format: YYYY-MM-DD)');
+  }
+
+  // Validate date format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(fromDate) || !dateRegex.test(toDate)) {
+    throw new Error('Dates must be in YYYY-MM-DD format');
+  }
+
+  // Removed caching to ensure fresh, deterministic slots on every request
+  // Backend handles deduplication and filtering
+
   const response = await fetch(
-    `${API_BASE_URL}/tutors/${tutorId}/slots?startDate=${startDate}&endDate=${endDate}`,
+    `${API_BASE_URL}/tutors/${tutorId}/slots?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
     {
       method: 'GET',
       headers: {
@@ -212,11 +224,11 @@ export const getTutorSlots = async (tutorId, startDate, endDate) => {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch tutor slots');
+    // Handle 400/500 errors gracefully
+    const errorMessage = data.message || `Failed to fetch tutor slots (${response.status})`;
+    throw new Error(errorMessage);
   }
 
-  // Cache the response
-  setCache(cacheKey, data);
-
+  // Return slots directly - backend has already filtered past slots and sorted
   return data;
 };

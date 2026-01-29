@@ -1,23 +1,14 @@
 /**
- * My Bookings Page
- * FR-4.1.3, UC-4.3: Learner Views Booking History
- * 
- * TODO: PHASE 5 DEPENDENCY - Booking & Scheduling
- * This is a placeholder implementation. Full booking functionality will be implemented in Phase 5.
- * 
- * Phase 5 will include:
- * - Display of past and upcoming bookings
- * - Booking details (Tutor name, Subject, Date/Time, Status, Amount Paid)
- * - Filtering by status (Upcoming, Completed, Cancelled)
- * - Sorting by date (upcoming first, then past)
+ * My Bookings Page (Learner)
+ * Read-only dashboard: tutor name, date & time, status (Pending / Paid / Failed).
+ * No cancellation or payment actions.
  */
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getLearnerBookings } from '@/services/learnerBookingsService';
-import { logout } from '@/services/authService';
 
 function MyBookings() {
   const navigate = useNavigate();
@@ -34,32 +25,42 @@ function MyBookings() {
         setError(null);
       } catch (err) {
         setError(err.message || 'Failed to load bookings');
-        // If unauthorized, redirect to login
-        if (err.message.includes('Authentication') || err.message.includes('401')) {
-          logout();
-          navigate('/login');
-        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchBookings();
-  }, [navigate]);
+  }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
-  const handleBackToDashboard = () => {
-    navigate('/dashboard');
+  const formatTime = (start, end) => {
+    if (!start || !end) return '—';
+    const fmt = (t) => {
+      const [h, m] = (t || '').split(':');
+      const hour = parseInt(h, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${m || '00'} ${ampm}`;
+    };
+    return `${fmt(start)} – ${fmt(end)}`;
   };
 
-  const handleBrowseTutors = () => {
-    // Navigate to landing page where users can browse tutors
-    // TODO: PHASE 4 - Update to dedicated tutor browse/search page when implemented
-    navigate('/');
+  const statusLabel = (status) => {
+    const s = (status || '').toUpperCase();
+    if (s === 'PAID') return 'Paid';
+    if (s === 'FAILED') return 'Failed';
+    return 'Pending';
   };
 
   if (loading) {
@@ -82,9 +83,9 @@ function MyBookings() {
         <div className="container mx-auto max-w-4xl">
           <Card>
             <CardContent className="p-6">
-              <p className="text-center text-red-600">Error: {error}</p>
-              <div className="mt-4 flex justify-center gap-2">
-                <Button variant="outline" onClick={handleBackToDashboard}>
+              <p className="text-center text-destructive">{error}</p>
+              <div className="mt-4 flex justify-center">
+                <Button variant="outline" onClick={() => navigate('/dashboard')}>
                   Back to Dashboard
                 </Button>
               </div>
@@ -98,57 +99,49 @@ function MyBookings() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="container mx-auto max-w-4xl">
-        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold">My Bookings</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleBackToDashboard}>
-              Dashboard
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
+            Dashboard
+          </Button>
         </div>
 
-        {/* Bookings Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Session History</CardTitle>
-            <CardDescription>View your past and upcoming tutoring sessions</CardDescription>
+            <CardTitle>Bookings</CardTitle>
           </CardHeader>
           <CardContent>
             {bookings.length === 0 ? (
-              /* Empty State - AF-4.3.1 */
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-                  <svg
-                    className="h-8 w-8 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="mb-2 text-lg font-semibold">You haven't booked any sessions yet</h3>
-                <p className="mb-6 text-muted-foreground">
-                  Start your learning journey by finding the perfect tutor for you.
-                </p>
-                <Button onClick={handleBrowseTutors} size="lg">
-                  Browse Tutors
-                </Button>
-              </div>
+              <p className="py-8 text-center text-muted-foreground">
+                You have no bookings yet.
+              </p>
             ) : (
-              /* TODO: PHASE 5 - Display bookings list when implemented */
-              <div className="py-6 text-center text-muted-foreground">
-                <p>Booking display will be implemented in Phase 5</p>
-              </div>
+              <ul className="divide-y">
+                {bookings.map((b) => (
+                  <li
+                    key={b.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0 sm:flex-nowrap"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{b.tutorName || 'Tutor'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(b.date)} · {formatTime(b.startTime, b.endTime)}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded px-2 py-0.5 text-sm font-medium ${
+                        (b.status || '').toUpperCase() === 'PAID'
+                          ? 'bg-green-100 text-green-800'
+                          : (b.status || '').toUpperCase() === 'FAILED'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {statusLabel(b.status)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>

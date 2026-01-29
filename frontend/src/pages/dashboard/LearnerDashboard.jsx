@@ -6,14 +6,17 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { logout } from '@/services/authService';
+import { getCurrentRole, logout } from '@/services/authService';
 
 function LearnerDashboard() {
   const navigate = useNavigate();
+  const role = getCurrentRole();
+  const normalizedRole = typeof role === 'string' ? role.toLowerCase() : null;
+  const isTutor = normalizedRole === 'tutor';
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/', { replace: true });
   };
 
   return (
@@ -57,13 +60,15 @@ function LearnerDashboard() {
               >
                 My Profile
               </Button>
-              <Button
-                onClick={() => navigate('/tutor/create')}
-                variant="default"
-                className="w-full"
-              >
-                Become a Tutor
-              </Button>
+              {!isTutor ? (
+                <Button
+                  onClick={() => navigate('/tutor/create')}
+                  variant="default"
+                  className="w-full"
+                >
+                  Become a Tutor
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
         </div>

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
+import { Toaster } from '@/components/ui/sonner';
 import LandingPage from '@/components/landing/LandingPage';
 import Login from '@/pages/auth/Login';
 import Register from '@/pages/auth/Register';
@@ -8,10 +9,11 @@ import ResetPassword from '@/pages/auth/ResetPassword';
 import AuthCallbackPage from '@/components/auth/AuthCallbackPage';
 import LearnerDashboard from '@/pages/dashboard/LearnerDashboard';
 import TutorDashboard from '@/pages/dashboard/TutorDashboard';
-import MyProfile from '@/pages/profile/MyProfile';
+import ProfileRouter from '@/pages/profile/ProfileRouter';
 import MyBookings from '@/pages/bookings/MyBookings';
 import CreateTutorProfile from '@/pages/tutor/CreateTutorProfile';
 import TutorProfile from '@/pages/tutor/TutorProfile';
+import TutorMyProfile from '@/pages/tutor/TutorMyProfile';
 import TutorListing from '@/pages/tutor/TutorListing';
 import BrowseTutors from '@/pages/tutor/BrowseTutors';
 import ManageAvailability from '@/pages/tutor/ManageAvailability';
@@ -22,18 +24,41 @@ function App() {
     <SocketProvider>
       <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
+        {/* Public Route - Only Landing Page */}
         <Route path="/" element={<LandingPage />} />
+        
+        {/* Auth routes - public so users can authenticate */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/tutors" element={<TutorListing />} />
-        <Route path="/browse-tutors" element={<BrowseTutors />} />
-        <Route path="/tutors/:id" element={<TutorProfile />} />
         
-        {/* Protected Routes */}
+        {/* All other routes require authentication */}
+        <Route
+          path="/tutors"
+          element={
+            <ProtectedRoute>
+              <TutorListing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/browse-tutors"
+          element={
+            <ProtectedRoute>
+              <BrowseTutors />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutors/:id"
+          element={
+            <ProtectedRoute>
+              <TutorProfile />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -46,7 +71,7 @@ function App() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <MyProfile />
+              <ProfileRouter />
             </ProtectedRoute>
           }
         />
@@ -82,8 +107,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/tutor/profile"
+          element={
+            <ProtectedRoute>
+              <TutorMyProfile />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
       </BrowserRouter>
+      <Toaster />
     </SocketProvider>
   );
 }
