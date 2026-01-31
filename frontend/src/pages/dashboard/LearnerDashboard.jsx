@@ -54,6 +54,19 @@ function LearnerDashboard() {
                 Browse Tutors
               </Button>
               <Button
+                onClick={() => navigate('/tuition-requests')}
+                variant="outline"
+                className="w-full"
+              >
+                My tuition requests
+              </Button>
+              <Button
+                onClick={() => navigate('/tuition-requests/new')}
+                className="w-full"
+              >
+                Create tuition request
+              </Button>
+              <Button
                 onClick={() => navigate('/profile')}
                 variant="outline"
                 className="w-full"

@@ -1,4 +1,5 @@
 import Booking from '../models/Booking.js';
+import Dispute from '../models/Dispute.js';
 import Tutor from '../models/Tutor.js';
 import TutorEarnings from '../models/TutorEarnings.js';
 import { createRazorpayOrder } from './razorpayService.js';
@@ -206,6 +207,9 @@ export const updateBookingStatusFromRazorpayPaymentEvent = async ({
 
   const wasPaid = booking.status === 'PAID';
   booking.status = targetStatus;
+  if (targetStatus === 'PAID' && payment?.id) {
+    booking.razorpayPaymentId = payment.id;
+  }
   await booking.save();
 
   // Wallet lifecycle 1: On PAID only — create ledger entry with pendingRelease (never available).
@@ -263,11 +267,71 @@ export const getSessionEndPlusBuffer = (booking) => {
 };
 
 /**
+ * Transition TutorEarnings from pendingRelease → available for a booking.
+ * Phase 10: Never credits wallet when an OPEN dispute exists.
+ * Wallet balance remains unchanged until dispute is resolved.
+ *
+ * @param {mongoose.Types.ObjectId} bookingId
+ * @returns {Promise<boolean>} true if transition was performed, false if skipped (e.g. dispute OPEN)
+ */
+export async function releaseWalletForBooking(bookingId) {
+  const openDispute = await Dispute.findOne({ bookingId, status: 'OPEN' });
+  if (openDispute) {
+    return false;
+  }
+  return releaseWalletForBookingInternal(bookingId);
+}
+
+/**
+ * Release wallet without dispute check. For admin dispute resolution (RELEASE_PAYMENT_TO_TUTOR) only.
+ */
+export async function releaseWalletForBookingInternal(bookingId) {
+  const result = await TutorEarnings.updateOne(
+    { bookingId, status: 'pendingRelease' },
+    { $set: { status: 'available' } }
+  );
+  return result.modifiedCount > 0;
+}
+
+/**
+ * Mark TutorEarnings as refunded (FULL_REFUND). Excludes from tutor wallet.
+ *
+ * @param {mongoose.Types.ObjectId} bookingId
+ * @returns {Promise<boolean>}
+ */
+export async function markTutorEarningsRefunded(bookingId) {
+  const result = await TutorEarnings.updateOne(
+    { bookingId, status: 'pendingRelease' },
+    { $set: { status: 'refunded' } }
+  );
+  return result.modifiedCount > 0;
+}
+
+/**
+ * Release partial amount to tutor (PARTIAL_REFUND). Updates ledger to net amount and sets available.
+ *
+ * @param {mongoose.Types.ObjectId} bookingId
+ * @param {number} netAmountInPaise - Amount tutor receives (original - refundAmount)
+ * @returns {Promise<boolean>}
+ */
+export async function releasePartialToTutor(bookingId, netAmountInPaise) {
+  if (!Number.isInteger(netAmountInPaise) || netAmountInPaise < 0) {
+    return false;
+  }
+  const result = await TutorEarnings.updateOne(
+    { bookingId, status: 'pendingRelease' },
+    { $set: { amount: netAmountInPaise, status: 'available' } }
+  );
+  return result.modifiedCount > 0;
+}
+
+/**
  * Mark all PAID bookings whose session end + buffer has passed as COMPLETED.
  *
  * Wallet lifecycle rule 3: On session completion (booking.status = COMPLETED), transition
  * the corresponding wallet entry from pendingRelease → available only. Idempotent: we only
  * update entries that are currently pendingRelease.
+ * Phase 10: TutorEarnings must NOT transition to available while dispute is OPEN.
  *
  * @returns {Promise<{ updated: number }>} Number of bookings updated
  */
@@ -279,13 +343,16 @@ export const completeEligibleBookings = async () => {
   for (const b of paidBookings) {
     const sessionEndPlusBuffer = getSessionEndPlusBuffer(b);
     if (sessionEndPlusBuffer.getTime() <= now.getTime()) {
+      // Phase 10: Skip completion if an OPEN dispute exists — keep escrow frozen
+      const openDispute = await Dispute.findOne({ bookingId: b._id, status: 'OPEN' });
+      if (openDispute) {
+        continue;
+      }
+
       await Booking.updateOne({ _id: b._id }, { status: 'COMPLETED' });
-      // Wallet: pendingRelease → available only; match status so idempotent on retries
-      const walletResult = await TutorEarnings.updateOne(
-        { bookingId: b._id, status: 'pendingRelease' },
-        { $set: { status: 'available' } }
-      );
-      if (walletResult.modifiedCount > 0) {
+      // Wallet: use centralised release; never credits when dispute OPEN
+      const released = await releaseWalletForBooking(b._id);
+      if (released) {
         console.info('Wallet entry transitioned pendingRelease → available', {
           bookingId: b._id.toString(),
         });

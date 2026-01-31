@@ -9,6 +9,8 @@ import ResetPassword from '@/pages/auth/ResetPassword';
 import AuthCallbackPage from '@/components/auth/AuthCallbackPage';
 import LearnerDashboard from '@/pages/dashboard/LearnerDashboard';
 import TutorDashboard from '@/pages/dashboard/TutorDashboard';
+import CreateTuitionRequest from '@/pages/learner/CreateTuitionRequest';
+import { MyTuitionRequestsList, TuitionRequestDetail } from '@/pages/learner/MyTuitionRequests';
 import ProfileRouter from '@/pages/profile/ProfileRouter';
 import MyBookings from '@/pages/bookings/MyBookings';
 import TutorBookings from '@/pages/bookings/TutorBookings';
@@ -21,7 +23,10 @@ import TutorListing from '@/pages/tutor/TutorListing';
 import BrowseTutors from '@/pages/tutor/BrowseTutors';
 import ManageAvailability from '@/pages/tutor/ManageAvailability';
 import TutorWallet from '@/pages/tutor/TutorWallet';
+import BrowseTuitionRequests from '@/pages/tutor/BrowseTuitionRequests';
 import AdminReportedReviews from '@/pages/admin/AdminReportedReviews';
+import AdminDisputes from '@/pages/admin/AdminDisputes';
+import AdminDisputeDetail from '@/pages/admin/AdminDisputeDetail';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
@@ -69,6 +74,30 @@ function App() {
           element={
             <ProtectedRoute>
               <LearnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tuition-requests/new"
+          element={
+            <ProtectedRoute>
+              <CreateTuitionRequest />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tuition-requests/:requestId"
+          element={
+            <ProtectedRoute>
+              <TuitionRequestDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tuition-requests"
+          element={
+            <ProtectedRoute>
+              <MyTuitionRequestsList />
             </ProtectedRoute>
           }
         />
@@ -121,6 +150,14 @@ function App() {
           }
         />
         <Route
+          path="/tutor/tuition-requests"
+          element={
+            <ProtectedRoute>
+              <BrowseTuitionRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/tutor/profile"
           element={
             <ProtectedRoute>
@@ -157,6 +194,22 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminReportedReviews />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/disputes"
+          element={
+            <ProtectedRoute>
+              <AdminDisputes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/disputes/:disputeId"
+          element={
+            <ProtectedRoute>
+              <AdminDisputeDetail />
             </ProtectedRoute>
           }
         />

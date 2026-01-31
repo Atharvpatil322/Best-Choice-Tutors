@@ -70,6 +70,10 @@ const tutorSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
     createdAt: {
       type: Date,
       default: Date.now,

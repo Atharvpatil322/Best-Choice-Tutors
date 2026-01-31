@@ -76,6 +76,13 @@ function TutorDashboard() {
               >
                 Manage Availability
               </Button>
+              <Button
+                onClick={() => navigate('/tutor/tuition-requests')}
+                className="w-full"
+                variant="outline"
+              >
+                Browse tuition requests
+              </Button>
             </CardContent>
           </Card>
         </div>

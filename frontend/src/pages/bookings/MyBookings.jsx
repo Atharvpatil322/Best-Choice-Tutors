@@ -2,20 +2,25 @@
  * My Bookings Page (Learner)
  * Read-only dashboard: tutor name, date & time, backend status.
  * Review form for completed bookings when canReview === true (star rating + text, submit; no edit/delete).
+ * Phase 10: Raise dispute for COMPLETED bookings within 24h window.
  */
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Star, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getLearnerBookings } from '@/services/learnerBookingsService';
 import { submitReview } from '@/services/reviewService';
+import { raiseDispute, submitLearnerEvidence } from '@/services/disputeService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
 import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
+import { canRaiseDispute } from '@/utils/disputeEligibility';
 
 const MAX_REVIEW_TEXT_LENGTH = 2000;
+const MAX_DISPUTE_REASON_LENGTH = 2000;
+const MAX_EVIDENCE_LENGTH = 2000;
 
 function MyBookings() {
   const navigate = useNavigate();
@@ -26,6 +31,15 @@ function MyBookings() {
   const [reviewForm, setReviewForm] = useState({});
   const [submittingReviewId, setSubmittingReviewId] = useState(null);
   const [reviewErrorByBookingId, setReviewErrorByBookingId] = useState({});
+  const [disputedBookingIds, setDisputedBookingIds] = useState([]);
+  const [disputeForm, setDisputeForm] = useState({});
+  const [submittingDisputeId, setSubmittingDisputeId] = useState(null);
+  const [disputeErrorByBookingId, setDisputeErrorByBookingId] = useState({});
+  const [showDisputeFormByBookingId, setShowDisputeFormByBookingId] = useState({});
+  const [learnerEvidenceForm, setLearnerEvidenceForm] = useState({});
+  const [learnerEvidenceSubmittedIds, setLearnerEvidenceSubmittedIds] = useState([]);
+  const [submittingLearnerEvidenceId, setSubmittingLearnerEvidenceId] = useState(null);
+  const [learnerEvidenceErrorByBookingId, setLearnerEvidenceErrorByBookingId] = useState({});
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -105,6 +119,56 @@ function MyBookings() {
     }
   };
 
+  const getDisputeReasonForBooking = (bookingId) => disputeForm[bookingId] ?? '';
+  const setDisputeReasonForBooking = (bookingId, reason) => {
+    setDisputeForm((prev) => ({
+      ...prev,
+      [bookingId]: (reason || '').slice(0, MAX_DISPUTE_REASON_LENGTH),
+    }));
+    setDisputeErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+  };
+
+  const handleRaiseDispute = async (bookingId) => {
+    const reason = getDisputeReasonForBooking(bookingId);
+    setSubmittingDisputeId(bookingId);
+    setDisputeErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+    try {
+      await raiseDispute(bookingId, reason);
+      setDisputedBookingIds((prev) => (prev.includes(bookingId) ? prev : [...prev, bookingId]));
+      setShowDisputeFormByBookingId((prev) => ({ ...prev, [bookingId]: false }));
+    } catch (err) {
+      setDisputeErrorByBookingId((prev) => ({ ...prev, [bookingId]: err.message || 'Failed to raise dispute' }));
+    } finally {
+      setSubmittingDisputeId(null);
+    }
+  };
+
+  const getLearnerEvidenceForBooking = (bookingId) => learnerEvidenceForm[bookingId] ?? '';
+  const setLearnerEvidenceForBooking = (bookingId, text) => {
+    setLearnerEvidenceForm((prev) => ({
+      ...prev,
+      [bookingId]: (text || '').slice(0, MAX_EVIDENCE_LENGTH),
+    }));
+    setLearnerEvidenceErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+  };
+
+  const handleSubmitLearnerEvidence = async (bookingId) => {
+    const evidence = getLearnerEvidenceForBooking(bookingId);
+    setSubmittingLearnerEvidenceId(bookingId);
+    setLearnerEvidenceErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+    try {
+      await submitLearnerEvidence(bookingId, evidence);
+      setLearnerEvidenceSubmittedIds((prev) => (prev.includes(bookingId) ? prev : [...prev, bookingId]));
+    } catch (err) {
+      setLearnerEvidenceErrorByBookingId((prev) => ({
+        ...prev,
+        [bookingId]: err.message || 'Failed to submit evidence',
+      }));
+    } finally {
+      setSubmittingLearnerEvidenceId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
@@ -167,6 +231,19 @@ function MyBookings() {
                   const form = getFormForBooking(b.id);
                   const isSubmitting = submittingReviewId === b.id;
                   const reviewError = reviewErrorByBookingId[b.id];
+                  const canDispute = canRaiseDispute(b);
+                  const hasDispute = b.hasDispute === true || disputedBookingIds.includes(b.id);
+                  const showDisputeForm = showDisputeFormByBookingId[b.id] === true;
+                  const disputeReason = getDisputeReasonForBooking(b.id);
+                  const isSubmittingDispute = submittingDisputeId === b.id;
+                  const disputeError = disputeErrorByBookingId[b.id];
+                  const canSubmitLearnerEvidence =
+                    hasDispute &&
+                    b.disputeStatus === 'OPEN' &&
+                    !(b.learnerEvidenceSubmitted || learnerEvidenceSubmittedIds.includes(b.id));
+                  const learnerEvidence = getLearnerEvidenceForBooking(b.id);
+                  const isSubmittingLearnerEvidence = submittingLearnerEvidenceId === b.id;
+                  const learnerEvidenceError = learnerEvidenceErrorByBookingId[b.id];
 
                   return (
                     <li
@@ -251,6 +328,125 @@ function MyBookings() {
                               </>
                             )}
                           </div>
+                        )}
+                        {canDispute && !hasDispute && (
+                          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/50 p-3">
+                            {showDisputeForm ? (
+                              <>
+                                <Label
+                                  htmlFor={`dispute-reason-${b.id}`}
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  Reason for dispute (required)
+                                </Label>
+                                <textarea
+                                  id={`dispute-reason-${b.id}`}
+                                  value={disputeReason}
+                                  onChange={(e) => setDisputeReasonForBooking(b.id, e.target.value)}
+                                  disabled={isSubmittingDispute}
+                                  placeholder="Describe the issue (e.g. tutor no-show, poor session quality…)"
+                                  maxLength={MAX_DISPUTE_REASON_LENGTH}
+                                  rows={3}
+                                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  {disputeReason.length}/{MAX_DISPUTE_REASON_LENGTH}
+                                </p>
+                                {disputeError && (
+                                  <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    {disputeError}
+                                  </p>
+                                )}
+                                <div className="mt-2 flex gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={!disputeReason.trim() || isSubmittingDispute}
+                                    onClick={() => handleRaiseDispute(b.id)}
+                                  >
+                                    {isSubmittingDispute ? 'Submitting…' : 'Submit dispute'}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={isSubmittingDispute}
+                                    onClick={() => {
+                                      setShowDisputeFormByBookingId((prev) => ({ ...prev, [b.id]: false }));
+                                      setDisputeErrorByBookingId((prev) => ({ ...prev, [b.id]: undefined }));
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                                onClick={() => setShowDisputeFormByBookingId((prev) => ({ ...prev, [b.id]: true }))}
+                              >
+                                <AlertCircle className="mr-1.5 h-4 w-4" />
+                                Raise dispute
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {hasDispute && (
+                          <>
+                            <p className="mt-2 flex items-center gap-1.5 text-sm text-amber-700">
+                              <AlertCircle className="h-4 w-4 shrink-0" />
+                              Dispute raised — under review
+                            </p>
+                            {canSubmitLearnerEvidence && (
+                              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/30 p-3">
+                                <Label
+                                  htmlFor={`learner-evidence-${b.id}`}
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  Submit your evidence (required for dispute review)
+                                </Label>
+                                <textarea
+                                  id={`learner-evidence-${b.id}`}
+                                  value={learnerEvidence}
+                                  onChange={(e) => setLearnerEvidenceForBooking(b.id, e.target.value)}
+                                  disabled={isSubmittingLearnerEvidence}
+                                  placeholder="Provide details to support your dispute…"
+                                  maxLength={MAX_EVIDENCE_LENGTH}
+                                  rows={3}
+                                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  {learnerEvidence.length}/{MAX_EVIDENCE_LENGTH}
+                                </p>
+                                {learnerEvidenceError && (
+                                  <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    {learnerEvidenceError}
+                                  </p>
+                                )}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                                  disabled={!learnerEvidence.trim() || isSubmittingLearnerEvidence}
+                                  onClick={() => handleSubmitLearnerEvidence(b.id)}
+                                >
+                                  {isSubmittingLearnerEvidence ? 'Submitting…' : 'Submit evidence'}
+                                </Button>
+                              </div>
+                            )}
+                            {hasDispute && (b.learnerEvidenceSubmitted || learnerEvidenceSubmittedIds.includes(b.id)) && (
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                Your evidence has been submitted.
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2">

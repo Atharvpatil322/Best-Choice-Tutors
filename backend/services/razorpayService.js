@@ -61,4 +61,19 @@ export const verifyRazorpayWebhookSignature = (payloadBody, signature) => {
   return expectedSignature === signature;
 };
 
+/**
+ * Create a refund for a captured payment.
+ *
+ * @param {Object} params
+ * @param {string} params.paymentId - Razorpay payment ID (e.g. pay_xxx)
+ * @param {number} [params.amount] - Amount in paise. Omit for full refund.
+ * @returns {Promise<Object>} Razorpay refund object
+ */
+export const createRefund = async ({ paymentId, amount }) => {
+  const razorpayClient = getRazorpayClient();
+  const options = amount != null ? { amount } : {};
+  const refund = await razorpayClient.payments.refund(paymentId, options);
+  return refund;
+};
+
 

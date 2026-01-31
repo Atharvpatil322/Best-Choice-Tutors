@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
  *
  * Ledger-only record of tutor earnings per booking. No withdrawals, no bank details.
  * One entry per booking; status moves from pendingRelease to available when released.
+ * Phase 10: 'refunded' status for FULL_REFUND disputes (tutor receives nothing).
  */
 
 const tutorEarningsSchema = new mongoose.Schema(
@@ -28,7 +29,7 @@ const tutorEarningsSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pendingRelease', 'available'],
+      enum: ['pendingRelease', 'available', 'refunded'],
       default: 'pendingRelease',
       index: true,
     },
