@@ -1,7 +1,8 @@
 /**
  * Socket.IO Chat Service
  * - Chat allowed only when a valid booking exists between learner and tutor.
- * - Messages persisted in DB. No group chat; no file sharing.
+ * - All messages for a booking are stored in one Conversation document (messages array). No new document per message.
+ * - No group chat; no file sharing.
  */
 
 import { Server } from 'socket.io';
@@ -9,35 +10,47 @@ import { verifyToken } from '../utils/jwt.js';
 import User from '../models/User.js';
 import Booking from '../models/Booking.js';
 import Tutor from '../models/Tutor.js';
-import Message from '../models/Message.js';
+import Conversation from '../models/Conversation.js';
 
 const MAX_MESSAGE_LENGTH = 5000;
 const ROOM_PREFIX = 'booking:';
 
+/** Booking statuses that allow chat (confirmed / paid or equivalent final paid state). All others (PENDING, FAILED, CANCELLED, NO_SHOW, etc.) block chat. */
+const CHAT_ALLOWED_BOOKING_STATUSES = ['PAID', 'COMPLETED'];
+
 /**
- * Check if the authenticated user is a participant of the booking (learner or tutor).
+ * Check if the authenticated user can access chat for the booking: booking must exist,
+ * user must be a participant, and booking status must be PAID or COMPLETED.
+ * PENDING, FAILED, CANCELLED, NO_SHOW, or any non-paid state → block chat.
+ *
  * @param {string} userId - User _id (ObjectId string)
  * @param {string} userRole - 'Learner' | 'Tutor'
  * @param {string} bookingId - Booking _id string
- * @returns {Promise<{ allowed: boolean, booking?: Object }>}
+ * @returns {Promise<{ allowed: boolean, booking?: Object, reason?: 'not_participant' | 'booking_not_eligible' }>}
  */
 async function canAccessBooking(userId, userRole, bookingId) {
   const booking = await Booking.findById(bookingId).lean();
-  if (!booking) return { allowed: false };
+  if (!booking) return { allowed: false, reason: 'not_participant' };
 
+  let isParticipant = false;
   if (userRole === 'Learner') {
-    const allowed = booking.learnerId && booking.learnerId.toString() === userId;
-    return { allowed: !!allowed, booking };
-  }
-
-  if (userRole === 'Tutor') {
+    isParticipant = booking.learnerId && booking.learnerId.toString() === userId;
+  } else if (userRole === 'Tutor') {
     const tutor = await Tutor.findOne({ userId }).lean();
-    if (!tutor) return { allowed: false };
-    const allowed = booking.tutorId && booking.tutorId.toString() === tutor._id.toString();
-    return { allowed: !!allowed, booking };
+    if (!tutor) return { allowed: false, reason: 'not_participant' };
+    isParticipant = booking.tutorId && booking.tutorId.toString() === tutor._id.toString();
   }
 
-  return { allowed: false };
+  if (!isParticipant) {
+    return { allowed: false, reason: 'not_participant', booking };
+  }
+
+  const statusAllowed = CHAT_ALLOWED_BOOKING_STATUSES.includes(booking.status);
+  if (!statusAllowed) {
+    return { allowed: false, reason: 'booking_not_eligible', booking };
+  }
+
+  return { allowed: true, booking };
 }
 
 /**
@@ -88,9 +101,13 @@ export function attachSocketServer(httpServer, corsOrigin = '*') {
         callback?.({ success: false, error: 'Only learners and tutors can join booking chat' });
         return;
       }
-      const { allowed } = await canAccessBooking(socket.userId, socket.userRole, bookingId);
+      const { allowed, reason } = await canAccessBooking(socket.userId, socket.userRole, bookingId);
       if (!allowed) {
-        callback?.({ success: false, error: 'You do not have access to this booking' });
+        const error =
+          reason === 'booking_not_eligible'
+            ? 'Chat is only available for confirmed, paid bookings.'
+            : 'You do not have access to this booking';
+        callback?.({ success: false, error });
         return;
       }
       const room = ROOM_PREFIX + bookingId;
@@ -117,27 +134,41 @@ export function attachSocketServer(httpServer, corsOrigin = '*') {
         callback?.({ success: false, error: 'Only learners and tutors can send messages' });
         return;
       }
-      const { allowed } = await canAccessBooking(socket.userId, socket.userRole, bookingId);
+      const { allowed, reason } = await canAccessBooking(socket.userId, socket.userRole, bookingId);
       if (!allowed) {
-        callback?.({ success: false, error: 'You do not have access to this booking' });
+        const error =
+          reason === 'booking_not_eligible'
+            ? 'Chat is only available for confirmed, paid bookings.'
+            : 'You do not have access to this booking';
+        callback?.({ success: false, error });
         return;
       }
 
       try {
-        const doc = await Message.create({
-          bookingId,
-          senderId: socket.userId,
-          senderRole: socket.userRole,
-          message: text,
-          timestamp: new Date(),
-        });
+        const messageTimestamp = new Date();
+        const conversation = await Conversation.findOneAndUpdate(
+          { bookingId },
+          {
+            $push: {
+              messages: {
+                senderId: socket.userId,
+                senderRole: socket.userRole,
+                message: text,
+                timestamp: messageTimestamp,
+              },
+            },
+            $set: { lastMessageAt: messageTimestamp },
+          },
+          { new: true, upsert: true }
+        );
+        const lastMsg = conversation.messages[conversation.messages.length - 1];
         const msgPayload = {
-          id: doc._id.toString(),
-          bookingId: doc.bookingId.toString(),
-          senderId: doc.senderId.toString(),
-          senderRole: doc.senderRole,
-          message: doc.message,
-          timestamp: doc.timestamp,
+          id: lastMsg._id.toString(),
+          bookingId: conversation.bookingId.toString(),
+          senderId: lastMsg.senderId.toString(),
+          senderRole: lastMsg.senderRole,
+          message: lastMsg.message,
+          timestamp: lastMsg.timestamp,
         };
         const room = ROOM_PREFIX + bookingId;
         io.to(room).emit('message', msgPayload);
@@ -157,18 +188,24 @@ export function attachSocketServer(httpServer, corsOrigin = '*') {
         callback?.({ success: false, error: 'Only learners and tutors can get history' });
         return;
       }
-      const { allowed } = await canAccessBooking(socket.userId, socket.userRole, bookingId);
+      const { allowed, reason } = await canAccessBooking(socket.userId, socket.userRole, bookingId);
       if (!allowed) {
-        callback?.({ success: false, error: 'You do not have access to this booking' });
+        const error =
+          reason === 'booking_not_eligible'
+            ? 'Chat is only available for confirmed, paid bookings.'
+            : 'You do not have access to this booking';
+        callback?.({ success: false, error });
         return;
       }
       try {
-        const messages = await Message.find({ bookingId })
-          .sort({ timestamp: 1 })
-          .lean();
-        const list = messages.map((m) => ({
+        const conversation = await Conversation.findOne({ bookingId }).lean();
+        if (!conversation) {
+          callback?.({ success: true, messages: [] });
+          return;
+        }
+        const list = (conversation.messages ?? []).map((m) => ({
           id: m._id.toString(),
-          bookingId: m.bookingId.toString(),
+          bookingId: conversation.bookingId.toString(),
           senderId: m.senderId.toString(),
           senderRole: m.senderRole,
           message: m.message,

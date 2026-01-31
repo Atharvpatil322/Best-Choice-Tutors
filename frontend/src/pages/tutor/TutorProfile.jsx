@@ -12,10 +12,14 @@
  * - Public, read-only page
  * - No availability editing
  * - No webhook logic; success/failure handled in frontend callbacks only.
+ * - Wallet lifecycle: frontend Razorpay success callback MUST NOT update wallet or booking status.
+ *   Wallet state depends only on backend (Razorpay webhook payment.captured → ledger pendingRelease;
+ *   session completion → ledger available). Do not call any wallet or booking-status API on success.
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -241,6 +245,7 @@ function TutorProfile({ tutorId: propTutorId }) {
         key: razorpayKeyId,
         order,
         onSuccess() {
+          // UI only: show success. Do NOT call wallet or booking-status API; backend webhook updates wallet.
           setPaymentSuccess(true);
           setPaymentError(null);
         },
@@ -371,6 +376,26 @@ function TutorProfile({ tutorId: propTutorId }) {
                 <p className="text-muted-foreground">
                   {tutor.mode || <Placeholder />}
                 </p>
+                {tutor.reviewCount != null && tutor.reviewCount > 0 && (
+                  <div className="mt-2 flex items-center gap-2 text-sm">
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <Star
+                          key={value}
+                          className={`h-4 w-4 ${
+                            value <= Math.round(Number(tutor.averageRating) || 0)
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-muted-foreground/40'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-muted-foreground">
+                      {(Number(tutor.averageRating) || 0).toFixed(1)} · {tutor.reviewCount}{' '}
+                      {tutor.reviewCount === 1 ? 'review' : 'reviews'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

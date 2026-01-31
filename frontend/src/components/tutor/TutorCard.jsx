@@ -1,14 +1,17 @@
 /**
  * Tutor Card Component
- * Phase 3.4: Display tutor information in a card format
+ * Phase 3.4: Display tutor information in a card format.
+ * Uses API-provided averageRating and reviewCount; rating UI hidden when no reviews.
  */
 
 import { useNavigate } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 function TutorCard({ tutor }) {
   const navigate = useNavigate();
+  const hasReviews = tutor.reviewCount != null && tutor.reviewCount > 0;
 
   const handleViewProfile = () => {
     navigate(`/tutors/${tutor.id}`);
@@ -48,6 +51,26 @@ function TutorCard({ tutor }) {
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold truncate">{tutor.fullName}</h3>
               <p className="text-sm text-muted-foreground">{tutor.mode}</p>
+              {hasReviews && (
+                <div className="mt-1 flex items-center gap-2 text-sm">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <Star
+                        key={value}
+                        className={`h-4 w-4 ${
+                          value <= Math.round(Number(tutor.averageRating) || 0)
+                            ? 'fill-amber-400 text-amber-400'
+                            : 'text-muted-foreground/40'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-muted-foreground">
+                    {(Number(tutor.averageRating) || 0).toFixed(1)} · {tutor.reviewCount}{' '}
+                    {tutor.reviewCount === 1 ? 'review' : 'reviews'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

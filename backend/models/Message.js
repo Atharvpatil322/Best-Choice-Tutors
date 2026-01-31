@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 
 /**
- * Message Model
- * Chat messages for a booking. Only participants (learner & tutor) can send/receive.
- * No group chat; no file sharing.
+ * Message Model (legacy)
+ * Chat is now stored in Conversation (one document per booking, messages array).
+ * This model is unused; kept for reference or migration of existing Message documents.
  */
 
 const messageSchema = new mongoose.Schema(

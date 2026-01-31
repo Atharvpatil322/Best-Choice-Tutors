@@ -5,6 +5,7 @@
 
 import Booking from '../models/Booking.js';
 import Tutor from '../models/Tutor.js';
+import { getCanReview } from '../services/bookingService.js';
 
 /**
  * Get tutor bookings
@@ -38,6 +39,7 @@ export const getBookings = async (req, res, next) => {
       startTime: b.startTime,
       endTime: b.endTime,
       status: b.status,
+      canReview: getCanReview(b),
     }));
 
     res.json({ bookings: list });
@@ -82,6 +84,7 @@ export const getBookingById = async (req, res, next) => {
       startTime: booking.startTime,
       endTime: booking.endTime,
       status: booking.status,
+      canReview: getCanReview(booking),
     });
   } catch (error) {
     next(error);

@@ -4,6 +4,7 @@
  */
 
 import Booking from '../models/Booking.js';
+import { getCanReview } from '../services/bookingService.js';
 
 /**
  * Get learner bookings
@@ -33,6 +34,7 @@ export const getBookings = async (req, res, next) => {
       startTime: b.startTime,
       endTime: b.endTime,
       status: b.status,
+      canReview: getCanReview(b),
     }));
 
     res.json({ bookings: list });

@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Availability from '../models/Availability.js';
 import { validationResult } from 'express-validator';
 import { uploadImage } from '../services/cloudinaryService.js';
+import { getTutorRating } from '../services/reviewService.js';
 
 /**
  * Return qualifications for API response. Backward compatibility: if tutor has experienceYears
@@ -160,11 +161,12 @@ export const listTutors = async (req, res, next) => {
       .select('-__v')
       .sort({ createdAt: -1 }); // Newest first
 
-    res.json({
-      tutors: tutors.map((tutor) => {
-        // Safely extract userId - handle cases where populate might fail
-        const userId = tutor.userId && tutor.userId._id ? tutor.userId._id : tutor.userId;
+    const ratings = await Promise.all(tutors.map((t) => getTutorRating(t._id)));
 
+    res.json({
+      tutors: tutors.map((tutor, i) => {
+        const userId = tutor.userId && tutor.userId._id ? tutor.userId._id : tutor.userId;
+        const { averageRating, reviewCount } = ratings[i];
         return {
           id: tutor._id,
           userId,
@@ -178,6 +180,8 @@ export const listTutors = async (req, res, next) => {
           location: tutor.location || null,
           profilePhoto: tutor.profilePhoto || null,
           createdAt: tutor.createdAt || null,
+          averageRating,
+          reviewCount,
         };
       }),
       count: tutors.length,
@@ -205,8 +209,8 @@ export const getTutorById = async (req, res, next) => {
       return res.status(404).json({ message: 'Tutor not found' });
     }
 
-    // Safely extract userId - handle cases where populate might fail
     const userId = tutor.userId && tutor.userId._id ? tutor.userId._id : tutor.userId;
+    const { averageRating, reviewCount } = await getTutorRating(tutor._id);
 
     res.json({
       tutor: {
@@ -222,10 +226,11 @@ export const getTutorById = async (req, res, next) => {
         location: tutor.location || null,
         profilePhoto: tutor.profilePhoto || null,
         createdAt: tutor.createdAt || null,
+        averageRating,
+        reviewCount,
       },
     });
   } catch (error) {
-    // Handle invalid ObjectId format
     if (error.name === 'CastError') {
       return res.status(400).json({ message: 'Invalid tutor ID format' });
     }
@@ -267,6 +272,8 @@ export const getMyTutorProfile = async (req, res, next) => {
           }
         : null;
 
+    const { averageRating, reviewCount } = await getTutorRating(tutor._id);
+
     res.json({
       tutor: {
         id: tutor._id,
@@ -281,6 +288,8 @@ export const getMyTutorProfile = async (req, res, next) => {
         location: tutor.location,
         profilePhoto: tutor.profilePhoto,
         createdAt: tutor.createdAt,
+        averageRating,
+        reviewCount,
       },
       user: {
         id: user._id,

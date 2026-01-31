@@ -1,21 +1,31 @@
 /**
  * My Bookings Page (Learner)
- * Read-only dashboard: tutor name, date & time, status (Pending / Paid / Failed).
- * No cancellation or payment actions.
+ * Read-only dashboard: tutor name, date & time, backend status.
+ * Review form for completed bookings when canReview === true (star rating + text, submit; no edit/delete).
  */
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { getLearnerBookings } from '@/services/learnerBookingsService';
+import { submitReview } from '@/services/reviewService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
+import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
+
+const MAX_REVIEW_TEXT_LENGTH = 2000;
 
 function MyBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submittedReviewIds, setSubmittedReviewIds] = useState([]);
+  const [reviewForm, setReviewForm] = useState({});
+  const [submittingReviewId, setSubmittingReviewId] = useState(null);
+  const [reviewErrorByBookingId, setReviewErrorByBookingId] = useState({});
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -57,11 +67,42 @@ function MyBookings() {
     return `${fmt(start)} – ${fmt(end)}`;
   };
 
-  const statusLabel = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'PAID') return 'Paid';
-    if (s === 'FAILED') return 'Failed';
-    return 'Pending';
+  const getFormForBooking = (bookingId) => {
+    return reviewForm[bookingId] ?? { rating: 0, reviewText: '' };
+  };
+
+  const setRatingForBooking = (bookingId, rating) => {
+    setReviewForm((prev) => ({
+      ...prev,
+      [bookingId]: { ...(prev[bookingId] ?? { rating: 0, reviewText: '' }), rating },
+    }));
+    setReviewErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+  };
+
+  const setReviewTextForBooking = (bookingId, reviewText) => {
+    setReviewForm((prev) => ({
+      ...prev,
+      [bookingId]: {
+        ...(prev[bookingId] ?? { rating: 0, reviewText: '' }),
+        reviewText: reviewText.slice(0, MAX_REVIEW_TEXT_LENGTH),
+      },
+    }));
+    setReviewErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+  };
+
+  const handleSubmitReview = async (bookingId) => {
+    const { rating, reviewText } = getFormForBooking(bookingId);
+    if (!rating || rating < 1) return;
+    setSubmittingReviewId(bookingId);
+    setReviewErrorByBookingId((prev) => ({ ...prev, [bookingId]: undefined }));
+    try {
+      await submitReview(bookingId, { rating, reviewText });
+      setSubmittedReviewIds((prev) => (prev.includes(bookingId) ? prev : [...prev, bookingId]));
+    } catch (err) {
+      setReviewErrorByBookingId((prev) => ({ ...prev, [bookingId]: err.message || 'Failed to submit review' }));
+    } finally {
+      setSubmittingReviewId(null);
+    }
   };
 
   if (loading) {
@@ -121,10 +162,16 @@ function MyBookings() {
                 {bookings.map((b) => {
                   const sessionStatus = getSessionStatus(b.date, b.startTime, b.endTime);
                   const canJoin = sessionStatus === 'upcoming' || sessionStatus === 'ongoing';
+                  const canReview = b.canReview === true;
+                  const reviewSubmitted = submittedReviewIds.includes(b.id);
+                  const form = getFormForBooking(b.id);
+                  const isSubmitting = submittingReviewId === b.id;
+                  const reviewError = reviewErrorByBookingId[b.id];
+
                   return (
                     <li
                       key={b.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0 sm:flex-nowrap"
+                      className="flex flex-wrap items-start justify-between gap-2 py-3 first:pt-0 last:pb-0 sm:flex-nowrap"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{b.tutorName || 'Tutor'}</p>
@@ -142,6 +189,69 @@ function MyBookings() {
                         >
                           {getSessionStatusLabel(sessionStatus)}
                         </span>
+                        {canReview && (
+                          <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+                            {reviewSubmitted ? (
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Thank you! Your review has been submitted.
+                              </p>
+                            ) : (
+                              <>
+                                <Label className="text-xs text-muted-foreground">Rate this session (required)</Label>
+                                <div className="mt-1 flex gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((value) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => setRatingForBooking(b.id, value)}
+                                      disabled={isSubmitting}
+                                      className="rounded p-0.5 transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                                      aria-label={`${value} star${value === 1 ? '' : 's'}`}
+                                    >
+                                      <Star
+                                        className={`h-6 w-6 ${
+                                          form.rating >= value
+                                            ? 'fill-amber-400 text-amber-400'
+                                            : 'text-muted-foreground'
+                                        }`}
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="mt-2">
+                                  <Label htmlFor={`review-text-${b.id}`} className="text-xs text-muted-foreground">
+                                    Your feedback (optional)
+                                  </Label>
+                                  <textarea
+                                    id={`review-text-${b.id}`}
+                                    value={form.reviewText}
+                                    onChange={(e) => setReviewTextForBooking(b.id, e.target.value)}
+                                    disabled={isSubmitting}
+                                    placeholder="How was your session?"
+                                    maxLength={MAX_REVIEW_TEXT_LENGTH}
+                                    rows={2}
+                                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  />
+                                  <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {form.reviewText.length}/{MAX_REVIEW_TEXT_LENGTH}
+                                  </p>
+                                </div>
+                                {reviewError && (
+                                  <p className="mt-1 text-sm text-destructive">{reviewError}</p>
+                                )}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="mt-2"
+                                  disabled={form.rating < 1 || isSubmitting}
+                                  onClick={() => handleSubmitReview(b.id)}
+                                >
+                                  {isSubmitting ? 'Submitting…' : 'Submit review'}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2">
                         {canJoin && (
@@ -162,15 +272,9 @@ function MyBookings() {
                           Chat
                         </Button>
                         <span
-                          className={`rounded px-2 py-0.5 text-sm font-medium ${
-                            (b.status || '').toUpperCase() === 'PAID'
-                              ? 'bg-green-100 text-green-800'
-                              : (b.status || '').toUpperCase() === 'FAILED'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-amber-100 text-amber-800'
-                          }`}
+                          className={`rounded px-2 py-0.5 text-sm font-medium ${getBookingStatusBadgeClass(b.status)}`}
                         >
-                          {statusLabel(b.status)}
+                          {getBookingStatusLabel(b.status)}
                         </span>
                       </div>
                     </li>

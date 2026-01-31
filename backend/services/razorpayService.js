@@ -47,6 +47,9 @@ export const createRazorpayOrder = async ({ amount, currency, receipt }) => {
  */
 export const verifyRazorpayWebhookSignature = (payloadBody, signature) => {
   if (!webhookSecret) {
+    console.warn(
+      'RAZORPAY_WEBHOOK_SECRET is not set; webhook signature verification will fail. Set RAZORPAY_WEBHOOK_SECRET in environment.'
+    );
     throw new Error('Razorpay webhook secret is not configured. Please set RAZORPAY_WEBHOOK_SECRET.');
   }
 

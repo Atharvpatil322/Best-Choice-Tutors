@@ -7,7 +7,7 @@ import { verifyRazorpayWebhookSignature } from '../services/razorpayService.js';
  *
  * Handles:
  * - payment.captured -> mark booking as PAID
- * - payment.failed -> mark booking as FAILED
+ * - payment.failed -> mark booking as FAILED (booking status only; wallet is never created or unlocked).
  *
  * The booking is matched using razorpayOrderId (payment.entity.order_id).
  */
@@ -20,34 +20,54 @@ export const handleRazorpayWebhook = async (req, res, next) => {
     }
 
     // Razorpay expects signature verification against the raw request body.
+    // WARNING: JSON.stringify(req.body) fallback may invalidate signature verification if key order/whitespace differs from raw request.
     const payloadBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
 
     const isValid = verifyRazorpayWebhookSignature(payloadBody, signature);
 
     if (!isValid) {
+      console.warn('Razorpay webhook: signature verification failed');
       return res.status(400).json({ message: 'Invalid Razorpay signature' });
     }
 
     const { event, payload } = req.body;
 
-    if (event === 'payment.captured') {
-      await updateBookingStatusFromRazorpayPaymentEvent({
-        payment: payload.payment.entity,
-        targetStatus: 'PAID',
-      });
-    } else if (event === 'payment.failed') {
-      await updateBookingStatusFromRazorpayPaymentEvent({
-        payment: payload.payment.entity,
-        targetStatus: 'FAILED',
-      });
+    console.info('Razorpay webhook received', { event: event || '(missing)' });
+
+    // Defensive: validate payload.payment.entity before use
+    const paymentEntity = payload?.payment?.entity;
+    if (!paymentEntity) {
+      console.warn('Razorpay webhook: payload.payment.entity missing', { event });
+      return res.status(200).json({ success: false, message: 'Invalid payload structure' });
     }
 
-    // Always respond 200 OK for valid, processed webhooks
+    if (event === 'payment.captured') {
+      const result = await updateBookingStatusFromRazorpayPaymentEvent({
+        payment: paymentEntity,
+        targetStatus: 'PAID',
+      });
+      if (result === null) {
+        console.warn('Razorpay webhook: booking not found for order_id', {
+          order_id: paymentEntity.order_id,
+        });
+      }
+    } else if (event === 'payment.failed') {
+      // payment.failed updates booking status to FAILED only. Wallet is never created or unlocked on payment.failed; no wallet rollback unless business rules change later.
+      const result = await updateBookingStatusFromRazorpayPaymentEvent({
+        payment: paymentEntity,
+        targetStatus: 'FAILED',
+      });
+      if (result === null) {
+        console.warn('Razorpay webhook: booking not found for order_id', {
+          order_id: paymentEntity.order_id,
+        });
+      }
+    }
+
     return res.status(200).json({ success: true });
   } catch (error) {
     if (error instanceof BookingError) {
-      // For domain errors we still return 200 to avoid repeated retries,
-      // but include the message for logging/inspection.
+      console.error('Razorpay webhook: BookingError', { message: error.message });
       return res.status(200).json({ success: false, message: error.message });
     }
 

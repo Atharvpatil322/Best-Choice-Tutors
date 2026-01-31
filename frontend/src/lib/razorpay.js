@@ -1,6 +1,9 @@
 /**
  * Razorpay Checkout (frontend only, test mode).
  * Loads checkout script and opens modal with order_id from backend.
+ *
+ * Wallet lifecycle: onSuccess is for UI only. Do NOT use it to update wallet or booking status;
+ * backend webhook (payment.captured) is the single source of truth for wallet ledger.
  */
 
 const RAZORPAY_SCRIPT_URL = 'https://checkout.razorpay.com/v1/checkout.js';

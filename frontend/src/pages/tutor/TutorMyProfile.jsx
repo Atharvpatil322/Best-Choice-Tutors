@@ -32,9 +32,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Star } from 'lucide-react';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
 import { getMyAvailability } from '@/services/availabilityService';
 import { getTutorProfile, updateTutorProfile } from '@/services/tutorProfileService';
+import { getMyReceivedReviews, reportReview as reportReviewApi } from '@/services/reviewService';
 import { forgotPassword } from '@/services/authService';
 import { toast } from 'sonner';
 
@@ -62,6 +64,12 @@ function TutorMyProfile() {
   const [saving, setSaving] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [reviewsReceived, setReviewsReceived] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reportDialogReviewId, setReportDialogReviewId] = useState(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportedIds, setReportedIds] = useState(new Set());
 
   // Tutor-only guard
   useEffect(() => {
@@ -149,6 +157,23 @@ function TutorMyProfile() {
     }
   }, [normalizedRole]);
 
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!tutorProfile?.id) return;
+      try {
+        setLoadingReviews(true);
+        const data = await getMyReceivedReviews();
+        setReviewsReceived(data.reviews || []);
+      } catch (err) {
+        console.log('Failed to load received reviews:', err.message);
+        setReviewsReceived([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+    fetchReviews();
+  }, [tutorProfile?.id]);
+
   const validatePhone = (code, number) => {
     if (!code) {
       return '';
@@ -228,6 +253,32 @@ function TutorMyProfile() {
       const next = prev.filter((_, i) => i !== index);
       return next.length ? next : [{ title: '', institution: '', year: '' }];
     });
+  };
+
+  const openReportDialog = (reviewId) => {
+    setReportDialogReviewId(reviewId);
+    setReportReason('');
+  };
+
+  const closeReportDialog = () => {
+    setReportDialogReviewId(null);
+    setReportReason('');
+    setReportSubmitting(false);
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportDialogReviewId) return;
+    try {
+      setReportSubmitting(true);
+      await reportReviewApi(reportDialogReviewId, reportReason);
+      setReportedIds((prev) => new Set([...prev, reportDialogReviewId]));
+      closeReportDialog();
+      toast.success('Review reported successfully.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to report review.');
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   const handleSave = async () => {
@@ -621,7 +672,108 @@ function TutorMyProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Reviews received (tutor only); Report option when not already reported */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Reviews received</CardTitle>
+            <CardDescription>
+              Reviews written about you by learners. You may report inappropriate reviews.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingReviews ? (
+              <p className="text-sm text-muted-foreground">Loading reviews...</p>
+            ) : reviewsReceived.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No reviews yet.</p>
+            ) : (
+              <ul className="space-y-4">
+                {reviewsReceived.map((review) => {
+                  const isReported = review.isReported || reportedIds.has(review.id);
+                  return (
+                    <li
+                      key={review.id}
+                      className="rounded-lg border border-input p-4 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <Star
+                              key={value}
+                              className={`h-4 w-4 ${
+                                value <= (review.rating || 0)
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-muted-foreground/40'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {review.createdAt
+                            ? new Date(review.createdAt).toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : '—'}
+                        </span>
+                      </div>
+                      {review.reviewText ? (
+                        <p className="text-sm text-muted-foreground">{review.reviewText}</p>
+                      ) : null}
+                      <div className="flex items-center gap-2 pt-1">
+                        {!isReported ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openReportDialog(review.id)}
+                          >
+                            Report review
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Reported</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Report review dialog: prompt for reason, submit to API, disable after success */}
+      <AlertDialog open={!!reportDialogReviewId} onOpenChange={(open) => !open && closeReportDialog()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Report review</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please provide a reason for reporting this review (optional). Your report will be reviewed by our team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="report-reason" className="text-sm">
+              Reason
+            </Label>
+            <textarea
+              id="report-reason"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder="e.g. Inappropriate language, false claims..."
+              rows={3}
+              className="mt-1 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reportSubmitting}>Cancel</AlertDialogCancel>
+            <Button onClick={handleReportSubmit} disabled={reportSubmitting}>
+              {reportSubmitting ? 'Submitting...' : 'Submit report'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

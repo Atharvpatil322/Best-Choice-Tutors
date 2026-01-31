@@ -1,6 +1,6 @@
 /**
  * Tutor Booking Detail
- * Read-only: learner name & email, session date & time, booking status.
+ * Read-only: learner name & email, session date & time, backend booking status (Pending/Paid/Completed/Cancelled/No show/Failed).
  * "Open Chat" button. No editing, no payment logic.
  */
 
@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getTutorBooking } from '@/services/tutorBookingsService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
+import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
 
 function TutorBookingDetail() {
   const { bookingId } = useParams();
@@ -59,14 +60,6 @@ function TutorBookingDetail() {
       return `${displayHour}:${m || '00'} ${ampm}`;
     };
     return `${fmt(start)} – ${fmt(end)}`;
-  };
-
-  const displayStatus = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'PAID') return 'Paid';
-    if (s === 'FAILED') return 'Failed';
-    if (s === 'CANCELLED') return 'Cancelled';
-    return 'Pending';
   };
 
   const sessionStatus = booking
@@ -159,7 +152,15 @@ function TutorBookingDetail() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Session</p>
+              <p className="mb-1 text-sm font-medium text-muted-foreground">Booking status</p>
+              <span
+                className={`inline-block rounded px-2 py-1 text-sm font-medium ${getBookingStatusBadgeClass(booking.status)}`}
+              >
+                {getBookingStatusLabel(booking.status)}
+              </span>
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium text-muted-foreground">Session</p>
               <span
                 className={`inline-block rounded px-2 py-1 text-sm font-medium ${
                   sessionLabel === 'Upcoming'
@@ -172,9 +173,6 @@ function TutorBookingDetail() {
                 {sessionLabel}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Payment: {displayStatus(booking.status)}
-            </p>
           </CardContent>
         </Card>
 

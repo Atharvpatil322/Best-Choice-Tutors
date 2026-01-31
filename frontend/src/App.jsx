@@ -20,6 +20,8 @@ import TutorMyProfile from '@/pages/tutor/TutorMyProfile';
 import TutorListing from '@/pages/tutor/TutorListing';
 import BrowseTutors from '@/pages/tutor/BrowseTutors';
 import ManageAvailability from '@/pages/tutor/ManageAvailability';
+import TutorWallet from '@/pages/tutor/TutorWallet';
+import AdminReportedReviews from '@/pages/admin/AdminReportedReviews';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
@@ -139,6 +141,22 @@ function App() {
           element={
             <ProtectedRoute>
               <TutorBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor/wallet"
+          element={
+            <ProtectedRoute>
+              <TutorWallet />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reported-reviews"
+          element={
+            <ProtectedRoute>
+              <AdminReportedReviews />
             </ProtectedRoute>
           }
         />

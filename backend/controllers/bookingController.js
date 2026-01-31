@@ -1,5 +1,10 @@
 import Booking from '../models/Booking.js';
-import { createBookingForSlot, createPaymentOrderForBooking, BookingError } from '../services/bookingService.js';
+import {
+  createBookingForSlot,
+  createPaymentOrderForBooking,
+  getCanReview,
+  BookingError,
+} from '../services/bookingService.js';
 
 /**
  * Create a new booking
@@ -61,6 +66,7 @@ export const createBooking = async (req, res, next) => {
         startTime: booking.startTime,
         endTime: booking.endTime,
         status: booking.status,
+        canReview: getCanReview(booking),
         razorpayOrderId: booking.razorpayOrderId,
         createdAt: booking.createdAt,
         updatedAt: booking.updatedAt,
@@ -122,6 +128,7 @@ export const payForBooking = async (req, res, next) => {
       booking: {
         id: booking._id,
         status: booking.status,
+        canReview: getCanReview(booking),
         razorpayOrderId: booking.razorpayOrderId,
       },
       order,

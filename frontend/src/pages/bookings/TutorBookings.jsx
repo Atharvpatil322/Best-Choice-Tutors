@@ -1,7 +1,7 @@
 /**
  * Tutor Bookings Page
- * Read-only list under tutor dashboard: learner name, date, time, status (Upcoming / Paid / Completed).
- * Each booking is clickable (navigate to chat). No cancel or reschedule.
+ * Read-only list: learner name, date, time, session (Upcoming/Ongoing/Completed), backend status (Pending/Paid/Completed/Cancelled/No show/Failed).
+ * Each booking is clickable. No cancel or reschedule.
  */
 
 import { useState, useEffect } from 'react';
@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getTutorBookings } from '@/services/tutorBookingsService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
+import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
 
 function TutorBookings() {
   const navigate = useNavigate();
@@ -134,17 +135,24 @@ function TutorBookings() {
                         <p className="text-sm text-muted-foreground">
                           {formatDate(b.date)} · {formatTime(b.startTime, b.endTime)}
                         </p>
-                        <span
-                          className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium ${
-                            sessionLabel === 'Upcoming'
-                              ? 'bg-blue-100 text-blue-800'
-                              : sessionLabel === 'Ongoing'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {sessionLabel}
-                        </span>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <span
+                            className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${getBookingStatusBadgeClass(b.status)}`}
+                          >
+                            {getBookingStatusLabel(b.status)}
+                          </span>
+                          <span
+                            className={`inline-block rounded px-2 py-0.5 text-xs font-medium text-muted-foreground ${
+                              sessionLabel === 'Upcoming'
+                                ? 'bg-blue-100 text-blue-800'
+                                : sessionLabel === 'Ongoing'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {sessionLabel}
+                          </span>
+                        </div>
                       </div>
                       <div
                         className="flex shrink-0 flex-wrap items-center gap-2"

@@ -6,6 +6,8 @@ import {
   getMyTutorProfile,
   updateMyTutorProfile,
 } from '../controllers/tutorController.js';
+import { getWallet } from '../controllers/tutorWalletController.js';
+import { getMyReceivedReviews, reportReview } from '../controllers/reviewController.js';
 
 const router = express.Router();
 
@@ -78,6 +80,15 @@ router.get(
   authenticate,
   getMyTutorProfile
 );
+
+// GET /api/tutor/wallet - Read-only wallet summary (tutor only, no withdrawals)
+router.get('/wallet', authenticate, getWallet);
+
+// GET /api/tutor/reviews - List reviews received by the authenticated tutor (tutor only)
+router.get('/reviews', authenticate, getMyReceivedReviews);
+
+// POST /api/tutor/reviews/:reviewId/report - Report a review (tutor only; only owning tutor)
+router.post('/reviews/:reviewId/report', authenticate, reportReview);
 
 // PUT /api/tutor/profile - Update authenticated tutor's profile (tutor only)
 router.put(

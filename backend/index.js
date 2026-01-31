@@ -12,8 +12,10 @@ import tutorRoutes from './routes/tutorRoutes.js';
 import tutorProfileRoutes from './routes/tutorProfileRoutes.js';
 import tutorBookingsRoutes from './routes/tutorBookingsRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { attachSocketServer } from './services/socketService.js';
+import { completeEligibleBookings } from './services/bookingService.js';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +51,7 @@ app.use('/api/tutors', tutorRoutes);
 app.use('/api/tutor', tutorProfileRoutes);
 app.use('/api/tutor', tutorBookingsRoutes);
 app.use('/api/user', userProfileRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -67,8 +70,24 @@ app.use(errorHandler);
 const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 attachSocketServer(httpServer, corsOrigin);
 
+// Booking completion: PAID → COMPLETED after session end + buffer (simple time-based check)
+const COMPLETION_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+const runCompletionCheck = async () => {
+  try {
+    const { updated } = await completeEligibleBookings();
+    if (updated > 0) {
+      console.log(`Booking completion: marked ${updated} booking(s) as COMPLETED`);
+    }
+  } catch (err) {
+    console.error('Booking completion check failed:', err.message);
+  }
+};
+
 // Start server
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  runCompletionCheck();
+  setInterval(runCompletionCheck, COMPLETION_CHECK_INTERVAL_MS);
 });
