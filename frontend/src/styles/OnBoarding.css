@@ -1,0 +1,233 @@
+/* Onboarding – Layout, responsive, dashboard-aligned (#1A365D, 12px radius) */
+
+:root {
+  --auth-navy: #1a365d;
+  --auth-navy-dark: #0f172a;
+  --auth-red: #ff6b6b;
+  --auth-teal: #4fd1c5;
+  --auth-radius: 12px;
+  --auth-radius-lg: 24px;
+  --auth-container-max: 1100px;
+  --auth-section-padding: 1.5rem;
+}
+
+.onboarding-page {
+  background-color: #ffffff;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.onboarding-header {
+  position: relative;
+  z-index: 10;
+  background-color: var(--auth-navy);
+  min-height: 220px;
+  height: auto;
+  padding: 2rem 1rem 4rem;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: white;
+  clip-path: ellipse(90% 55% at 50% 40%);
+  box-sizing: border-box;
+}
+
+.onboarding-main-title {
+  font-size: clamp(1.75rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0;
+  max-width: 90%;
+}
+
+.onboarding-container {
+  max-width: var(--auth-container-max);
+  margin: -120px auto 0;
+  padding: 0 var(--auth-section-padding);
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.onboarding-cards-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.onboarding-card {
+  border: none !important;
+  border-radius: var(--auth-radius-lg) !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05) !important;
+  padding: 1.5rem 1.25rem !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.card-image-box {
+  height: 160px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-image-box img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.btn-onboard {
+  width: 100%;
+  height: 48px !important;
+  font-weight: 700 !important;
+  border-radius: var(--auth-radius) !important;
+  margin-bottom: 1.25rem;
+  font-size: 1rem !important;
+}
+
+.btn-student {
+  background-color: var(--auth-red) !important;
+  color: white !important;
+}
+
+.btn-tutor {
+  background-color: var(--auth-teal) !important;
+  color: white !important;
+}
+
+.onboarding-signup-link {
+  display: block;
+  width: 100%;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--auth-navy);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.onboarding-signup-link:hover {
+  opacity: 0.85;
+}
+
+.card-info h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--auth-navy);
+  margin: 0 0 0.5rem;
+}
+
+.card-info p {
+  color: #64748b;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.onboarding-footer {
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  color: var(--auth-navy);
+  font-size: 0.9375rem;
+}
+
+.onboarding-footer p {
+  margin: 0;
+}
+
+.signup-link {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--auth-navy);
+  text-decoration: none;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* Tablet and up */
+@media (min-width: 640px) {
+  .onboarding-header {
+    min-height: 280px;
+    padding: 2.5rem 1rem 5rem;
+    clip-path: ellipse(88% 60% at 50% 35%);
+  }
+
+  .onboarding-container {
+    margin-top: -140px;
+  }
+
+  .onboarding-card {
+    max-width: 420px;
+    padding: 2rem 1.5rem !important;
+  }
+
+  .card-image-box {
+    height: 200px;
+  }
+}
+
+@media (min-width: 768px) {
+  .onboarding-cards-wrapper {
+    flex-direction: row;
+    justify-content: center;
+    gap: 2rem;
+  }
+
+  .onboarding-card {
+    flex: 1;
+    max-width: 420px;
+    padding: 2.5rem 2rem !important;
+  }
+
+  .card-image-box {
+    height: 220px;
+    margin-bottom: 1.5rem;
+  }
+
+  .onboarding-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+    margin-top: 3rem;
+    margin-bottom: 4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .onboarding-header {
+    height: 380px;
+    min-height: 380px;
+    padding-bottom: 6rem;
+    clip-path: ellipse(85% 65% at 50% 30%);
+  }
+
+  .onboarding-container {
+    margin-top: -160px;
+    padding: 0 24px;
+  }
+
+  .onboarding-cards-wrapper {
+    gap: 2.5rem;
+  }
+}

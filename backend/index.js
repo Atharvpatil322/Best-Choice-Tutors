@@ -1,0 +1,99 @@
+import http from 'http';
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import connectDB from './config/database.js';
+import authRoutes from './routes/authRoutes.js';
+import learnerProfileRoutes from './routes/learnerProfileRoutes.js';
+import learnerBookingsRoutes from './routes/learnerBookingsRoutes.js';
+import tuitionRequestRoutes from './routes/tuitionRequestRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
+import tutorRoutes from './routes/tutorRoutes.js';
+import tutorProfileRoutes from './routes/tutorProfileRoutes.js';
+import tutorBookingsRoutes from './routes/tutorBookingsRoutes.js';
+import tutorTuitionRequestRoutes from './routes/tutorTuitionRequestRoutes.js';
+import supportRoutes from './routes/supportRoutes.js';
+import userProfileRoutes from './routes/userProfileRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import { errorHandler } from './middlewares/errorHandler.js';
+import { attachSocketServer } from './services/socketService.js';
+import { completeEligibleBookings } from './services/bookingService.js';
+
+// Load environment variables
+dotenv.config();
+
+// Initialize Express app
+const app = express();
+
+// Create HTTP server (required for Socket.IO)
+const httpServer = http.createServer(app);
+
+// Connect to MongoDB
+connectDB();
+
+// Middleware
+app.use(cors());
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      // Keep a copy of the raw body for webhook signature verification
+      req.rawBody = buf;
+    },
+  })
+);
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/learner', learnerProfileRoutes);
+app.use('/api/learner', learnerBookingsRoutes);
+app.use('/api/learner', tuitionRequestRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/tutors', tutorRoutes);
+app.use('/api/tutor', tutorProfileRoutes);
+app.use('/api/tutor', tutorBookingsRoutes);
+app.use('/api/tutor', tutorTuitionRequestRoutes);
+app.use('/api/user', userProfileRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/support', supportRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Global error handler (must be last)
+app.use(errorHandler);
+
+// Attach Socket.IO for chat (booking-scoped, auth required)
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+attachSocketServer(httpServer, corsOrigin);
+
+// Booking completion: PAID → COMPLETED after session end + buffer (simple time-based check)
+const COMPLETION_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+const runCompletionCheck = async () => {
+  try {
+    const { updated } = await completeEligibleBookings();
+    if (updated > 0) {
+      console.log(`Booking completion: marked ${updated} booking(s) as COMPLETED`);
+    }
+  } catch (err) {
+    console.error('Booking completion check failed:', err.message);
+  }
+};
+
+// Start server
+const PORT = process.env.PORT || 5000;
+httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  runCompletionCheck();
+  setInterval(runCompletionCheck, COMPLETION_CHECK_INTERVAL_MS);
+});

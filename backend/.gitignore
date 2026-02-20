@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+
+# Environment variables (never commit secrets)
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor & OS
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Lock files (optional - uncomment if you don't want to track)
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
+
+# Uploads / user content
+uploads/
+public/uploads/
+
+# Database / local data
+*.sqlite
+*.sqlite3
+*.db
+data/
+mongodb-data/
+
+# Process / runtime
+pids/
+*.pid
+*.pid.lock
+*.seed
+
+# Cache & temp
+.cache/
+*.tmp
+*.temp
+.temp/
+
+# Security (keys, certs)
+*.pem
+*.key

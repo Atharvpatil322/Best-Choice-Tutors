@@ -1,0 +1,20 @@
+.booking-premium-card {
+  border-radius: 16px !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+  transition: transform 0.2s ease;
+}
+
+.booking-premium-card:hover {
+  border-color: #CBD5E0 !important;
+}
+
+/* Tab button active state */
+.tab-active {
+  background-color: #E2E8F0;
+  color: #1A365D;
+}
+
+/* Status Badges */
+.status-confirmed { background-color: #C6F6D5; color: #2F855A; }
+.status-pending { background-color: #FFFBEB; color: #92400E; border: 1px solid #FEF3C7; }
