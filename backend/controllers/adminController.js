@@ -992,8 +992,8 @@ export async function resolveDisputeHandler(req, res, next) {
 
 /**
  * GET /api/admin/config
- * Admin only. Read-only. Returns platform config (commissionRate, minWithdrawalAmount, updatedAt).
- * Returns defaults if no config document exists yet.
+ * Admin only. Read-only. Returns platform config (commissionRate, minWithdrawalAmount in pounds, updatedAt).
+ * Returns defaults if no config document exists yet. minWithdrawalAmount is stored in pence in DB, returned in pounds.
  */
 export async function getConfig(req, res, next) {
   try {
@@ -1007,10 +1007,13 @@ export async function getConfig(req, res, next) {
       .select("commissionRate minWithdrawalAmount updatedAt")
       .lean();
 
+    const rawMin = config?.minWithdrawalAmount ?? 0;
+    const minWithdrawalAmountPounds = rawMin / 100;
+
     const payload = config
       ? {
           commissionRate: config.commissionRate ?? 0,
-          minWithdrawalAmount: config.minWithdrawalAmount ?? 0,
+          minWithdrawalAmount: minWithdrawalAmountPounds,
           updatedAt: config.updatedAt ?? null,
         }
       : {
@@ -1028,7 +1031,7 @@ export async function getConfig(req, res, next) {
 /**
  * PATCH /api/admin/config
  * Admin only. Updates platform config. Body: { commissionRate?, minWithdrawalAmount? }.
- * Changes are audit-logged (CONFIG_UPDATED).
+ * minWithdrawalAmount is in pounds; stored in pence in DB. Changes are audit-logged (CONFIG_UPDATED).
  */
 export async function updateConfig(req, res, next) {
   try {
@@ -1038,7 +1041,7 @@ export async function updateConfig(req, res, next) {
       });
     }
 
-    const { commissionRate, minWithdrawalAmount } = req.body ?? {};
+    const { commissionRate, minWithdrawalAmount: minWithdrawalAmountPounds } = req.body ?? {};
     const update = { updatedAt: new Date() };
 
     if (typeof commissionRate === "number") {
@@ -1049,13 +1052,13 @@ export async function updateConfig(req, res, next) {
       }
       update.commissionRate = commissionRate;
     }
-    if (typeof minWithdrawalAmount === "number") {
-      if (minWithdrawalAmount < 0) {
+    if (typeof minWithdrawalAmountPounds === "number") {
+      if (minWithdrawalAmountPounds < 0) {
         return res.status(400).json({
           message: "minWithdrawalAmount must be non-negative",
         });
       }
-      update.minWithdrawalAmount = minWithdrawalAmount;
+      update.minWithdrawalAmount = Math.round(minWithdrawalAmountPounds * 100);
     }
 
     if (Object.keys(update).length === 1) {
@@ -1084,11 +1087,12 @@ export async function updateConfig(req, res, next) {
       },
     });
 
+    const minPounds = (config.minWithdrawalAmount ?? 0) / 100;
     return res.status(200).json({
       message: "Config updated successfully",
       config: {
         commissionRate: config.commissionRate ?? 0,
-        minWithdrawalAmount: config.minWithdrawalAmount ?? 0,
+        minWithdrawalAmount: minPounds,
         updatedAt: config.updatedAt ?? null,
       },
     });

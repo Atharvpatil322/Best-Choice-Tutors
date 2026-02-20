@@ -122,7 +122,7 @@ export const getAuditLog = async (params = {}) => {
 /**
  * Get platform config (admin only)
  * GET /api/admin/config
- * @returns {Promise<{ commissionRate, minWithdrawalAmount, updatedAt }>}
+ * @returns {Promise<{ commissionRate, minWithdrawalAmount (pounds), updatedAt }>}
  */
 export const getConfig = async () => {
   const token = getAuthToken();
@@ -142,7 +142,7 @@ export const getConfig = async () => {
 /**
  * Update platform config (admin only)
  * PATCH /api/admin/config
- * @param {{ commissionRate?: number, minWithdrawalAmount?: number }} body
+ * @param {{ commissionRate?: number, minWithdrawalAmount?: number }} body - minWithdrawalAmount in pounds
  * @returns {Promise<{ message, config }>}
  */
 export const updateConfig = async (body) => {

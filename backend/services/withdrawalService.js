@@ -84,14 +84,16 @@ export async function createWithdrawalRequest({ tutorId, amountRequestedInPaise 
   const minAmount = await getMinWithdrawalAmount();
 
   if (amount > availableEarnings) {
+    const availablePounds = (availableEarnings / 100).toFixed(2);
     throw new Error(
-      `Requested amount exceeds available earnings (${availableEarnings} paise available).`
+      `Requested amount exceeds available earnings (£${availablePounds} available).`
     );
   }
 
   if (minAmount > 0 && amount < minAmount) {
+    const minPounds = (minAmount / 100).toFixed(2);
     throw new Error(
-      `Requested amount is below the minimum withdrawal (${minAmount} paise).`
+      `Requested amount is below the minimum withdrawal (£${minPounds}).`
     );
   }
 

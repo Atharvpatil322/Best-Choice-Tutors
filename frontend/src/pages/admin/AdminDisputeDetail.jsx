@@ -39,7 +39,7 @@ function AdminDisputeDetail() {
   const [error, setError] = useState(null);
   const [dispute, setDispute] = useState(null);
   const [outcome, setOutcome] = useState('');
-  const [refundAmountInPaise, setRefundAmountInPaise] = useState('');
+  const [refundAmountPounds, setRefundAmountPounds] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resolveError, setResolveError] = useState(null);
 
@@ -95,10 +95,15 @@ function AdminDisputeDetail() {
 
   const handleResolve = async () => {
     if (!disputeId || !outcome) return;
+    const maxPounds = (dispute?.amountInPaise ?? 0) / 100;
     if (outcome === 'PARTIAL_REFUND') {
-      const amount = parseInt(refundAmountInPaise, 10);
-      if (!Number.isInteger(amount) || amount <= 0) {
-        setResolveError('Enter a valid refund amount in pence');
+      const amount = parseFloat(refundAmountPounds, 10);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setResolveError('Enter a valid refund amount in pounds');
+        return;
+      }
+      if (amount > maxPounds) {
+        setResolveError(`Refund amount cannot exceed ${formatAmount(dispute.amountInPaise)}`);
         return;
       }
     }
@@ -108,7 +113,7 @@ function AdminDisputeDetail() {
     try {
       const body = { outcome };
       if (outcome === 'PARTIAL_REFUND') {
-        body.refundAmountInPaise = parseInt(refundAmountInPaise, 10);
+        body.refundAmountInPaise = Math.round(parseFloat(refundAmountPounds, 10) * 100);
       }
       await resolveDispute(disputeId, body);
       toast.success('Dispute has been resolved.');
@@ -282,20 +287,21 @@ function AdminDisputeDetail() {
               {outcome === 'PARTIAL_REFUND' && (
                 <div>
                   <Label htmlFor="refundAmount" className="text-sm">
-                    Refund amount (pence)
+                    Refund amount (£)
                   </Label>
                   <Input
                     id="refundAmount"
                     type="number"
-                    min={1}
-                    max={dispute.amountInPaise ?? 0}
-                    placeholder="e.g. 50000"
-                    value={refundAmountInPaise}
-                    onChange={(e) => setRefundAmountInPaise(e.target.value)}
+                    min={0.01}
+                    max={(dispute.amountInPaise ?? 0) / 100}
+                    step={0.01}
+                    placeholder="e.g. 20.00"
+                    value={refundAmountPounds}
+                    onChange={(e) => setRefundAmountPounds(e.target.value)}
                     className="mt-1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Full amount: {dispute.amountInPaise ?? '—'} pence ({formatAmount(dispute.amountInPaise)})
+                    Full amount: {formatAmount(dispute.amountInPaise)}
                   </p>
                 </div>
               )}
@@ -311,7 +317,7 @@ function AdminDisputeDetail() {
                 disabled={
                   !outcome ||
                   submitting ||
-                  (outcome === 'PARTIAL_REFUND' && (!refundAmountInPaise || parseInt(refundAmountInPaise, 10) <= 0))
+                  (outcome === 'PARTIAL_REFUND' && (!refundAmountPounds || parseFloat(refundAmountPounds, 10) <= 0))
                 }
                 onClick={handleResolve}
                 className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg"

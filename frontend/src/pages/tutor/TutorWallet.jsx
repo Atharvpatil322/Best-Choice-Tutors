@@ -129,6 +129,15 @@ function TutorWallet() {
       setWithdrawError('Amount must be greater than zero.');
       return;
     }
+    const minPaise = data.minWithdrawalAmount ?? 0;
+    if (minPaise > 0 && amountInPaise < minPaise) {
+      setWithdrawError(`Amount must be at least ${formatAmount(minPaise)} (minimum withdrawal).`);
+      return;
+    }
+    if (amountInPaise > (data.availableEarnings ?? 0)) {
+      setWithdrawError(`Amount cannot exceed available balance (${formatAmount(data.availableEarnings)}).`);
+      return;
+    }
     setWithdrawSubmitting(true);
     try {
       await createWithdrawalRequest(amountInPaise);

@@ -74,11 +74,11 @@ function AdminConfig() {
     try {
       const result = await updateConfig({
         commissionRate: rate,
-        minWithdrawalAmount: Math.floor(amount),
+        minWithdrawalAmount: amount,
       });
       setConfig(result.config ?? result);
       setCommissionRate(String(result.config?.commissionRate ?? rate));
-      setMinWithdrawalAmount(String(result.config?.minWithdrawalAmount ?? Math.floor(amount)));
+      setMinWithdrawalAmount(String(result.config?.minWithdrawalAmount ?? amount));
       setSuccess(result.message || 'Config saved successfully');
       toast.success('Config updated successfully.');
     } catch (err) {
@@ -146,7 +146,7 @@ function AdminConfig() {
         <CardHeader>
           <CardTitle className="text-[#1A365D]">Settings</CardTitle>
           <CardDescription>
-              Commission rate (0–100%) and minimum withdrawal amount (in pence). Changes are audit-logged.
+              Commission rate (0–100%) and minimum withdrawal amount (£). Changes are audit-logged.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -175,18 +175,18 @@ function AdminConfig() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="minWithdrawalAmount">Minimum withdrawal amount</Label>
+                <Label htmlFor="minWithdrawalAmount">Minimum withdrawal amount (£)</Label>
                 <Input
                   id="minWithdrawalAmount"
                   type="number"
                   min={0}
-                  step={1}
+                  step={0.01}
                   placeholder="0"
                   value={minWithdrawalAmount}
                   onChange={(e) => setMinWithdrawalAmount(e.target.value)}
                   disabled={saving}
                 />
-                <p className="text-xs text-muted-foreground">Minimum amount tutors can withdraw, in pence (GBP).</p>
+                <p className="text-xs text-muted-foreground">Minimum amount tutors can withdraw, in pounds (GBP).</p>
               </div>
 
               <Button type="submit" disabled={saving} className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg">
