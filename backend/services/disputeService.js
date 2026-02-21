@@ -7,7 +7,7 @@ import {
   markTutorEarningsRefunded,
   releasePartialToTutor,
 } from './bookingService.js';
-import { createRefund } from './razorpayService.js';
+import { createRefund, createTransferReversal } from './stripeService.js';
 import { logFinancialAudit } from './financialAuditService.js';
 
 /** Dispute window: learners may raise a dispute within this many hours after session end */
@@ -225,9 +225,11 @@ export const DISPUTE_OUTCOMES = ['FULL_REFUND', 'PARTIAL_REFUND', 'RELEASE_PAYME
  *
  * On resolution:
  * - Update Dispute status to RESOLVED, set resolvedAt, outcome, refundAmountInPaise
- * - FULL_REFUND: Razorpay refund full amount; mark TutorEarnings as refunded
- * - PARTIAL_REFUND: Razorpay refund specified amount; release remainder to tutor
+ * - FULL_REFUND: Stripe refund full amount; mark TutorEarnings as refunded
+ * - PARTIAL_REFUND: Stripe refund specified amount; release remainder to tutor
  * - RELEASE_PAYMENT_TO_TUTOR: Release TutorEarnings to available
+ *
+ * Refunds use booking.stripePaymentIntentId (Stripe PaymentIntent ID).
  *
  * @param {Object} params
  * @param {string} params.disputeId - Dispute ID
@@ -266,11 +268,17 @@ export async function resolveDispute({ disputeId, outcome, refundAmountInPaise, 
   const resolvedAt = new Date();
 
   if (outcome === 'FULL_REFUND') {
-    const paymentId = booking.razorpayPaymentId;
-    if (!paymentId) {
-      throw new DisputeError('Payment ID not available for refund. Booking may predate this feature.', 400);
+    const paymentIntentId = booking.stripePaymentIntentId;
+    if (!paymentIntentId) {
+      throw new DisputeError(
+        'Stripe PaymentIntent ID not available for refund. Booking may predate Stripe or payment details are missing.',
+        400
+      );
     }
-    await createRefund({ paymentId });
+    await createRefund({ paymentIntentId });
+    if (walletEntry.stripeTransferId) {
+      await createTransferReversal(walletEntry.stripeTransferId);
+    }
     await markTutorEarningsRefunded(dispute.bookingId);
     await logFinancialAudit({
       action: 'REFUND_FULL',
@@ -287,11 +295,14 @@ export async function resolveDispute({ disputeId, outcome, refundAmountInPaise, 
     if (refundAmountInPaise >= originalAmountInPaise) {
       throw new DisputeError('Partial refund amount must be less than the original payment amount', 400);
     }
-    const paymentId = booking.razorpayPaymentId;
-    if (!paymentId) {
-      throw new DisputeError('Payment ID not available for refund. Booking may predate this feature.', 400);
+    const paymentIntentId = booking.stripePaymentIntentId;
+    if (!paymentIntentId) {
+      throw new DisputeError(
+        'Stripe PaymentIntent ID not available for refund. Booking may predate Stripe or payment details are missing.',
+        400
+      );
     }
-    await createRefund({ paymentId, amount: refundAmountInPaise });
+    await createRefund({ paymentIntentId, amount: refundAmountInPaise });
     await logFinancialAudit({
       action: 'REFUND_PARTIAL',
       tutorId: walletEntry.tutorId,

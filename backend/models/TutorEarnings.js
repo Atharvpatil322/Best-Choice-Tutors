@@ -38,6 +38,12 @@ const tutorEarningsSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Commission cannot be negative'],
     },
+    /** Stripe Transfer ID (e.g. tr_xxx) after payout to tutor Connect account. Set when status becomes available. */
+    stripeTransferId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   {
     timestamps: true,

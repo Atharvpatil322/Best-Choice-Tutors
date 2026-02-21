@@ -11,7 +11,6 @@ import FinancialAuditLog, {
  * @param {string} params.action - One of FINANCIAL_AUDIT_ACTIONS
  * @param {import('mongoose').Types.ObjectId} [params.tutorId]
  * @param {import('mongoose').Types.ObjectId} [params.bookingId]
- * @param {import('mongoose').Types.ObjectId} [params.withdrawalId]
  * @param {number} params.amountInPaise
  * @param {string} params.performedBy - 'SYSTEM' | 'ADMIN'
  * @param {import('mongoose').Types.ObjectId} [params.performedById] - Required when performedBy === 'ADMIN'
@@ -21,7 +20,6 @@ export async function logFinancialAudit({
   action,
   tutorId,
   bookingId,
-  withdrawalId,
   amountInPaise,
   performedBy,
   performedById,
@@ -41,7 +39,6 @@ export async function logFinancialAudit({
     action,
     tutorId: tutorId ?? null,
     bookingId: bookingId ?? null,
-    withdrawalId: withdrawalId ?? null,
     amountInPaise,
     performedBy,
     performedById: performedById ?? null,

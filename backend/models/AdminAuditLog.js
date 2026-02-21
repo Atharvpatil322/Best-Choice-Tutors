@@ -46,16 +46,13 @@ const adminAuditLogSchema = new mongoose.Schema(
         'CONFIG_UPDATED',
         'SUPPORT_TICKET_STATUS_CHANGED',
         'NOTIFICATION_BROADCAST',
-        'WITHDRAWAL_APPROVED',
-        'WITHDRAWAL_REJECTED',
-        'WITHDRAWAL_PAID',
       ],
       index: true,
     },
     entityType: {
       type: String,
       required: [true, 'Entity type is required'],
-      enum: ['User', 'Tutor', 'Dispute', 'Config', 'DBSVerificationDocument', 'SupportTicket', 'Notification', 'WithdrawalRequest'],
+      enum: ['User', 'Tutor', 'Dispute', 'Config', 'DBSVerificationDocument', 'SupportTicket', 'Notification'],
       index: true,
     },
     entityId: {

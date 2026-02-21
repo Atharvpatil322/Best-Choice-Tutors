@@ -4,10 +4,6 @@ import mongoose from "mongoose";
 const ACTIONS = [
   "EARNINGS_CREATED",
   "EARNINGS_RELEASED",
-  "WITHDRAWAL_REQUESTED",
-  "WITHDRAWAL_APPROVED",
-  "WITHDRAWAL_PAID",
-  "WITHDRAWAL_REJECTED",
   "REFUND_FULL",
   "REFUND_PARTIAL",
 ];
@@ -35,13 +31,6 @@ const financialAuditLogSchema = new mongoose.Schema(
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Booking",
-      required: false,
-      default: null,
-      index: true,
-    },
-    withdrawalId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "WithdrawalRequest",
       required: false,
       default: null,
       index: true,

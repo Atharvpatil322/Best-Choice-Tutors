@@ -73,7 +73,6 @@ export const createBooking = async (req, res, next) => {
         endTime: booking.endTime,
         status: booking.status,
         canReview: getCanReview(booking),
-        razorpayOrderId: booking.razorpayOrderId,
         agreedHourlyRate: booking.agreedHourlyRate,
         tuitionRequestId: booking.tuitionRequestId ?? undefined,
         createdAt: booking.createdAt,
@@ -103,17 +102,13 @@ export const createBooking = async (req, res, next) => {
 };
 
 /**
- * Create a Razorpay order for an existing booking
- * Phase 5.3: POST /api/bookings/:id/pay
+ * Create a Stripe Checkout Session for an existing booking
+ * POST /api/bookings/:id/pay
  *
  * - Learner-only endpoint
  * - Booking must be in PENDING status
- * - Creates a Razorpay order and stores razorpayOrderId on the booking
- *
- * Expected body:
- * {
- *   amount: number (in paise)
- * }
+ * - Creates Stripe Checkout Session and stores stripeSessionId, stripePaymentIntentId on the booking
+ * - Returns checkoutUrl for frontend redirect (booking is marked PAID by Stripe webhook only)
  */
 export const payForBooking = async (req, res, next) => {
   try {
@@ -125,21 +120,30 @@ export const payForBooking = async (req, res, next) => {
     }
 
     const { id } = req.params;
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const successUrl = `${baseUrl}/dashboard/bookings?payment=success`;
+    const cancelUrl = `${baseUrl}/dashboard/bookings?payment=cancelled`;
 
-    const { order, booking } = await createPaymentOrderForBooking({
+    const { booking, checkoutUrl, sessionId } = await createPaymentOrderForBooking({
       bookingId: id,
       learnerId: req.user._id,
+      successUrl,
+      cancelUrl,
     });
 
+    if (!checkoutUrl) {
+      return res.status(500).json({ message: 'Failed to create checkout session' });
+    }
+
     return res.status(200).json({
-      message: 'Payment order created successfully',
+      message: 'Checkout session created successfully',
+      checkoutUrl,
       booking: {
         id: booking._id,
         status: booking.status,
         canReview: getCanReview(booking),
-        razorpayOrderId: booking.razorpayOrderId,
+        stripeSessionId: sessionId,
       },
-      order,
     });
   } catch (error) {
     if (error instanceof BookingError) {
@@ -151,7 +155,7 @@ export const payForBooking = async (req, res, next) => {
 };
 
 // DEV TESTING ONLY – REMOVE BEFORE PRODUCTION
-// Simulates payment success/failure using the same central handlers as the Razorpay webhook.
+// Simulates payment success/failure using the same central handlers as the Stripe webhook.
 // Produces identical results: PAID creates earnings, closes tuition request; FAILED does nothing else.
 export const updateTestPaymentStatus = async (req, res, next) => {
   try {

@@ -16,7 +16,7 @@ router.use(authenticate);
 // POST /api/bookings - Create a new booking with status PENDING
 router.post('/', createBooking);
 
-// POST /api/bookings/:id/pay - Create a Razorpay order for a booking
+// POST /api/bookings/:id/pay - Create Stripe Checkout Session for a booking
 router.post('/:id/pay', payForBooking);
 
 // DEV TESTING ONLY – REMOVE BEFORE PRODUCTION: override payment status when webhook is not updating (test mode)

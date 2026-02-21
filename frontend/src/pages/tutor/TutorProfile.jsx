@@ -8,13 +8,11 @@
  * - Fetches availability from GET /api/tutors/:id/availability
  * - Fetches slots from GET /api/tutors/:id/slots
  * - Displays upcoming slots (date, startTime, endTime)
- * - Learner can select ONE available slot, create booking, then pay via Razorpay checkout (test mode).
+ * - Learner can select ONE available slot, create booking, then redirect to Stripe Checkout to pay.
  * - Public, read-only page
  * - No availability editing
- * - No webhook logic; success/failure handled in frontend callbacks only.
- * - Wallet lifecycle: frontend Razorpay success callback MUST NOT update wallet or booking status.
- *   Wallet state depends only on backend (Razorpay webhook payment.captured → ledger pendingRelease;
- *   session completion → ledger available). Do not call any wallet or booking-status API on success.
+ * - Frontend does NOT mark booking as paid; Stripe webhook (checkout.session.completed) moves booking to PAID.
+ * - Wallet lifecycle: backend webhook → TutorEarnings pendingRelease; session completion → available.
  */
 
 import { useState, useEffect } from 'react';
@@ -39,10 +37,9 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { getTutorById, getTutorAvailability, getTutorSlots } from '@/services/tutorService';
-import { createBooking, updateTestPaymentStatus } from '@/services/bookingService.js';
+import { createBooking } from '@/services/bookingService.js';
 import { getCurrentRole } from '@/services/authService';
 import { createBookingPaymentOrder } from '@/services/bookingPaymentService.js';
-import { loadRazorpayScript, openRazorpayCheckout } from '@/lib/razorpay.js';
 import { toast } from 'sonner';
 import '../../styles/Profile.css';
 
@@ -205,8 +202,6 @@ function TutorProfile({ tutorId: propTutorId }) {
     setPaymentError(null);
   };
 
-  const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
-
   const handleBookSession = async () => {
     if (!selectedSlot || !id) return;
     setBookingLoading(true);
@@ -226,54 +221,36 @@ function TutorProfile({ tutorId: propTutorId }) {
 
       if (!bookingId) return;
 
-      if (!razorpayKeyId) {
-        setPaymentError('Razorpay key not configured');
+      setPaymentLoading(true);
+      const payData = await createBookingPaymentOrder(bookingId);
+      const checkoutUrl = payData.checkoutUrl;
+      if (checkoutUrl) {
+        // Redirect to Stripe Checkout; booking is marked PAID by webhook only (frontend does not mark paid)
+        window.location.href = checkoutUrl;
         return;
       }
-      await openPaymentCheckout(bookingId);
+      setPaymentError('Payment session could not be created. Please try again.');
     } catch (err) {
       setBookingError(err.message || 'Failed to create booking');
+      setPaymentError(err.message || 'Failed to open payment');
     } finally {
       setBookingLoading(false);
+      setPaymentLoading(false);
     }
   };
 
   const openPaymentCheckout = async (bookingIdToPay) => {
-    if (!bookingIdToPay || !razorpayKeyId) return;
+    if (!bookingIdToPay) return;
     setPaymentError(null);
     setPaymentLoading(true);
     try {
       const payData = await createBookingPaymentOrder(bookingIdToPay);
-      const order = payData.order;
-      if (!order?.id) {
-        setPaymentError('Payment order missing');
+      const checkoutUrl = payData.checkoutUrl;
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
         return;
       }
-      await loadRazorpayScript();
-      openRazorpayCheckout({
-        key: razorpayKeyId,
-        order,
-        onSuccess() {
-          // DEV TESTING ONLY: when Razorpay test success doesn't trigger webhook, sync booking status so UI reflects PAID
-          if (import.meta.env.DEV && bookingIdToPay) {
-            updateTestPaymentStatus(bookingIdToPay, 'PAID').catch(() => {});
-          }
-          setPaymentSuccess(true);
-          setPaymentError(null);
-          toast.success('Payment successful. Your booking is confirmed.');
-        },
-        onDismiss(reason) {
-          // DEV TESTING ONLY: when tester selects Failure in Razorpay test modal, mark booking as FAILED
-          if (reason === 'failed' && import.meta.env.DEV && bookingIdToPay) {
-            updateTestPaymentStatus(bookingIdToPay, 'FAILED').catch(() => {});
-          }
-          if (reason === 'failed') {
-            setPaymentError('Your payment transaction failed. Please try a different card or method.');
-          } else {
-            setPaymentError('Payment was cancelled. You can retry using the button below.');
-          }
-        },
-      });
+      setPaymentError('Payment session could not be created. Please try again.');
     } catch (payErr) {
       setPaymentError(payErr.message || 'Failed to open payment');
     } finally {
@@ -590,7 +567,7 @@ function TutorProfile({ tutorId: propTutorId }) {
                   Showing upcoming available time slots for the next 4 weeks
                 </p>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Select one time slot, then click Book Session. Razorpay checkout opens after booking (test mode).
+                  Select one time slot, then click Book Session. You will be redirected to Stripe Checkout to pay.
                 </p>
                 {selectedSlot && (
                   <div className="mb-3 space-y-2">
@@ -690,7 +667,7 @@ function TutorProfile({ tutorId: propTutorId }) {
                     </AlertDialog>
                     {createdBookingId && !paymentSuccess && !paymentError && (
                       <p className="text-sm text-muted-foreground">
-                        Booking created (ID: {createdBookingId}). Complete payment in the Razorpay window.
+                        Booking created (ID: {createdBookingId}). Complete payment in the checkout window, or use Retry payment below.
                       </p>
                     )}
                     {bookingError && (

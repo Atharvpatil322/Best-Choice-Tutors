@@ -8,7 +8,7 @@ import PlatformConfig from '../models/PlatformConfig.js';
 import Availability from '../models/Availability.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { createRazorpayOrder } from './razorpayService.js';
+import { createCheckoutSession, createTransfer } from './stripeService.js';
 import { logFinancialAudit } from './financialAuditService.js';
 
 /** Statuses that reserve a slot; only these block rebooking for the same slot */
@@ -171,7 +171,7 @@ export const createBookingForSlot = async ({
 };
 
 /**
- * Create a Razorpay order for a booking.
+ * Create a Stripe Checkout Session for a booking.
  *
  * Business rules:
  * - Booking must exist
@@ -180,17 +180,20 @@ export const createBookingForSlot = async ({
  *
  * Note:
  * - This does NOT mark the booking as PAID.
- * - Webhook / payment verification will be handled in a later phase.
+ * - Stripe webhook (checkout.session.completed) moves booking to PAID.
  *
  * @param {Object} params
  * @param {string} params.bookingId - Booking ID (ObjectId string)
  * @param {string} params.learnerId - Learner user ID initiating payment
- * @param {number} params.amount - Amount in paise
- * @returns {Promise<{ booking: Booking, order: Object }>}
+ * @param {string} [params.successUrl] - Redirect URL after successful payment
+ * @param {string} [params.cancelUrl] - Redirect URL if user cancels
+ * @returns {Promise<{ booking: Booking, checkoutUrl: string, sessionId: string }>}
  */
 export const createPaymentOrderForBooking = async ({
   bookingId,
   learnerId,
+  successUrl,
+  cancelUrl,
 }) => {
   const booking = await Booking.findById(bookingId);
 
@@ -207,7 +210,7 @@ export const createPaymentOrderForBooking = async ({
     throw new BookingError('Booking is not in PENDING status', 400);
   }
 
-  // Use agreedHourlyRate (request-based or tutor default); fallback to tutor for legacy bookings
+  // Use agreedHourlyRate (request-based or tutor default); fallback to tutor for legacy bookings (same as before)
   let amountInPaise = getBookingAmountInPaiseFromBooking(booking);
   if (amountInPaise === null) {
     const tutor = await Tutor.findById(booking.tutorId);
@@ -224,21 +227,33 @@ export const createPaymentOrderForBooking = async ({
     throw new BookingError('Unable to calculate amount for this booking', 400);
   }
 
-  const order = await createRazorpayOrder({
+  const session = await createCheckoutSession({
     amount: amountInPaise,
-    currency: 'GBP',
-    receipt: booking._id.toString(),
+    currency: 'gbp',
+    successUrl: successUrl || undefined,
+    cancelUrl: cancelUrl || undefined,
+    clientReferenceId: booking._id.toString(),
   });
 
-  booking.razorpayOrderId = order.id;
+  const paymentIntentId =
+    typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+
+  booking.stripeSessionId = session.id;
+  booking.stripePaymentIntentId = paymentIntentId;
   await booking.save();
 
-  return { booking, order };
+  return {
+    booking,
+    checkoutUrl: session.url,
+    sessionId: session.id,
+  };
 };
 
 /**
  * Central handler for when a booking becomes PAID.
- * Call this from Razorpay webhook (payment.captured) and from DEV test override only.
+ * Call this from Stripe webhook (checkout.session.completed / payment_intent.succeeded) and from DEV test override only.
  * Idempotent: safe to call multiple times; duplicate calls do not double-credit earnings.
  *
  * Handles: earnings (TutorEarnings pendingRelease), booking integrity, tuition request
@@ -246,7 +261,7 @@ export const createPaymentOrderForBooking = async ({
  * (no extra work here). Dispute window starts from session completion (unchanged).
  *
  * @param {import('mongoose').Document} booking - Booking document (must be loaded)
- * @param {{ razorpayPaymentId?: string }} [options] - Payment metadata when from Razorpay
+ * @param {{ stripePaymentIntentId?: string }} [options] - Payment metadata when from Stripe
  * @returns {Promise<Booking>} The same booking document (possibly saved)
  */
 export async function handleBookingPaid(booking, options = {}) {
@@ -287,8 +302,8 @@ export async function handleBookingPaid(booking, options = {}) {
   }
 
   booking.status = 'PAID';
-  if (options.razorpayPaymentId) {
-    booking.razorpayPaymentId = options.razorpayPaymentId;
+  if (options.stripePaymentIntentId) {
+    booking.stripePaymentIntentId = options.stripePaymentIntentId;
   }
   await booking.save();
 
@@ -341,53 +356,82 @@ export async function handleBookingPaid(booking, options = {}) {
 
 /**
  * Central handler for when a booking payment fails.
- * Call from Razorpay webhook (payment.failed) and from DEV test override.
+ * Call from Stripe webhook (payment_intent.payment_failed) and from DEV test override.
  * No earnings, no wallet, no tuition request change.
  *
  * @param {import('mongoose').Document} booking - Booking document
- * @param {{ razorpayPaymentId?: string }} [options]
+ * @param {Object} [options]
  * @returns {Promise<Booking>}
  */
 export async function handleBookingFailed(booking, options = {}) {
   booking.status = 'FAILED';
-  if (options.razorpayPaymentId) {
-    booking.razorpayPaymentId = options.razorpayPaymentId;
-  }
   await booking.save();
   return booking;
 }
 
 /**
- * Update booking status based on a Razorpay payment event (payment.captured / payment.failed).
- * Delegates to handleBookingPaid / handleBookingFailed so all payment-dependent logic is central.
+ * Update booking status from Stripe checkout.session.completed event.
+ * Finds booking by stripeSessionId; delegates to handleBookingPaid (idempotent).
  *
- * @param {Object} params
- * @param {Object} params.payment - Razorpay payment entity (order_id, id)
- * @param {'PAID' | 'FAILED'} params.targetStatus - Target booking status
+ * @param {Object} session - Stripe Checkout Session object (event.data.object)
  * @returns {Promise<Booking|null>} Updated booking or null if not found
  */
-export const updateBookingStatusFromRazorpayPaymentEvent = async ({
-  payment,
-  targetStatus,
-}) => {
-  const orderId = payment?.order_id;
-  if (!orderId) {
-    throw new BookingError('Razorpay payment payload missing order_id', 400);
+export const updateBookingStatusFromStripeCheckoutSession = async (session) => {
+  const sessionId = session?.id;
+  if (!sessionId) {
+    throw new BookingError('Stripe session payload missing id', 400);
   }
 
-  const booking = await Booking.findOne({ razorpayOrderId: orderId });
+  const booking = await Booking.findOne({ stripeSessionId: sessionId });
+  if (!booking) {
+    return null;
+  }
+
+  const paymentIntentId =
+    typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+
+  await handleBookingPaid(booking, { stripePaymentIntentId: paymentIntentId ?? undefined });
+  return booking;
+};
+
+/**
+ * Update booking status from Stripe payment_intent.succeeded or payment_intent.payment_failed event.
+ * Finds booking by stripePaymentIntentId; delegates to handleBookingPaid (idempotent) or handleBookingFailed.
+ * Duplicate success events do not double-create TutorEarnings (handleBookingPaid is idempotent).
+ * On failure, only transitions PENDING → FAILED to avoid overwriting PAID if events are reordered.
+ *
+ * @param {Object} params
+ * @param {string} params.paymentIntentId - Stripe PaymentIntent ID (e.g. pi_xxx)
+ * @param {'PAID' | 'FAILED'} params.targetStatus
+ * @returns {Promise<Booking|null>} Updated booking or null if not found
+ */
+export const updateBookingStatusFromStripePaymentIntent = async ({
+  paymentIntentId,
+  targetStatus,
+}) => {
+  if (!paymentIntentId) {
+    throw new BookingError('Stripe payment_intent payload missing id', 400);
+  }
+
+  const booking = await Booking.findOne({ stripePaymentIntentId: paymentIntentId });
   if (!booking) {
     return null;
   }
 
   if (targetStatus === 'PAID') {
-    await handleBookingPaid(booking, { razorpayPaymentId: payment?.id ?? undefined });
+    await handleBookingPaid(booking, { stripePaymentIntentId: paymentIntentId });
     return booking;
   }
+
   if (targetStatus === 'FAILED') {
-    await handleBookingFailed(booking, { razorpayPaymentId: payment?.id ?? undefined });
+    if (booking.status === 'PENDING') {
+      await handleBookingFailed(booking, {});
+    }
     return booking;
   }
+
   return booking;
 };
 
@@ -431,7 +475,62 @@ export async function releaseWalletForBooking(bookingId) {
 }
 
 /**
+ * Create Stripe transfer to tutor Connect account when earnings become available. Idempotent: no duplicate transfer.
+ * Skips if tutor not payouts-enabled or no stripeAccountId; does not fail the release.
+ * @param {mongoose.Types.ObjectId} bookingId
+ * @param {number} amountInPaise - Net amount to transfer (booking amount minus commission, or partial net)
+ * @returns {Promise<boolean>} true if transfer was created and saved
+ */
+async function ensureTransferForEarnings(bookingId, amountInPaise) {
+  if (!Number.isInteger(amountInPaise) || amountInPaise <= 0) {
+    return false;
+  }
+  const entry = await TutorEarnings.findOne({ bookingId, status: 'available' }).lean();
+  if (!entry) return false;
+  if (entry.stripeTransferId) return false; // idempotent
+
+  const tutor = await Tutor.findById(entry.tutorId).select('stripeAccountId payoutsEnabled').lean();
+  if (!tutor?.stripeAccountId || !tutor.payoutsEnabled) {
+    console.info('Transfer skipped: tutor not payouts-enabled or no Stripe account', {
+      bookingId: bookingId.toString(),
+      tutorId: entry.tutorId?.toString(),
+    });
+    return false;
+  }
+
+  try {
+    const transfer = await createTransfer({
+      amount: amountInPaise,
+      currency: 'gbp',
+      destinationAccountId: tutor.stripeAccountId,
+      transferGroup: bookingId.toString(),
+      metadata: { bookingId: bookingId.toString(), tutorId: entry.tutorId.toString() },
+    });
+    if (transfer?.id) {
+      await TutorEarnings.updateOne(
+        { bookingId, status: 'available' },
+        { $set: { stripeTransferId: transfer.id } }
+      );
+      console.info('Stripe transfer created for earnings', {
+        bookingId: bookingId.toString(),
+        transferId: transfer.id,
+        amountInPaise,
+      });
+      return true;
+    }
+  } catch (err) {
+    console.error('Stripe transfer failed for earnings', {
+      bookingId: bookingId.toString(),
+      message: err?.message,
+    });
+    // Do not throw: release already happened; transfer can be retried or handled manually
+  }
+  return false;
+}
+
+/**
  * Release wallet without dispute check. For admin dispute resolution (RELEASE_PAYMENT_TO_TUTOR) or cron completion.
+ * After release, creates Stripe transfer to tutor Connect account if payoutsEnabled (idempotent).
  * @param {mongoose.Types.ObjectId} bookingId
  * @param {{ performedBy?: 'SYSTEM'|'ADMIN', performedById?: import('mongoose').Types.ObjectId }} [auditOpts] - For financial audit; default SYSTEM
  * @returns {Promise<boolean>}
@@ -451,19 +550,22 @@ export async function releaseWalletForBookingInternal(bookingId, auditOpts = {})
       performedBy: auditOpts.performedBy || 'SYSTEM',
       performedById: auditOpts.performedById,
     });
+    const netAmount = entry.amount - (entry.commissionInPaise || 0);
+    await ensureTransferForEarnings(bookingId, netAmount);
   }
   return result.modifiedCount > 0;
 }
 
 /**
  * Mark TutorEarnings as refunded (FULL_REFUND). Excludes from tutor wallet.
+ * Matches either pendingRelease or available (so we can refund after transfer reversal).
  *
  * @param {mongoose.Types.ObjectId} bookingId
  * @returns {Promise<boolean>}
  */
 export async function markTutorEarningsRefunded(bookingId) {
   const result = await TutorEarnings.updateOne(
-    { bookingId, status: 'pendingRelease' },
+    { bookingId, status: { $in: ['pendingRelease', 'available'] } },
     { $set: { status: 'refunded' } }
   );
   return result.modifiedCount > 0;
@@ -495,6 +597,7 @@ export async function releasePartialToTutor(bookingId, netAmountInPaise, auditOp
       performedBy: auditOpts.performedBy || 'SYSTEM',
       performedById: auditOpts.performedById,
     });
+    await ensureTransferForEarnings(bookingId, netAmountInPaise);
   }
   return result.modifiedCount > 0;
 }

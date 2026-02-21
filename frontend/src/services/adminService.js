@@ -122,7 +122,7 @@ export const getAuditLog = async (params = {}) => {
 /**
  * Get platform config (admin only)
  * GET /api/admin/config
- * @returns {Promise<{ commissionRate, minWithdrawalAmount (pounds), updatedAt }>}
+ * @returns {Promise<{ commissionRate, updatedAt }>}
  */
 export const getConfig = async () => {
   const token = getAuthToken();
@@ -142,7 +142,7 @@ export const getConfig = async () => {
 /**
  * Update platform config (admin only)
  * PATCH /api/admin/config
- * @param {{ commissionRate?: number, minWithdrawalAmount?: number }} body - minWithdrawalAmount in pounds
+ * @param {{ commissionRate?: number }} body
  * @returns {Promise<{ message, config }>}
  */
 export const updateConfig = async (body) => {
@@ -681,79 +681,3 @@ export const broadcastNotification = async ({ title, message }) => {
   return data;
 };
 
-/**
- * Get withdrawal requests (admin only). GET /api/admin/withdrawal-requests?status=PENDING
- * @param {string} [status] - PENDING | APPROVED | REJECTED | PAID
- */
-export const getWithdrawalRequests = async (status = 'PENDING') => {
-  const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const url = `${API_BASE_URL}/admin/withdrawal-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`;
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch withdrawal requests');
-  return data;
-};
-
-/**
- * Approve withdrawal request (admin). PATCH /api/admin/withdrawal-requests/:id/approve
- */
-export const approveWithdrawalRequest = async (id) => {
-  const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/withdrawal-requests/${id}/approve`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to approve');
-  return data;
-};
-
-/**
- * Reject withdrawal request (admin). PATCH /api/admin/withdrawal-requests/:id/reject
- */
-export const rejectWithdrawalRequest = async (id) => {
-  const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/withdrawal-requests/${id}/reject`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to reject');
-  return data;
-};
-
-/**
- * Mark withdrawal as PAID (admin). PATCH /api/admin/withdrawal-requests/:id/paid
- * @param {string} id
- * @param {string} [transactionReference]
- */
-export const markWithdrawalPaid = async (id, transactionReference) => {
-  const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/withdrawal-requests/${id}/paid`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(transactionReference != null ? { transactionReference } : {}),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to mark as paid');
-  return data;
-};

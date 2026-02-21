@@ -40,11 +40,13 @@ const bookingSchema = new mongoose.Schema(
       enum: ['PENDING', 'PAID', 'FAILED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'],
       default: 'PENDING',
     },
-    razorpayOrderId: {
+    /** Stripe Checkout Session ID (e.g. cs_xxx). Set when payment is initiated via Stripe. */
+    stripeSessionId: {
       type: String,
       default: null,
     },
-    razorpayPaymentId: {
+    /** Stripe PaymentIntent ID (e.g. pi_xxx). Set when Stripe session is created; used for refunds. */
+    stripePaymentIntentId: {
       type: String,
       default: null,
     },
@@ -67,6 +69,8 @@ const bookingSchema = new mongoose.Schema(
 
 bookingSchema.index({ learnerId: 1, date: 1, startTime: 1 });
 bookingSchema.index({ status: 1 });
+bookingSchema.index({ stripeSessionId: 1 }, { sparse: true });
+bookingSchema.index({ stripePaymentIntentId: 1 }, { sparse: true });
 bookingSchema.index(
   { tutorId: 1, date: 1, startTime: 1, endTime: 1 },
   { unique: true }

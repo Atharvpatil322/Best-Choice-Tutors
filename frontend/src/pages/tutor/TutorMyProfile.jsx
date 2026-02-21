@@ -33,11 +33,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Star, Pencil, Save, X, MapPin, User, Trash2 } from 'lucide-react';
+import { Star, Pencil, Save, X, MapPin, User, Trash2, Wallet, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import '../../styles/Profile.css';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
 import { getMyAvailability } from '@/services/availabilityService';
-import { getTutorProfile, updateTutorProfile } from '@/services/tutorProfileService';
+import { getTutorProfile, updateTutorProfile, createPayoutSetupLink } from '@/services/tutorProfileService';
 import { getMyReceivedReviews, reportReview as reportReviewApi } from '@/services/reviewService';
 import { forgotPassword } from '@/services/authService';
 import { toast } from 'sonner';
@@ -95,6 +95,10 @@ function TutorMyProfile() {
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
   const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
+
+  // Stripe Connect payout onboarding – redirect to Stripe-hosted flow
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  const [payoutSubmitError, setPayoutSubmitError] = useState(null);
 
   // Tutor-only guard
   useEffect(() => {
@@ -561,6 +565,33 @@ setLocation(
     }
   };
 
+  const handleCompletePayoutSetup = async () => {
+    setPayoutSubmitError(null);
+    setPayoutSubmitting(true);
+    try {
+      const data = await createPayoutSetupLink();
+      const url = data?.onboardingUrl;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setPayoutSubmitError('No redirect URL received. Please try again.');
+    } catch (err) {
+      const msg = err?.message || 'Failed to start payout setup.';
+      setPayoutSubmitError(msg);
+      toast.error(msg);
+      const profileData = await getTutorProfile().catch(() => null);
+      if (profileData?.tutor) setTutorProfile(profileData.tutor);
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
+
+  const payoutStatus = tutorProfile?.payout?.onboardingStatus || 'NOT_STARTED';
+  const payoutError = tutorProfile?.payout?.lastOnboardingError || null;
+  const chargesEnabled = tutorProfile?.payout?.chargesEnabled ?? false;
+  const payoutsEnabled = tutorProfile?.payout?.payoutsEnabled ?? false;
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -909,6 +940,76 @@ setLocation(
                 </div>
               )}
             </div>
+          </div>
+        </Card>
+
+        {/* Payout Details – Stripe Connect Express onboarding (Stripe hosts KYC + bank details) */}
+        <Card className="profile-section-card min-w-0">
+          <div className="section-header">
+            <h3 className="flex items-center gap-2">
+              <Wallet size={18} className="shrink-0" />
+              Payout Details
+            </h3>
+          </div>
+          <CardDescription className="px-6 pb-2 text-sm text-muted-foreground">
+            Complete payout setup with Stripe to receive earnings. You will be redirected to Stripe to add your details; no bank details are stored on this site.
+          </CardDescription>
+          <div className="section-grid px-6 pb-6">
+            <div className="col-span-2 flex flex-wrap items-center gap-2">
+              <Label className="text-sm font-medium">Onboarding status</Label>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                  payoutStatus === 'COMPLETED'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                    : payoutStatus === 'PENDING'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                      : payoutStatus === 'FAILED'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+              >
+                {payoutStatus === 'COMPLETED' && <CheckCircle size={14} className="shrink-0" />}
+                {payoutStatus === 'PENDING' && <Loader2 size={14} className="shrink-0 animate-spin" />}
+                {payoutStatus === 'FAILED' && <AlertCircle size={14} className="shrink-0" />}
+                {payoutStatus.replace('_', ' ')}
+              </span>
+            </div>
+            {payoutStatus === 'COMPLETED' && (chargesEnabled || payoutsEnabled) && (
+              <div className="col-span-2 text-sm text-muted-foreground">
+                {chargesEnabled && <span>Can accept charges</span>}
+                {chargesEnabled && payoutsEnabled && ' · '}
+                {payoutsEnabled && <span>Can receive payouts</span>}
+              </div>
+            )}
+            {payoutStatus === 'FAILED' && payoutError && (
+              <div className="col-span-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">Error</p>
+                <p className="mt-1 text-sm text-red-700 dark:text-red-300">{payoutError}</p>
+              </div>
+            )}
+
+            {payoutStatus !== 'COMPLETED' && (
+              <div className="col-span-2 space-y-2">
+                {payoutSubmitError && (
+                  <p className="text-sm text-destructive">{payoutSubmitError}</p>
+                )}
+                <Button
+                  type="button"
+                  onClick={handleCompletePayoutSetup}
+                  disabled={payoutSubmitting}
+                  className="bg-[#1A365D] hover:bg-[#1A365D]/90"
+                >
+                  {payoutSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="mr-2 animate-spin shrink-0" />
+                      Redirecting…
+                    </>
+                  ) : (
+                    'Complete Payout Setup'
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
 

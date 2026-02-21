@@ -1,10 +1,10 @@
 import express from 'express';
-import { handleRazorpayWebhook } from '../controllers/webhookController.js';
+import { handleStripeWebhook } from '../controllers/webhookController.js';
 
 const router = express.Router();
 
-// POST /api/webhooks/razorpay - Razorpay webhook endpoint
-router.post('/razorpay', handleRazorpayWebhook);
+// POST /api/webhooks/stripe - Stripe webhook (checkout.session.completed, payment_intent.succeeded, payment_intent.payment_failed, account.updated)
+router.post('/stripe', handleStripeWebhook);
 
 export default router;
 

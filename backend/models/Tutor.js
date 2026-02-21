@@ -93,6 +93,34 @@ const tutorSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    /** Stripe Connect Express account ID (e.g. acct_xxx). One per tutor; set when onboarding starts. */
+    stripeAccountId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    /** Stripe Connect onboarding state: NOT_STARTED | PENDING | COMPLETED | FAILED. Updated by account.updated webhook. */
+    stripeOnboardingStatus: {
+      type: String,
+      enum: ['NOT_STARTED', 'PENDING', 'COMPLETED', 'FAILED'],
+      default: 'NOT_STARTED',
+    },
+    /** From Stripe account.updated: account can accept charges. */
+    chargesEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    /** From Stripe account.updated: account can receive payouts. */
+    payoutsEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    /** Last error message from onboarding (e.g. from Stripe or link creation). Cleared when COMPLETED. */
+    lastOnboardingError: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -107,6 +135,7 @@ const tutorSchema = new mongoose.Schema(
 tutorSchema.index({ subjects: 1 }); // For subject-based searches
 tutorSchema.index({ mode: 1 }); // For mode-based filtering
 tutorSchema.index({ "location.coordinates": "2dsphere" });
+tutorSchema.index({ stripeAccountId: 1 }, { sparse: true }); // For account.updated webhook
 
 const Tutor = mongoose.model('Tutor', tutorSchema);
 

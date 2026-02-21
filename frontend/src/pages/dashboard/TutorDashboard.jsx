@@ -226,54 +226,6 @@ function TutorDashboard() {
           </div>
         </div>
 
-        {/* WALLET SECTION */}
-        <div className="space-y-4 sm:space-y-6 min-w-0">
-          <div className="flex items-center justify-between gap-2 px-0 sm:px-2 min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold text-[#1A365D] truncate">Wallet</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 rounded-xl border-slate-200 text-[#1A365D]"
-              onClick={() => navigate('/tutor/earnings')}
-            >
-              View Wallet <ChevronRight size={16} />
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 min-w-0">
-            <Card className="border-slate-200 rounded-xl overflow-hidden min-w-0">
-              <CardContent className="p-3 sm:p-4">
-                <p className="text-xs font-medium text-slate-500 mb-0.5">Pending</p>
-                <p className="text-base sm:text-lg font-bold text-[#1A365D] tabular-nums truncate">
-                  {statsLoading ? '—' : formatEarnings(wallet?.pendingEarnings ?? 0)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-slate-200 rounded-xl overflow-hidden min-w-0">
-              <CardContent className="p-3 sm:p-4">
-                <p className="text-xs font-medium text-slate-500 mb-0.5">Available</p>
-                <p className="text-base sm:text-lg font-bold text-[#1A365D] tabular-nums truncate">
-                  {statsLoading ? '—' : formatEarnings(wallet?.availableEarnings ?? 0)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-slate-200 rounded-xl overflow-hidden min-w-0">
-              <CardContent className="p-3 sm:p-4">
-                <p className="text-xs font-medium text-slate-500 mb-0.5">Total</p>
-                <p className="text-base sm:text-lg font-bold text-[#1A365D] tabular-nums truncate">
-                  {statsLoading ? '—' : formatEarnings(wallet?.totalEarnings ?? 0)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-slate-200 rounded-xl overflow-hidden min-w-0">
-              <CardContent className="p-3 sm:p-4">
-                <p className="text-xs font-medium text-slate-500 mb-0.5">Withdrawn</p>
-                <p className="text-base sm:text-lg font-bold text-[#1A365D] tabular-nums truncate">
-                  {statsLoading ? '—' : formatEarnings(wallet?.withdrawnTotal ?? 0)}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
 
         {/* 4. QUICK ACTIONS */}
         <div className="space-y-4 sm:space-y-6 min-w-0">

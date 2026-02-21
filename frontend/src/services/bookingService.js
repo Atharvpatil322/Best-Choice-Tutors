@@ -45,7 +45,7 @@ export const createBooking = async ({ tutorId, date, startTime, endTime, request
 /**
  * DEV TESTING ONLY – REMOVE BEFORE PRODUCTION
  * PATCH /api/bookings/:id/test-payment-status
- * Backend only accepts in NODE_ENV !== 'production'. Use to unblock testing when Razorpay webhook is not updating booking.
+ * Backend only accepts in NODE_ENV !== 'production'. Use to unblock testing when Stripe webhook is not updating booking.
  * @param {string} bookingId - Booking ID
  * @param {'PAID' | 'FAILED'} status
  * @returns {Promise<Object>}

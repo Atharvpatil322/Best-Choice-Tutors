@@ -6,6 +6,7 @@ import {
   getMyTutorProfile,
   getTutorProfileStatus,
   updateMyTutorProfile,
+  createPayoutSetupLink,
 } from '../controllers/tutorController.js';
 import { getWallet } from '../controllers/tutorWalletController.js';
 import { getMyReceivedReviews, reportReview } from '../controllers/reviewController.js';
@@ -22,15 +23,6 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from '../controllers/notificationController.js';
-import {
-  getBankDetails,
-  upsertBankDetails,
-} from '../controllers/tutorBankDetailsController.js';
-import {
-  createRequest as createWithdrawalRequest,
-  getMyRequests as getMyWithdrawalRequests,
-} from '../controllers/withdrawalRequestController.js';
-
 const router = express.Router();
 
 // Parse qualifications from FormData (sent as JSON string) so validation sees an array
@@ -187,92 +179,11 @@ router.patch('/notifications/read-all', authenticate, markAllNotificationsRead);
 // PATCH /api/tutor/notifications/:id/read - Mark one as read
 router.patch('/notifications/:id/read', authenticate, markNotificationRead);
 
-// GET /api/tutor/wallet - Read-only wallet summary (tutor only, no withdrawals)
+// GET /api/tutor/wallet - Read-only wallet summary (tutor only)
 router.get('/wallet', authenticate, getWallet);
 
-// GET /api/tutor/bank-details - Get own bank details (masked only; tutor only)
-router.get('/bank-details', authenticate, getBankDetails);
-// PUT /api/tutor/bank-details - Create or update bank details (tutor only; encrypted at rest)
-router.put(
-  '/bank-details',
-  authenticate,
-  [
-    body('accountHolderName')
-      .trim()
-      .notEmpty()
-      .withMessage('Account holder name is required'),
-    body('bankName').trim().notEmpty().withMessage('Bank name is required'),
-    body('accountNumber')
-      .trim()
-      .notEmpty()
-      .withMessage('Account number is required'),
-    body('country').trim().notEmpty().withMessage('Country is required'),
-    body('sortCode')
-      .optional()
-      .trim()
-      .isString()
-      .withMessage('Sort code must be a string'),
-    body('ifscCode')
-      .optional()
-      .trim()
-      .isString()
-      .withMessage('IFSC code must be a string'),
-    body().custom((value, { req }) => {
-      const country = (req.body.country || '').toString().toUpperCase();
-      if (country === 'GB' || country === 'UK') {
-        if (!(req.body.sortCode && String(req.body.sortCode).trim())) {
-          throw new Error('Sort code is required for United Kingdom');
-        }
-      } else if (country === 'IN') {
-        if (!(req.body.ifscCode && String(req.body.ifscCode).trim())) {
-          throw new Error('IFSC code is required for India');
-        }
-      } else {
-        const hasSort = req.body.sortCode && String(req.body.sortCode).trim();
-        const hasIfsc = req.body.ifscCode && String(req.body.ifscCode).trim();
-        if (!hasSort && !hasIfsc) {
-          throw new Error('Either sort code or IFSC code is required');
-        }
-      }
-      return true;
-    }),
-  ],
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: 'Validation failed',
-        errors: errors.array(),
-      });
-    }
-    next();
-  },
-  upsertBankDetails
-);
-
-// POST /api/tutor/withdrawal-requests - Create withdrawal request (tutor only; does not deduct earnings)
-router.post(
-  '/withdrawal-requests',
-  authenticate,
-  [
-    body('amountRequestedInPaise')
-      .isInt({ min: 0 })
-      .withMessage('amountRequestedInPaise must be a non-negative integer (paise)'),
-  ],
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: 'Validation failed',
-        errors: errors.array(),
-      });
-    }
-    next();
-  },
-  createWithdrawalRequest
-);
-// GET /api/tutor/withdrawal-requests - List own withdrawal requests (tutor only)
-router.get('/withdrawal-requests', authenticate, getMyWithdrawalRequests);
+// POST /api/tutor/payout-setup - Create Stripe Connect onboarding link; frontend redirects tutor to Stripe (tutor only)
+router.post('/payout-setup', authenticate, createPayoutSetupLink);
 
 // GET /api/tutor/reviews - List reviews received by the authenticated tutor (tutor only)
 router.get('/reviews', authenticate, getMyReceivedReviews);

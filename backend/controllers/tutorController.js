@@ -2,6 +2,7 @@ import Tutor from "../models/Tutor.js";
 import User from "../models/User.js";
 import Availability from "../models/Availability.js";
 import { validationResult } from "express-validator";
+import { createPayoutOnboardingLink } from "../services/stripeConnectService.js";
 import {
   uploadImage,
   presignProfilePhotoUrl,
@@ -480,6 +481,12 @@ export const getMyTutorProfile = async (req, res, next) => {
     const { averageRating, reviewCount } = await getTutorRating(tutor._id);
     const tutorProfilePhoto = await presignProfilePhotoUrl(tutor.profilePhoto);
 
+    const payout = {
+      onboardingStatus: tutor.stripeOnboardingStatus || 'NOT_STARTED',
+      lastOnboardingError: tutor.lastOnboardingError || null,
+      chargesEnabled: !!tutor.chargesEnabled,
+      payoutsEnabled: !!tutor.payoutsEnabled,
+    };
     res.json({
       tutor: {
         id: tutor._id,
@@ -498,6 +505,7 @@ export const getMyTutorProfile = async (req, res, next) => {
         reviewCount,
         isVerified: !!tutor.isVerified,
         isDbsVerified: !!tutor.isDbsVerified,
+        payout,
       },
       needsSetup: false,
       user: userPayload,
@@ -863,5 +871,52 @@ export const updateMyTutorProfile = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+/**
+ * Create Stripe Connect onboarding link and return URL. Tutor clicks "Complete Payout Setup" → redirect to Stripe.
+ * POST /api/tutor/payout-setup
+ * Creates Express account if not exists (idempotent: one per tutor). Returns URL to redirect.
+ */
+export const createPayoutSetupLink = async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    if (user.role !== "Tutor") {
+      return res.status(403).json({ message: "Access denied: Tutor role required" });
+    }
+
+    const tutor = await Tutor.findOne({ userId: user._id }).lean();
+    if (!tutor) {
+      return res.status(404).json({ message: "Tutor profile not found" });
+    }
+
+    const userDoc = await User.findById(user._id).lean();
+    const email = userDoc?.email;
+
+    const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const returnUrl = `${baseUrl}/tutor/my-profile`;
+    const refreshUrl = `${baseUrl}/tutor/my-profile`;
+
+    const { onboardingUrl } = await createPayoutOnboardingLink(tutor, email, returnUrl, refreshUrl);
+
+    return res.status(200).json({
+      message: "Onboarding link created. Redirect the user to the URL.",
+      onboardingUrl,
+    });
+  } catch (err) {
+    const message =
+      (err?.message && String(err.message).trim()) ||
+      "Payout setup failed. Please try again.";
+    return res.status(400).json({
+      message,
+      payout: {
+        onboardingStatus: "FAILED",
+        lastOnboardingError: message,
+      },
+    });
   }
 };

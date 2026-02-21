@@ -37,7 +37,7 @@ app.use(cors());
 app.use(
   express.json({
     verify: (req, res, buf) => {
-      // Keep a copy of the raw body for webhook signature verification
+      // Keep raw body for webhook signature verification (Stripe)
       req.rawBody = buf;
     },
   })

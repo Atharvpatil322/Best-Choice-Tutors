@@ -31,13 +31,6 @@ import {
   updateSupportTicketStatus,
   broadcastNotification,
 } from '../controllers/adminController.js';
-import {
-  getWithdrawalRequests,
-  approveWithdrawalRequest,
-  rejectWithdrawalRequest,
-  markWithdrawalPaid,
-} from '../controllers/adminWithdrawalController.js';
-
 const router = express.Router();
 
 // GET /api/admin/summary - Dashboard summary (admin only, read-only)
@@ -84,15 +77,6 @@ router.get('/disputes', authenticate, getDisputes);
 router.get('/disputes/:disputeId', authenticate, getDisputeById);
 // PATCH /api/admin/disputes/:disputeId/resolve - Resolve dispute (admin only, Phase 10)
 router.patch('/disputes/:disputeId/resolve', authenticate, resolveDisputeHandler);
-
-// GET /api/admin/withdrawal-requests?status=PENDING - List withdrawal requests (admin only)
-router.get('/withdrawal-requests', authenticate, getWithdrawalRequests);
-// PATCH /api/admin/withdrawal-requests/:id/approve - Approve (deduct, audit)
-router.patch('/withdrawal-requests/:id/approve', authenticate, approveWithdrawalRequest);
-// PATCH /api/admin/withdrawal-requests/:id/reject - Reject (audit only)
-router.patch('/withdrawal-requests/:id/reject', authenticate, rejectWithdrawalRequest);
-// PATCH /api/admin/withdrawal-requests/:id/paid - Mark PAID after manual transfer (audit only; no booking/TutorEarnings changes)
-router.patch('/withdrawal-requests/:id/paid', authenticate, markWithdrawalPaid);
 
 // GET /api/admin/config - Get platform config (admin only, read-only)
 router.get('/config', authenticate, getConfig);

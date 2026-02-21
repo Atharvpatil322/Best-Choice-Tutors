@@ -1,6 +1,6 @@
 /**
  * Admin Platform Configuration
- * Edit commission rate, minimum withdrawal amount. Save via admin config API.
+ * Edit commission rate. Save via admin config API.
  */
 
 import { useEffect, useState } from 'react';
@@ -26,7 +26,6 @@ function AdminConfig() {
   const [success, setSuccess] = useState(null);
   const [config, setConfig] = useState(null);
   const [commissionRate, setCommissionRate] = useState('');
-  const [minWithdrawalAmount, setMinWithdrawalAmount] = useState('');
 
   useEffect(() => {
     if (!isAdmin) {
@@ -41,7 +40,6 @@ function AdminConfig() {
         const data = await getConfig();
         setConfig(data);
         setCommissionRate(String(data.commissionRate ?? 0));
-        setMinWithdrawalAmount(String(data.minWithdrawalAmount ?? 0));
       } catch (err) {
         setError(err.message || 'Failed to load config');
         setConfig(null);
@@ -59,26 +57,17 @@ function AdminConfig() {
     setSuccess(null);
 
     const rate = parseFloat(commissionRate, 10);
-    const amount = parseFloat(minWithdrawalAmount, 10);
 
     if (Number.isNaN(rate) || rate < 0 || rate > 100) {
       setError('Commission rate must be between 0 and 100');
       return;
     }
-    if (Number.isNaN(amount) || amount < 0) {
-      setError('Minimum withdrawal amount must be 0 or greater');
-      return;
-    }
 
     setSaving(true);
     try {
-      const result = await updateConfig({
-        commissionRate: rate,
-        minWithdrawalAmount: amount,
-      });
+      const result = await updateConfig({ commissionRate: rate });
       setConfig(result.config ?? result);
       setCommissionRate(String(result.config?.commissionRate ?? rate));
-      setMinWithdrawalAmount(String(result.config?.minWithdrawalAmount ?? amount));
       setSuccess(result.message || 'Config saved successfully');
       toast.success('Config updated successfully.');
     } catch (err) {
@@ -139,14 +128,14 @@ function AdminConfig() {
           <Settings className="h-7 w-7" />
           Platform Configuration
         </h1>
-        <p className="text-sm text-slate-500 mt-1">Commission rate and minimum withdrawal. Changes are audit-logged.</p>
+        <p className="text-sm text-slate-500 mt-1">Commission rate. Changes are audit-logged.</p>
       </div>
 
       <Card className="rounded-2xl border-gray-100 shadow-sm mt-6">
         <CardHeader>
           <CardTitle className="text-[#1A365D]">Settings</CardTitle>
           <CardDescription>
-              Commission rate (0–100%) and minimum withdrawal amount (£). Changes are audit-logged.
+              Commission rate (0–100%). Changes are audit-logged.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -172,21 +161,6 @@ function AdminConfig() {
                   disabled={saving}
                 />
                 <p className="text-xs text-muted-foreground">Platform commission as a percentage (0–100).</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="minWithdrawalAmount">Minimum withdrawal amount (£)</Label>
-                <Input
-                  id="minWithdrawalAmount"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  placeholder="0"
-                  value={minWithdrawalAmount}
-                  onChange={(e) => setMinWithdrawalAmount(e.target.value)}
-                  disabled={saving}
-                />
-                <p className="text-xs text-muted-foreground">Minimum amount tutors can withdraw, in pounds (GBP).</p>
               </div>
 
               <Button type="submit" disabled={saving} className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg">

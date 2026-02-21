@@ -39,6 +39,31 @@ export const getTutorProfile = async () => {
 };
 
 /**
+ * Create Stripe Connect payout onboarding link. Backend creates account if needed and returns redirect URL.
+ * POST /api/tutor/payout-setup
+ * @returns {Promise<{ message, onboardingUrl: string }>}
+ */
+export const createPayoutSetupLink = async () => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+
+  const response = await fetch(`${API_BASE_URL}/tutor/payout-setup`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to create payout setup link");
+  }
+  return data;
+};
+
+/**
  * Lightweight check: does the tutor have a Tutor profile document?
  * GET /api/tutor/profile/status — for sidebar "complete your profile" indicator.
  * @returns {Promise<{ hasProfile: boolean }>}

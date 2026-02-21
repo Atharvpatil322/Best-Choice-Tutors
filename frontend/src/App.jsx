@@ -45,8 +45,6 @@ import AdminConfig from '@/pages/admin/AdminConfig';
 import AdminReportedReviews from '@/pages/admin/AdminReportedReviews';
 import AdminDisputes from '@/pages/admin/AdminDisputes';
 import AdminDisputeDetail from '@/pages/admin/AdminDisputeDetail';
-import AdminWithdrawals from '@/pages/admin/AdminWithdrawals';
-import AdminWithdrawalDetail from '@/pages/admin/AdminWithdrawalDetail';
 import AdminSupportTickets from '@/pages/admin/AdminSupportTickets';
 import AdminSupportTicketDetail from '@/pages/admin/AdminSupportTicketDetail';
 import AdminNotifications from '@/pages/admin/AdminNotifications';
@@ -150,8 +148,6 @@ function App() {
           <Route path="financials" element={<AdminFinancials />} />
           <Route path="disputes" element={<AdminDisputes />} />
           <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
-          <Route path="withdrawals" element={<AdminWithdrawals />} />
-          <Route path="withdrawals/:id" element={<AdminWithdrawalDetail />} />
           <Route path="chat" element={<AdminChatViewer />} />
           <Route path="audit-log" element={<AdminAuditLog />} />
           <Route path="config" element={<AdminConfig />} />
