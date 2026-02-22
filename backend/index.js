@@ -19,6 +19,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { attachSocketServer } from './services/socketService.js';
 import { completeEligibleBookings } from './services/bookingService.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Load environment variables
 dotenv.config();
@@ -63,6 +65,21 @@ app.use('/api/support', supportRoutes);
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
+
+// 1. Serve static files from the frontend 'dist' folder
+// This assumes your frontend build command creates a 'dist' folder
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// 2. Handle any requests that aren't API calls by serving index.html
+// This allows React Router to work properly
+app.get('*', (req, res, next) => {
+  // If the request is for an API, don't serve the index.html
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+});
+
 
 // 404 handler
 app.use((req, res) => {
