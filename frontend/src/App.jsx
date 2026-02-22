@@ -1,60 +1,85 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { SocketProvider } from '@/contexts/SocketContext';
-import { Toaster } from '@/components/ui/sonner';
-import LandingPage from '@/components/landing/LandingPage';
-import Login from '@/pages/auth/Login';
-import Register from '@/pages/auth/Register';
-import ForgotPassword from '@/pages/auth/ForgotPassword';
-import ResetPassword from '@/pages/auth/ResetPassword';
-import AuthCallbackPage from '@/components/auth/AuthCallbackPage';
-import LearnerDashboard from '@/pages/dashboard/LearnerDashboard';
-import LearnerMessages from '@/pages/dashboard/LearnerMessages';
-import LearnerReviews from '@/pages/dashboard/LearnerReviews';
-import LearnerSupportTickets from '@/pages/dashboard/LearnerSupportTickets';
-import LearnerCreateSupportTicket from '@/pages/dashboard/LearnerCreateSupportTicket';
-import LearnerSupportTicketDetail from '@/pages/dashboard/LearnerSupportTicketDetail';
-import TutorDashboard from '@/pages/dashboard/TutorDashboard';
-import TutorMessages from '@/pages/tutor/TutorMessages';
-import TutorSupportTickets from '@/pages/tutor/TutorSupportTickets';
-import TutorCreateSupportTicket from '@/pages/tutor/TutorCreateSupportTicket';
-import TutorSupportTicketDetail from '@/pages/tutor/TutorSupportTicketDetail';
-import CreateTuitionRequest from '@/pages/learner/CreateTuitionRequest';
-import { MyTuitionRequestsList, TuitionRequestDetail } from '@/pages/learner/MyTuitionRequests';
-import MyProfile from '@/pages/profile/MyProfile';
-import MyBookings from '@/pages/bookings/MyBookings';
-import TutorBookings from '@/pages/bookings/TutorBookings';
-import TutorBookingDetail from '@/pages/bookings/TutorBookingDetail';
-import BookingChat from '@/pages/bookings/BookingChat';
-import CreateTutorProfile from '@/pages/tutor/CreateTutorProfile';
-import TutorProfile from '@/pages/tutor/TutorProfile';
-import TutorMyProfile from '@/pages/tutor/TutorMyProfile';
-import TutorListing from '@/pages/tutor/TutorListing';
-import BrowseTutors from '@/pages/tutor/BrowseTutors';
-import ManageAvailability from '@/pages/tutor/ManageAvailability';
-import TutorWallet from '@/pages/tutor/TutorWallet';
-import TutorVerificationDocuments from '@/pages/tutor/TutorVerificationDocuments';
-import BrowseTuitionRequests from '@/pages/tutor/BrowseTuitionRequests';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import AdminUsers from '@/pages/admin/AdminUsers';
-import AdminTutorVerification from '@/pages/admin/AdminTutorVerification';
-import AdminDbsVerification from '@/pages/admin/AdminDbsVerification';
-import AdminFinancials from '@/pages/admin/AdminFinancials';
-import AdminChatViewer from '@/pages/admin/AdminChatViewer';
-import AdminAuditLog from '@/pages/admin/AdminAuditLog';
-import AdminConfig from '@/pages/admin/AdminConfig';
-import AdminReportedReviews from '@/pages/admin/AdminReportedReviews';
-import AdminDisputes from '@/pages/admin/AdminDisputes';
-import AdminDisputeDetail from '@/pages/admin/AdminDisputeDetail';
-import AdminSupportTickets from '@/pages/admin/AdminSupportTickets';
-import AdminSupportTicketDetail from '@/pages/admin/AdminSupportTicketDetail';
-import AdminNotifications from '@/pages/admin/AdminNotifications';
+// --- 1. PRE-LOAD CRITICAL UI ONLY ---
+// We keep Layouts and ProtectedRoute non-lazy to avoid "flashing" the navigation
+import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminLayout from '@/layouts/AdminLayout';
 import LearnerLayout from '@/layouts/LearnerLayout';
 import TutorLayout from '@/layouts/TutorLayout';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import OnBoardingScreen from './pages/auth/OnBoardingScreen';
-import AgeConsent from './pages/auth/AgeConsent';
-import Policy from './pages/Policy';
+
+// --- 2. LAZY LOAD EVERYTHING ELSE ---
+
+// Auth & Public
+const LandingPage = lazy(() => import('@/components/landing/LandingPage'));
+const Login = lazy(() => import('@/pages/auth/Login'));
+const Register = lazy(() => import('@/pages/auth/Register'));
+const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword'));
+const AuthCallbackPage = lazy(() => import('@/components/auth/AuthCallbackPage'));
+const OnBoardingScreen = lazy(() => import('./pages/auth/OnBoardingScreen'));
+const AgeConsent = lazy(() => import('./pages/auth/AgeConsent'));
+const Policy = lazy(() => import('./pages/Policy'));
+
+// Learner Pages
+const LearnerDashboard = lazy(() => import('@/pages/dashboard/LearnerDashboard'));
+const LearnerMessages = lazy(() => import('@/pages/dashboard/LearnerMessages'));
+const LearnerReviews = lazy(() => import('@/pages/dashboard/LearnerReviews'));
+const MyBookings = lazy(() => import('@/pages/bookings/MyBookings'));
+const BookingChat = lazy(() => import('@/pages/bookings/BookingChat'));
+const MyProfile = lazy(() => import('@/pages/profile/MyProfile'));
+const BrowseTutors = lazy(() => import('@/pages/tutor/BrowseTutors'));
+const TutorProfile = lazy(() => import('@/pages/tutor/TutorProfile'));
+
+// Learner Support
+const LearnerSupportTickets = lazy(() => import('@/pages/dashboard/LearnerSupportTickets'));
+const LearnerCreateSupportTicket = lazy(() => import('@/pages/dashboard/LearnerCreateSupportTicket'));
+const LearnerSupportTicketDetail = lazy(() => import('@/pages/dashboard/LearnerSupportTicketDetail'));
+
+// Tuition Requests
+const CreateTuitionRequest = lazy(() => import('@/pages/learner/CreateTuitionRequest'));
+const { MyTuitionRequestsList, TuitionRequestDetail } = {
+  MyTuitionRequestsList: lazy(() => import('@/pages/learner/MyTuitionRequests').then(module => ({ default: module.MyTuitionRequestsList }))),
+  TuitionRequestDetail: lazy(() => import('@/pages/learner/MyTuitionRequests').then(module => ({ default: module.TuitionRequestDetail })))
+};
+
+// Tutor Pages
+const TutorDashboard = lazy(() => import('@/pages/dashboard/TutorDashboard'));
+const TutorMessages = lazy(() => import('@/pages/tutor/TutorMessages'));
+const TutorBookings = lazy(() => import('@/pages/bookings/TutorBookings'));
+const TutorBookingDetail = lazy(() => import('@/pages/bookings/TutorBookingDetail'));
+const TutorWallet = lazy(() => import('@/pages/tutor/TutorWallet'));
+const TutorMyProfile = lazy(() => import('@/pages/tutor/TutorMyProfile'));
+const ManageAvailability = lazy(() => import('@/pages/tutor/ManageAvailability'));
+const BrowseTuitionRequests = lazy(() => import('@/pages/tutor/BrowseTuitionRequests'));
+const TutorListing = lazy(() => import('@/pages/tutor/TutorListing'));
+const CreateTutorProfile = lazy(() => import('@/pages/tutor/CreateTutorProfile'));
+const TutorVerificationDocuments = lazy(() => import('@/pages/tutor/TutorVerificationDocuments'));
+
+// Tutor Support
+const TutorSupportTickets = lazy(() => import('@/pages/tutor/TutorSupportTickets'));
+const TutorCreateSupportTicket = lazy(() => import('@/pages/tutor/TutorCreateSupportTicket'));
+const TutorSupportTicketDetail = lazy(() => import('@/pages/tutor/TutorSupportTicketDetail'));
+
+// Admin Pages
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
+const AdminTutorVerification = lazy(() => import('@/pages/admin/AdminTutorVerification'));
+const AdminDbsVerification = lazy(() => import('@/pages/admin/AdminDbsVerification'));
+const AdminFinancials = lazy(() => import('@/pages/admin/AdminFinancials'));
+const AdminDisputes = lazy(() => import('@/pages/admin/AdminDisputes'));
+const AdminDisputeDetail = lazy(() => import('@/pages/admin/AdminDisputeDetail'));
+const AdminChatViewer = lazy(() => import('@/pages/admin/AdminChatViewer'));
+const AdminAuditLog = lazy(() => import('@/pages/admin/AdminAuditLog'));
+const AdminConfig = lazy(() => import('@/pages/admin/AdminConfig'));
+const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'));
+const AdminReportedReviews = lazy(() => import('@/pages/admin/AdminReportedReviews'));
+const AdminSupportTickets = lazy(() => import('@/pages/admin/AdminSupportTickets'));
+const AdminSupportTicketDetail = lazy(() => import('@/pages/admin/AdminSupportTicketDetail'));
+
+// Loading component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 function App() {
   return (
