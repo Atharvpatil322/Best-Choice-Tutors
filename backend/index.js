@@ -20,10 +20,11 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { attachSocketServer } from './services/socketService.js';
 import { completeEligibleBookings } from './services/bookingService.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Load environment variables
 dotenv.config();
@@ -83,6 +84,7 @@ app.get('*', (req, res, next) => {
   }
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
+
 
 // 404 handler
 app.use((req, res) => {
