@@ -75,15 +75,13 @@ app.get('/health', (req, res) => {
 // This assumes your frontend build command creates a 'dist' folder
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
-// 2. Handle any requests that aren't API calls by serving index.html
-// This allows React Router to work properly
-app.get('*', (req, res, next) => {
-  // If the request is for an API, don't serve the index.html
-  if (req.path.startsWith('/api')) {
-    return next();
-  }
-  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-});
+
+// app.get('*', (req, res, next) => {
+//   if (req.path.startsWith('/api')) {
+//     return next();
+//   }
+//   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+// });
 
 
 // 404 handler
@@ -97,6 +95,15 @@ app.use(errorHandler);
 // Attach Socket.IO for chat (booking-scoped, auth required)
 const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 attachSocketServer(httpServer, corsOrigin);
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+    }
+  });
+}
 
 // Booking completion: PAID → COMPLETED after session end + buffer (simple time-based check)
 const COMPLETION_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
