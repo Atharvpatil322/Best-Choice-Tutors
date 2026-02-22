@@ -205,6 +205,44 @@ setLocation(
     }
   }, [normalizedRole]);
 
+  // Refetch profile when user returns to the tab (e.g. after Stripe Connect onboarding) so onboarding status updates from webhook
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible' || normalizedRole !== 'tutor' || !tutorProfile?.id) return;
+      try {
+        const profileData = await getTutorProfile();
+        const tutor = profileData?.tutor;
+        if (tutor) setTutorProfile(tutor);
+      } catch {
+        // ignore refetch errors
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [normalizedRole, tutorProfile?.id]);
+
+  // While onboarding is PENDING, poll for a short time so we pick up account.updated webhook after return from Stripe
+  const payoutStatus = tutorProfile?.payout?.onboardingStatus || 'NOT_STARTED';
+  useEffect(() => {
+    if (payoutStatus !== 'PENDING' || normalizedRole !== 'tutor' || !tutorProfile?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const profileData = await getTutorProfile();
+        const tutor = profileData?.tutor;
+        if (tutor && (tutor.payout?.onboardingStatus === 'COMPLETED' || tutor.payout?.onboardingStatus === 'FAILED')) {
+          setTutorProfile(tutor);
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000);
+    const timeout = setTimeout(() => clearInterval(interval), 30000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [payoutStatus, normalizedRole, tutorProfile?.id]);
+
   useEffect(() => {
     const fetchReviews = async () => {
       if (!tutorProfile?.id) return;
@@ -587,7 +625,6 @@ setLocation(
     }
   };
 
-  const payoutStatus = tutorProfile?.payout?.onboardingStatus || 'NOT_STARTED';
   const payoutError = tutorProfile?.payout?.lastOnboardingError || null;
   const chargesEnabled = tutorProfile?.payout?.chargesEnabled ?? false;
   const payoutsEnabled = tutorProfile?.payout?.payoutsEnabled ?? false;
@@ -986,6 +1023,11 @@ setLocation(
                 <p className="text-sm font-medium text-red-800 dark:text-red-200">Error</p>
                 <p className="mt-1 text-sm text-red-700 dark:text-red-300">{payoutError}</p>
               </div>
+            )}
+            {payoutStatus === 'PENDING' && (
+              <p className="col-span-2 text-sm text-muted-foreground">
+                Stripe is reviewing your account. In test mode, your connected account may stay &quot;Restricted&quot; until the platform completes &quot;Verify your business&quot; in the Stripe Dashboard. Refresh this page after a few minutes to see if status has updated.
+              </p>
             )}
 
             {payoutStatus !== 'COMPLETED' && (

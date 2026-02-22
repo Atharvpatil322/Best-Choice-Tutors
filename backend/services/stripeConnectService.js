@@ -4,10 +4,15 @@
  */
 
 import Tutor from '../models/Tutor.js';
-import { createConnectedAccount, createAccountLink } from './stripeService.js';
+import {
+  createConnectedAccount,
+  createAccountLink,
+  retrieveConnectedAccount,
+} from './stripeService.js';
 
 /**
  * Get or create Stripe Connect Express account for a tutor. Idempotent: one account per tutor.
+ * If the stored account was deleted in Stripe Dashboard, clears it and creates a new one.
  * @param {Object} tutor - Tutor document (plain or Mongoose) with _id, optional stripeAccountId
  * @param {string} [email] - User email for Stripe account
  * @returns {Promise<{ accountId: string }>}
@@ -16,7 +21,32 @@ export async function getOrCreateStripeAccountForTutor(tutor, email) {
   const tutorId = tutor._id;
   const existing = tutor.stripeAccountId;
   if (existing && typeof existing === 'string' && existing.trim()) {
-    return { accountId: existing.trim() };
+    try {
+      await retrieveConnectedAccount(existing.trim());
+      return { accountId: existing.trim() };
+    } catch (err) {
+      const isDeletedOrRevoked =
+        err?.code === 'resource_missing' ||
+        err?.code === 'account_invalid' ||
+        /no such account/i.test(err?.message || '') ||
+        /does not exist/i.test(err?.message || '') ||
+        /application access may have been revoked/i.test(err?.message || '');
+      if (isDeletedOrRevoked) {
+        await Tutor.updateOne(
+          { _id: tutorId },
+          {
+            $set: {
+              stripeAccountId: null,
+              stripeOnboardingStatus: 'NOT_STARTED',
+              lastOnboardingError: null,
+              updatedAt: new Date(),
+            },
+          }
+        );
+      } else {
+        throw err;
+      }
+    }
   }
 
   const account = await createConnectedAccount({

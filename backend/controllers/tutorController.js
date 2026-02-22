@@ -439,6 +439,9 @@ export const getMyTutorProfile = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: "Authentication required" });
     }
+    if (!user._id) {
+      return res.status(401).json({ message: "Invalid user session" });
+    }
 
     // Role must be Tutor
     if (user.role !== "Tutor") {
@@ -457,9 +460,12 @@ export const getMyTutorProfile = async (req, res, next) => {
           }
         : null;
 
-    const userProfilePhoto = await presignProfilePhotoUrl(
-      user.profilePhoto || null,
-    );
+    let userProfilePhoto = null;
+    try {
+      userProfilePhoto = await presignProfilePhotoUrl(user.profilePhoto || null);
+    } catch (e) {
+      console.warn('getMyTutorProfile: presign user photo failed', e?.message);
+    }
     const userPayload = {
       id: user._id,
       name: user.name,
@@ -478,8 +484,21 @@ export const getMyTutorProfile = async (req, res, next) => {
       });
     }
 
-    const { averageRating, reviewCount } = await getTutorRating(tutor._id);
-    const tutorProfilePhoto = await presignProfilePhotoUrl(tutor.profilePhoto);
+    let averageRating = 0;
+    let reviewCount = 0;
+    try {
+      const rating = await getTutorRating(tutor._id);
+      averageRating = rating?.averageRating ?? 0;
+      reviewCount = rating?.reviewCount ?? 0;
+    } catch (e) {
+      console.warn('getMyTutorProfile: getTutorRating failed', e?.message);
+    }
+    let tutorProfilePhoto = null;
+    try {
+      tutorProfilePhoto = await presignProfilePhotoUrl(tutor.profilePhoto);
+    } catch (e) {
+      console.warn('getMyTutorProfile: presign tutor photo failed', e?.message);
+    }
 
     const payout = {
       onboardingStatus: tutor.stripeOnboardingStatus || 'NOT_STARTED',
@@ -511,6 +530,7 @@ export const getMyTutorProfile = async (req, res, next) => {
       user: userPayload,
     });
   } catch (error) {
+    console.error('getMyTutorProfile error:', error?.message, error?.stack);
     next(error);
   }
 };
@@ -898,8 +918,8 @@ export const createPayoutSetupLink = async (req, res, next) => {
     const email = userDoc?.email;
 
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const returnUrl = `${baseUrl}/tutor/my-profile`;
-    const refreshUrl = `${baseUrl}/tutor/my-profile`;
+    const returnUrl = `${baseUrl}/tutor/profile`;
+    const refreshUrl = `${baseUrl}/tutor/profile`;
 
     const { onboardingUrl } = await createPayoutOnboardingLink(tutor, email, returnUrl, refreshUrl);
 
@@ -908,6 +928,13 @@ export const createPayoutSetupLink = async (req, res, next) => {
       onboardingUrl,
     });
   } catch (err) {
+    // Log full Stripe error for debugging Connect setup issues
+    console.error("Payout setup error:", {
+      message: err?.message,
+      code: err?.code,
+      type: err?.type,
+      raw: err?.raw?.message,
+    });
     const message =
       (err?.message && String(err.message).trim()) ||
       "Payout setup failed. Please try again.";

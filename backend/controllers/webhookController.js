@@ -27,12 +27,19 @@ export const handleStripeWebhook = async (req, res, next) => {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!signature) {
+      console.warn('Stripe webhook: missing stripe-signature header');
       return res.status(400).json({ message: 'Missing Stripe signature header' });
     }
 
     const rawBody = req.rawBody;
     if (!rawBody) {
+      console.warn('Stripe webhook: raw body missing (check webhook route is not parsed by body parser before raw capture)');
       return res.status(400).json({ message: 'Raw body required for Stripe webhook' });
+    }
+
+    if (!webhookSecret || !webhookSecret.trim()) {
+      console.warn('Stripe webhook: STRIPE_WEBHOOK_SECRET is not set in .env');
+      return res.status(500).json({ message: 'Webhook secret not configured' });
     }
 
     let event;
@@ -52,6 +59,8 @@ export const handleStripeWebhook = async (req, res, next) => {
         console.warn('Stripe webhook: booking not found for session_id', {
           session_id: session.id,
         });
+      } else {
+        console.info('Stripe webhook: booking marked PAID', { bookingId: result._id?.toString?.() || result.id });
       }
     } else if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
@@ -63,6 +72,8 @@ export const handleStripeWebhook = async (req, res, next) => {
         console.warn('Stripe webhook: booking not found for payment_intent_id', {
           payment_intent_id: paymentIntent.id,
         });
+      } else {
+        console.info('Stripe webhook: booking marked PAID (via payment_intent)', { bookingId: result._id?.toString?.() || result.id });
       }
     } else if (event.type === 'payment_intent.payment_failed') {
       const paymentIntent = event.data.object;
@@ -75,11 +86,17 @@ export const handleStripeWebhook = async (req, res, next) => {
           payment_intent_id: paymentIntent.id,
         });
       }
-    } else if (event.type === 'account.updated') {
+    } else if (event.type === 'account.updated' || event.type === 'connect.account.updated') {
       const account = event.data.object;
       const updated = await updateTutorFromStripeAccount(account);
       if (updated === null) {
         console.warn('Stripe webhook: tutor not found for account_id', { account_id: account.id });
+      } else {
+        console.info('Stripe webhook: tutor Connect status updated', {
+          tutorId: updated._id?.toString(),
+          stripeOnboardingStatus: updated.stripeOnboardingStatus,
+          payoutsEnabled: updated.payoutsEnabled,
+        });
       }
     }
 

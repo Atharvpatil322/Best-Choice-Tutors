@@ -165,6 +165,16 @@ export const createRefund = async ({
  * @param {Object} [params.metadata] - e.g. { tutorId: '...' }
  * @returns {Promise<Stripe.Account>}
  */
+/**
+ * Retrieve a Connect account by ID. Throws if account does not exist (e.g. deleted in Dashboard).
+ * @param {string} accountId - Stripe Connect account ID (acct_xxx)
+ * @returns {Promise<Stripe.Account>}
+ */
+export const retrieveConnectedAccount = async (accountId) => {
+  const stripe = getStripeClient();
+  return stripe.accounts.retrieve(accountId);
+};
+
 export const createConnectedAccount = async ({
   email,
   country = 'GB',
