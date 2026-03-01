@@ -3,7 +3,6 @@ services:
     name: best-choice-tutors-api
     runtime: node
     rootDir: backend
-    plan: free
     autoDeploy: true
     buildCommand: npm ci
     startCommand: npm start
@@ -58,7 +57,6 @@ services:
     name: best-choice-tutors-web
     runtime: static
     rootDir: frontend
-    plan: free
     autoDeploy: true
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
