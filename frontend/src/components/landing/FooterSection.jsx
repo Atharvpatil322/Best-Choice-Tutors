@@ -34,7 +34,7 @@ export default function FooterSection() {
             </div>
             <div className="link-column">
               <Link to="/privacy">Privacy Policy</Link>
-              <Link to="/terms">Terms</Link>
+              <Link to="/terms">Terms and Conditions</Link>
             </div>
           </div>
 

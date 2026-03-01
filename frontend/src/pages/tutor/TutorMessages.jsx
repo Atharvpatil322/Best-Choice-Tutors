@@ -136,15 +136,16 @@ function TutorMessages() {
                   key={b.id}
                   className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 hover:bg-slate-50/50 transition-colors"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold text-[#1A365D]">{b.learnerName ?? 'Learner'}</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-600 mt-1">
+                      <span className="font-medium text-slate-500">Session:</span>{' '}
                       {formatDate(b.date)} · {formatTime(b.startTime, b.endTime)}
                     </p>
                   </div>
                   <Button
                     onClick={() => navigate(`/tutor/bookings/${b.id}/chat`)}
-                    className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg"
+                    className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg shrink-0"
                   >
                     Open chat
                   </Button>
