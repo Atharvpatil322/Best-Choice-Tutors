@@ -8,6 +8,7 @@ import {
   createConnectedAccount,
   createAccountLink,
   retrieveConnectedAccount,
+  retrieveAccountExternalAccounts,
 } from './stripeService.js';
 
 /**
@@ -125,6 +126,30 @@ export async function updateTutorFromStripeAccount(account) {
     stripeOnboardingStatus,
     updatedAt: new Date(),
   };
+
+  // When onboarding is completed, fetch and store the payout account ID (bank account)
+  if (stripeOnboardingStatus === 'COMPLETED' && payoutsEnabled) {
+    try {
+      const externalAccounts = await retrieveAccountExternalAccounts(accountId);
+      // Find the default bank account (usually the first one with status 'enabled')
+      const bankAccount = externalAccounts.data.find(
+        (acc) => acc.object === 'bank_account' && acc.status === 'enabled'
+      );
+      if (bankAccount) {
+        update.stripePayoutAccountId = bankAccount.id;
+        console.info('Stripe Connect: Stored payout account ID', {
+          tutorId: tutor._id.toString(),
+          payoutAccountId: bankAccount.id,
+        });
+      }
+    } catch (err) {
+      console.error('Stripe Connect: Failed to fetch external accounts', {
+        tutorId: tutor._id.toString(),
+        error: err.message,
+      });
+    }
+  }
+
   if (stripeOnboardingStatus === 'COMPLETED') {
     update.lastOnboardingError = null;
   }

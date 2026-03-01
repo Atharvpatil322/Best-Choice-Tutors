@@ -44,6 +44,17 @@ const tutorEarningsSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    /** Stripe Payout ID (e.g. po_xxx) when manual payout is sent to tutor's bank via Stripe Dashboard. */
+    payoutId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    /** Date when payout was sent to tutor's bank (from payout.paid webhook). */
+    paidAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

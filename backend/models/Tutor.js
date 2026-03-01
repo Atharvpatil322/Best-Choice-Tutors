@@ -115,6 +115,12 @@ const tutorSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    /** Stripe payout account ID (e.g. ba_xxx) - the bank account that receives payouts. Set when onboarding completes. */
+    stripePayoutAccountId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     /** Last error message from onboarding (e.g. from Stripe or link creation). Cleared when COMPLETED. */
     lastOnboardingError: {
       type: String,
@@ -136,6 +142,7 @@ tutorSchema.index({ subjects: 1 }); // For subject-based searches
 tutorSchema.index({ mode: 1 }); // For mode-based filtering
 tutorSchema.index({ "location.coordinates": "2dsphere" });
 tutorSchema.index({ stripeAccountId: 1 }, { sparse: true }); // For account.updated webhook
+tutorSchema.index({ stripePayoutAccountId: 1 }, { sparse: true }); // For payout webhook
 
 const Tutor = mongoose.model('Tutor', tutorSchema);
 

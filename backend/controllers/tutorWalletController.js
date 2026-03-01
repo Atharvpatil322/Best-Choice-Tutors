@@ -39,9 +39,16 @@ export const getWallet = async (req, res, next) => {
 
     let pendingEarnings = 0;
     let availableEarnings = 0;
+    let paidOutEarnings = 0;
     for (const e of entries) {
       if (e.status === 'pendingRelease') pendingEarnings += e.amount;
-      if (e.status === 'available') availableEarnings += e.amount;
+      if (e.status === 'available') {
+        if (e.paidAt) {
+          paidOutEarnings += e.amount;
+        } else {
+          availableEarnings += e.amount;
+        }
+      }
     }
     const totalEarnings = pendingEarnings + availableEarnings;
 
@@ -50,6 +57,8 @@ export const getWallet = async (req, res, next) => {
       bookingId: e.bookingId?.toString(),
       amount: e.amount,
       status: e.status,
+      payoutId: e.payoutId,
+      paidAt: e.paidAt,
       createdAt: e.createdAt,
     }));
 
@@ -57,6 +66,7 @@ export const getWallet = async (req, res, next) => {
       totalEarnings,
       pendingEarnings,
       availableEarnings,
+      paidOutEarnings,
       entries: list,
     });
   } catch (error) {

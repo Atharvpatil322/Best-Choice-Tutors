@@ -201,7 +201,7 @@ function Register() {
                 </p>
                 <p className="font-medium text-foreground">1. Eligibility</p>
                 <p>
-                  You must be at least 18 years of age to register, or have the consent of a parent or legal guardian if under 18. You must provide accurate and complete information when signing up.
+                  You must be at least 13 years of age to register, or have the consent of a parent or legal guardian if under 13. You must provide accurate and complete information when signing up.
                 </p>
                 <p className="font-medium text-foreground">2. Account and conduct</p>
                 <p>

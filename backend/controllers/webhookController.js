@@ -5,6 +5,8 @@ import {
 } from '../services/bookingService.js';
 import { verifyWebhookSignature as verifyStripeWebhookSignature } from '../services/stripeService.js';
 import { updateTutorFromStripeAccount } from '../services/stripeConnectService.js';
+import Tutor from '../models/Tutor.js';
+import TutorEarnings from '../models/TutorEarnings.js';
 
 /**
  * Stripe webhook handler
@@ -50,7 +52,20 @@ export const handleStripeWebhook = async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid Stripe signature' });
     }
 
-    console.info('Stripe webhook received', { type: event.type });
+    console.info('Stripe webhook received', { 
+      type: event.type, 
+      account: event.account,
+      api_version: event.api_version 
+    });
+
+    // Debug: Log full event structure for payout events
+    if (event.type?.startsWith('payout')) {
+      console.info('Stripe webhook: FULL payout event', {
+        type: event.type,
+        data: JSON.stringify(event.data.object),
+        account: event.account,
+      });
+    }
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -96,6 +111,75 @@ export const handleStripeWebhook = async (req, res, next) => {
           tutorId: updated._id?.toString(),
           stripeOnboardingStatus: updated.stripeOnboardingStatus,
           payoutsEnabled: updated.payoutsEnabled,
+        });
+      }
+    } else if (event.type === 'payout.paid') {
+      const payout = event.data.object;
+      
+      // For manual payouts from Stripe Dashboard, we need to find the tutor by their payout account ID
+      // The payout.destination is the bank account ID (ba_xxx)
+      const payoutDestination = payout.destination;
+
+      console.info('Stripe webhook: Payout paid', {
+        payoutId: payout.id,
+        amount: payout.amount,
+        currency: payout.currency,
+        destination: payoutDestination,
+      });
+
+      let tutor = null;
+      
+      // First try: Find by event.account (connected account ID)
+      if (event.account) {
+        tutor = await Tutor.findOne({ stripeAccountId: event.account });
+      }
+      
+      // Second try: If event.account is not available, try to find by payout destination (bank account)
+      // This handles manual payouts from Stripe Dashboard
+      if (!tutor && payoutDestination) {
+        tutor = await Tutor.findOne({ stripePayoutAccountId: payoutDestination });
+        if (tutor) {
+          console.info('Stripe webhook: Found tutor by payout account ID', {
+            tutorId: tutor._id.toString(),
+            payoutAccountId: payoutDestination,
+          });
+        }
+      }
+
+      if (!tutor) {
+        console.warn('Stripe webhook: tutor not found for payout', {
+          payoutId: payout.id,
+          destination: payoutDestination,
+          eventAccount: event.account,
+        });
+      } else {
+        // Update all available earnings entries for this tutor that haven't been paid out yet
+        // This handles manual payouts from Stripe Dashboard
+        let paidAt;
+        if (payout.arrival_date) {
+          paidAt = new Date(payout.arrival_date * 1000); // Stripe uses Unix timestamp
+        } else {
+          paidAt = new Date(); // Fallback to current time
+        }
+
+        const result = await TutorEarnings.updateMany(
+          {
+            tutorId: tutor._id,
+            status: 'available',
+            payoutId: null,
+          },
+          {
+            $set: {
+              payoutId: payout.id,
+              paidAt,
+            },
+          }
+        );
+
+        console.info('Stripe webhook: payout recorded', {
+          tutorId: tutor._id.toString(),
+          payoutId: payout.id,
+          entriesUpdated: result.modifiedCount,
         });
       }
     }

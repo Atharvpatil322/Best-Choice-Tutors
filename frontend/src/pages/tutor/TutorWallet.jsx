@@ -25,9 +25,22 @@ function formatDate(createdAt) {
   });
 }
 
-function statusLabel(status) {
+function formatPaidDate(paidAt) {
+  if (!paidAt) return null;
+  const d = new Date(paidAt);
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function statusLabel(status, paidAt) {
   if (status === 'pendingRelease') return 'Pending release';
-  if (status === 'available') return 'Available';
+  if (status === 'available') {
+    if (paidAt) return 'Paid out';
+    return 'Available';
+  }
   return status || '—';
 }
 
@@ -37,6 +50,7 @@ function TutorWallet() {
     totalEarnings: 0,
     pendingEarnings: 0,
     availableEarnings: 0,
+    paidOutEarnings: 0,
     entries: [],
   });
   const [loading, setLoading] = useState(true);
@@ -50,6 +64,7 @@ function TutorWallet() {
         totalEarnings: res.totalEarnings ?? 0,
         pendingEarnings: res.pendingEarnings ?? 0,
         availableEarnings: res.availableEarnings ?? 0,
+        paidOutEarnings: res.paidOutEarnings ?? 0,
         entries: res.entries ?? [],
       });
       setError(null);
@@ -107,7 +122,7 @@ function TutorWallet() {
           </Button>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-medium text-muted-foreground">
@@ -127,7 +142,18 @@ function TutorWallet() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">{formatAmount(data.availableEarnings)}</p>
-              <p className="text-xs text-muted-foreground">Released and available</p>
+              <p className="text-xs text-muted-foreground">Ready to be paid out</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium text-muted-foreground">
+                Paid out
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold">{formatAmount(data.paidOutEarnings)}</p>
+              <p className="text-xs text-muted-foreground">Sent to bank account</p>
             </CardContent>
           </Card>
           <Card>
@@ -180,17 +206,26 @@ function TutorWallet() {
                         )}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${
-                          e.status === 'available'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {statusLabel(e.status)}
-                      </span>
-                      <span className="font-medium tabular-nums">{formatAmount(e.amount)}</span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {e.paidAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Paid {formatPaidDate(e.paidAt)}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`rounded px-2 py-0.5 text-xs font-medium ${
+                            e.status === 'available'
+                              ? e.paidAt
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {statusLabel(e.status, e.paidAt)}
+                        </span>
+                        <span className="font-medium tabular-nums">{formatAmount(e.amount)}</span>
+                      </div>
                     </div>
                   </li>
                 ))}

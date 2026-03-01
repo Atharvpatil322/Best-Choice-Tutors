@@ -10,7 +10,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser } from '@/services/authService';
 import { getTutorBookings } from '@/services/tutorBookingsService';
 import { getWallet } from '@/services/tutorWalletService';
-import { getTutorProfile } from '@/services/tutorProfileService';
 import welcome from '../../images/welcomeFamily.jpeg';
 import {
   BookOpen,
@@ -20,9 +19,7 @@ import {
   CalendarClock,
   ChevronRight,
   User,
-  GraduationCap,
   FileText,
-  Award,
 } from 'lucide-react';
 
 function formatEarnings(pence) {
@@ -35,29 +32,21 @@ function TutorDashboard() {
   const user = getStoredUser();
   const [bookings, setBookings] = useState([]);
   const [wallet, setWallet] = useState(null);
-  const [badges, setBadges] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       setStatsLoading(true);
       try {
-        const [bookingsRes, walletRes, profileRes] = await Promise.all([
+        const [bookingsRes, walletRes] = await Promise.all([
           getTutorBookings().catch(() => ({ bookings: [] })),
           getWallet().catch(() => null),
-          getTutorProfile().catch(() => ({ tutor: null })),
         ]);
         setBookings(bookingsRes.bookings || []);
         setWallet(walletRes);
-        const t = profileRes?.tutor;
-        const list = [];
-        if (t?.isVerified) list.push('Verified');
-        if (t?.isDbsVerified) list.push('DBS Verified');
-        setBadges(list);
       } catch {
         setBookings([]);
         setWallet(null);
-        setBadges([]);
       } finally {
         setStatsLoading(false);
       }
@@ -69,7 +58,8 @@ function TutorDashboard() {
   const completedSessions = bookings.filter((b) => b.status === 'COMPLETED').length;
   const today = new Date().toISOString().slice(0, 10);
 
-  const totalEarnings = wallet?.totalEarnings ?? 0;
+  const availableEarnings = wallet?.availableEarnings ?? 0;
+  const paidOutEarnings = wallet?.paidOutEarnings ?? 0;
   const stats = [
     {
       label: 'Total Bookings',
@@ -84,17 +74,16 @@ function TutorDashboard() {
       bg: 'bg-emerald-50',
     },
     {
-      label: 'Total Earnings',
-      value: statsLoading ? '—' : formatEarnings(totalEarnings),
+      label: 'Available to Withdraw',
+      value: statsLoading ? '—' : formatEarnings(availableEarnings),
       icon: <Banknote className="h-5 w-5 text-purple-600" />,
       bg: 'bg-purple-50',
     },
     {
-      label: 'Badges',
-      value: statsLoading ? '—' : String(badges.length),
-      icon: <Award className="h-5 w-5 text-amber-600" />,
-      bg: 'bg-amber-50',
-      badges,
+      label: 'Paid Out',
+      value: statsLoading ? '—' : formatEarnings(paidOutEarnings),
+      icon: <Banknote className="h-5 w-5 text-green-600" />,
+      bg: 'bg-green-50',
     },
   ];
 
@@ -143,21 +132,6 @@ function TutorDashboard() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-slate-500 mb-0.5">{stat.label}</p>
                   <p className="text-lg sm:text-xl font-bold text-[#1A365D] tabular-nums truncate">{stat.value}</p>
-                  {stat.badges && stat.badges.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {stat.badges.map((b) => (
-                        <span
-                          key={b}
-                          className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
-                        >
-                          {b}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {stat.badges && stat.badges.length === 0 && !statsLoading && (
-                    <p className="text-xs text-slate-400 mt-1">No badges yet</p>
-                  )}
                 </div>
               </CardContent>
             </Card>

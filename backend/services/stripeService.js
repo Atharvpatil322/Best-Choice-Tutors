@@ -249,6 +249,29 @@ export const createTransferReversal = async (transferId, { amount } = {}) => {
   return stripe.transfers.createReversal(transferId, options);
 };
 
+/**
+ * Retrieve a payout by ID with expanded balance transaction.
+ * This helps identify which connected account was paid for manual payouts.
+ * @param {string} payoutId - Stripe payout ID (e.g. po_xxx)
+ * @returns {Promise<Stripe.Payout>}
+ */
+export const retrievePayout = async (payoutId) => {
+  const stripe = getStripeClient();
+  return stripe.payouts.retrieve(payoutId, {
+    expand: ['balance_transaction'],
+  });
+};
+
+/**
+ * Retrieve external accounts (bank accounts/cards) for a Connect account.
+ * @param {string} accountId - Stripe Connect account ID (acct_xxx)
+ * @returns {Promise<Stripe.ApiList<Stripe.BankAccount|Stripe.Card>>}
+ */
+export const retrieveAccountExternalAccounts = async (accountId) => {
+  const stripe = getStripeClient();
+  return stripe.accounts.listExternalAccounts(accountId);
+};
+
 export default {
   getStripeClient,
   createCheckoutSession,
