@@ -11,7 +11,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser, logout } from '@/services/authService';
 import { getNotifications, markAllNotificationsRead } from '@/services/notificationService';
-import { getLearnerProfile } from '@/services/learnerProfileService';
 import {
   LayoutDashboard,
   Calendar,
@@ -33,7 +32,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logoImage from '../images/BCT_Logo.png'
-import ProfilePic from '../images/ProfilePic.png';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 const SIDEBAR_ITEMS = [
   { to: '/dashboard', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -60,6 +59,7 @@ function LearnerLayout() {
   const notificationsRef = useRef(null);
   const [headerProfilePhoto, setHeaderProfilePhoto] = useState(null);
 
+  // Fetch notifications only when user opens dropdown (on-demand), not on mount
   const fetchNotifications = useCallback(async (markAsRead = false) => {
     if (!isLearner) return;
     setNotificationsLoading(true);
@@ -83,20 +83,6 @@ function LearnerLayout() {
     } finally {
       setNotificationsLoading(false);
     }
-  }, [isLearner]);
-
-  useEffect(() => {
-    if (isLearner) fetchNotifications(false);
-  }, [isLearner, fetchNotifications]);
-
-  // Fetch learner profile for fresh profile photo in header (presigned URL)
-  useEffect(() => {
-    if (!isLearner) return;
-    getLearnerProfile()
-      .then((data) => {
-        if (data?.profilePhoto) setHeaderProfilePhoto(data.profilePhoto);
-      })
-      .catch(() => {});
   }, [isLearner]);
 
   // Update header photo when learner updates profile (e.g. from MyProfile page)
@@ -198,10 +184,11 @@ function LearnerLayout() {
             className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 hover:opacity-90 transition-opacity min-w-0"
             aria-label="Go to my profile"
           >
-            <img
-              src={user?.profilePhoto || headerProfilePhoto || ProfilePic}
-              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0 border-2 border-gray-100"
+            <ProfileAvatar
+              src={user?.profilePhoto || headerProfilePhoto}
               alt="Profile"
+              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0 border-2 border-gray-100"
+              iconClassName="h-4 w-4 sm:h-5 sm:w-5"
             />
             <div className="hidden md:block text-left min-w-0">
               <p className="text-sm font-bold text-[#1A365D] leading-none truncate max-w-[120px] lg:max-w-none">{user?.name || 'Learner'}</p>

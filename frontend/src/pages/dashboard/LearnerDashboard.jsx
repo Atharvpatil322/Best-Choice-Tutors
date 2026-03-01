@@ -1,28 +1,24 @@
 /**
  * Learner Dashboard
- * Shows welcome banner, real stats from bookings/reviews/requests, upcoming sessions, quick actions.
+ * Welcome banner, quick actions. No API calls for bookings/reviews/requests —
+ * each tab fetches its own data when visited.
  */
 
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { getCurrentRole } from '@/services/authService';
+import { getStoredUser } from '@/services/authService';
 import welcome from '../../images/welcomeFamily.jpeg';
 import {
   BookOpen,
-  Clock,
   FileText,
   Star,
   ChevronRight,
   Calendar,
   GraduationCap,
 } from 'lucide-react';
-import { getLearnerProfile } from '../../services/learnerProfileService';
-import { getLearnerBookings } from '../../services/learnerBookingsService';
-import { getMySubmittedReviews } from '../../services/reviewService';
-import { getMyTuitionRequests } from '../../services/tuitionRequestService';
 import { switchToTutor } from '../../services/authService';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -36,54 +32,10 @@ import {
 
 function LearnerDashboard() {
   const navigate = useNavigate();
-  const role = getCurrentRole();
-  const normalizedRole = typeof role === 'string' ? role.toLowerCase() : null;
-  const isTutor = normalizedRole === 'tutor';
-  const [profile, setProfile] = useState(null);
+  const user = getStoredUser();
   const [switchingToTutor, setSwitchingToTutor] = useState(false);
-  const [bookings, setBookings] = useState([]);
-  const [reviewsCount, setReviewsCount] = useState(0);
-  const [tuitionRequestsCount, setTuitionRequestsCount] = useState(0);
-  const [statsLoading, setStatsLoading] = useState(true);
   const [becomeTutorConsentOpen, setBecomeTutorConsentOpen] = useState(false);
   const [becomeTutorTermsAccepted, setBecomeTutorTermsAccepted] = useState(false);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const data = await getLearnerProfile();
-        setProfile(data);
-      } catch (err) {
-        if (err.message?.includes('Authentication') || err.message?.includes('401')) {
-          navigate('/', { replace: true });
-        }
-      }
-    };
-    fetchProfile();
-  }, [navigate]);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      setStatsLoading(true);
-      try {
-        const [bookingsRes, reviewsRes, requestsRes] = await Promise.all([
-          getLearnerBookings().catch(() => ({ bookings: [] })),
-          getMySubmittedReviews().catch(() => ({ count: 0 })),
-          getMyTuitionRequests().catch(() => ({ requests: [] })),
-        ]);
-        setBookings(bookingsRes.bookings || []);
-        setReviewsCount(reviewsRes.count ?? 0);
-        setTuitionRequestsCount(Array.isArray(requestsRes.requests) ? requestsRes.requests.length : 0);
-      } catch {
-        setBookings([]);
-        setReviewsCount(0);
-        setTuitionRequestsCount(0);
-      } finally {
-        setStatsLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
 
   const handleBecomeTutor = async () => {
     setSwitchingToTutor(true);
@@ -100,40 +52,11 @@ function LearnerDashboard() {
     }
   };
 
-  const totalBookings = bookings.length;
-  const completedSessions = bookings.filter((b) => b.status === 'COMPLETED').length;
-
-  const stats = [
-    {
-      label: 'Total Bookings',
-      value: statsLoading ? '—' : String(totalBookings),
-      icon: <BookOpen className="h-5 w-5 text-blue-600" />,
-      bg: 'bg-blue-50',
-    },
-    {
-      label: 'Completed Sessions',
-      value: statsLoading ? '—' : String(completedSessions),
-      icon: <Clock className="h-5 w-5 text-emerald-600" />,
-      bg: 'bg-emerald-50',
-    },
-    {
-      label: 'Reviews Given',
-      value: statsLoading ? '—' : String(reviewsCount),
-      icon: <Star className="h-5 w-5 text-amber-600" />,
-      bg: 'bg-amber-50',
-    },
-    {
-      label: 'Tuition Requests',
-      value: statsLoading ? '—' : String(tuitionRequestsCount),
-      icon: <FileText className="h-5 w-5 text-slate-600" />,
-      bg: 'bg-slate-100',
-    },
+  const quickLinks = [
+    { label: 'My Bookings', icon: <BookOpen className="h-5 w-5 text-blue-600" />, bg: 'bg-blue-50', path: '/dashboard/bookings' },
+    { label: 'Reviews', icon: <Star className="h-5 w-5 text-amber-600" />, bg: 'bg-amber-50', path: '/dashboard/reviews' },
+    { label: 'Tuition Requests', icon: <FileText className="h-5 w-5 text-slate-600" />, bg: 'bg-slate-100', path: '/dashboard/tuition-requests' },
   ];
-
-  const today = new Date().toISOString().slice(0, 10);
-  const upcomingBookings = bookings.filter(
-    (b) => b.status === 'PAID' && b.date >= today
-  ).slice(0, 3);
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-8 sm:pb-12 min-w-0">
@@ -142,7 +65,7 @@ function LearnerDashboard() {
         <div className="absolute right-[5%] top-1/2 -translate-y-1/2 w-[220px] h-[220px] sm:w-[300px] sm:h-[300px] lg:w-[380px] lg:h-[380px] bg-[radial-gradient(circle,_rgba(191,219,254,0.6)_0%,_rgba(244,249,255,0)_70%)] pointer-events-none" />
         <div className="z-10 max-w-xl min-w-0">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1A365D] mb-2 sm:mb-3">
-            Welcome, {profile?.name || 'Guest'} 👋
+            Welcome, {user?.name || 'Guest'} 👋
           </h1>
           <p className="text-slate-600 font-medium text-base sm:text-lg lg:text-xl leading-relaxed">
             Let&apos;s get started with your learning journey today.
@@ -161,22 +84,27 @@ function LearnerDashboard() {
         </div>
       </div>
 
-      {/* 2. STATS GRID – real data */}
+      {/* 2. QUICK LINKS – navigate to dedicated tabs (no preload) */}
       <div>
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3 px-0 sm:px-1">
           Your activity
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {stats.map((stat) => (
-            <Card key={stat.label} className="border-slate-200 shadow-sm rounded-xl overflow-hidden min-w-0">
-              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl shrink-0 ${stat.bg}`}>
-                  {stat.icon}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {quickLinks.map((link) => (
+            <Card
+              key={link.label}
+              className="border-slate-200 shadow-sm rounded-xl overflow-hidden min-w-0 cursor-pointer hover:border-[#1A365D]/30 transition-colors"
+              onClick={() => navigate(link.path)}
+            >
+              <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-3">
+                <div className={`p-2.5 rounded-xl shrink-0 ${link.bg}`}>
+                  {link.icon}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-500 mb-0.5">{stat.label}</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1A365D] tabular-nums">{stat.value}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[#1A365D]">{link.label}</p>
+                  <p className="text-xs text-slate-500">View details</p>
                 </div>
+                <ChevronRight size={18} className="text-slate-400 shrink-0" />
               </CardContent>
             </Card>
           ))}
@@ -184,7 +112,7 @@ function LearnerDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 min-w-0">
-        {/* 3. UPCOMING SESSIONS */}
+        {/* 3. UPCOMING SESSIONS – CTA to My Bookings (data loads on that tab) */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0">
           <div className="flex items-center justify-between gap-2 px-0 sm:px-2 min-w-0">
             <h2 className="text-lg sm:text-xl font-bold text-[#1A365D] truncate">Upcoming Sessions</h2>
@@ -196,52 +124,19 @@ function LearnerDashboard() {
               View All <ChevronRight size={16} />
             </button>
           </div>
-          <div className="space-y-3 min-w-0">
-            {upcomingBookings.length > 0 ? (
-              upcomingBookings.map((b) => (
-                <Card key={b.id} className="border-slate-200 rounded-xl p-4 flex items-center justify-between gap-3 min-w-0">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#1A365D] truncate">{b.tutorName || 'Tutor'}</p>
-                    <p className="text-sm text-slate-500">
-                      {b.date} · {b.startTime} – {b.endTime}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 text-slate-500"
-                    onClick={() => navigate('/dashboard/bookings')}
-                  >
-                    View <ChevronRight size={16} />
-                  </Button>
-                </Card>
-              ))
-            ) : (
-              <Card className="border-slate-100 rounded-2xl sm:rounded-[24px] p-6 sm:p-8 border-dashed flex flex-col items-center justify-center text-center min-w-0">
-                <div className="bg-slate-50 p-4 rounded-full mb-4">
-                  <Calendar className="text-slate-300" size={32} />
-                </div>
-                <p className="text-slate-500 font-medium text-sm sm:text-base">No sessions scheduled yet</p>
-                <Button
-                  variant="outline"
-                  className="mt-4 rounded-xl border-slate-200 text-[#1A365D] w-full sm:w-auto"
-                  onClick={() => navigate('/dashboard/book')}
-                >
-                  Book your first session
-                </Button>
-              </Card>
-            )}
-            {upcomingBookings.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-xl border-slate-200 text-[#1A365D]"
-                onClick={() => navigate('/dashboard/book')}
-              >
-                Book another session
-              </Button>
-            )}
-          </div>
+          <Card className="border-slate-100 rounded-2xl sm:rounded-[24px] p-6 sm:p-8 border-dashed flex flex-col items-center justify-center text-center min-w-0">
+            <div className="bg-slate-50 p-4 rounded-full mb-4">
+              <Calendar className="text-slate-300" size={32} />
+            </div>
+            <p className="text-slate-500 font-medium text-sm sm:text-base">View your bookings and sessions</p>
+            <Button
+              variant="outline"
+              className="mt-4 rounded-xl border-slate-200 text-[#1A365D] w-full sm:w-auto"
+              onClick={() => navigate('/dashboard/bookings')}
+            >
+              Go to My Bookings
+            </Button>
+          </Card>
         </div>
 
         {/* 4. QUICK ACTIONS */}

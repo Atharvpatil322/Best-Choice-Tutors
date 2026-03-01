@@ -1,19 +1,16 @@
 /**
  * Tutor Dashboard
- * Welcome banner, real stats from bookings + wallet, upcoming sessions, quick actions.
+ * Welcome banner, quick links, quick actions. No API calls for bookings/wallet —
+ * each tab fetches its own data when visited.
  */
 
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser } from '@/services/authService';
-import { getTutorBookings } from '@/services/tutorBookingsService';
-import { getWallet } from '@/services/tutorWalletService';
 import welcome from '../../images/welcomeFamily.jpeg';
 import {
   BookOpen,
-  Clock,
   Banknote,
   Calendar,
   CalendarClock,
@@ -22,74 +19,14 @@ import {
   FileText,
 } from 'lucide-react';
 
-function formatEarnings(pence) {
-  if (pence == null || !Number.isFinite(pence)) return '—';
-  return `£${(pence / 100).toFixed(2)}`;
-}
-
 function TutorDashboard() {
   const navigate = useNavigate();
   const user = getStoredUser();
-  const [bookings, setBookings] = useState([]);
-  const [wallet, setWallet] = useState(null);
-  const [statsLoading, setStatsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      setStatsLoading(true);
-      try {
-        const [bookingsRes, walletRes] = await Promise.all([
-          getTutorBookings().catch(() => ({ bookings: [] })),
-          getWallet().catch(() => null),
-        ]);
-        setBookings(bookingsRes.bookings || []);
-        setWallet(walletRes);
-      } catch {
-        setBookings([]);
-        setWallet(null);
-      } finally {
-        setStatsLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
-
-  const totalBookings = bookings.length;
-  const completedSessions = bookings.filter((b) => b.status === 'COMPLETED').length;
-  const today = new Date().toISOString().slice(0, 10);
-
-  const availableEarnings = wallet?.availableEarnings ?? 0;
-  const paidOutEarnings = wallet?.paidOutEarnings ?? 0;
-  const stats = [
-    {
-      label: 'Total Bookings',
-      value: statsLoading ? '—' : String(totalBookings),
-      icon: <BookOpen className="h-5 w-5 text-blue-600" />,
-      bg: 'bg-blue-50',
-    },
-    {
-      label: 'Completed Sessions',
-      value: statsLoading ? '—' : String(completedSessions),
-      icon: <Clock className="h-5 w-5 text-emerald-600" />,
-      bg: 'bg-emerald-50',
-    },
-    {
-      label: 'Available to Withdraw',
-      value: statsLoading ? '—' : formatEarnings(availableEarnings),
-      icon: <Banknote className="h-5 w-5 text-purple-600" />,
-      bg: 'bg-purple-50',
-    },
-    {
-      label: 'Paid Out',
-      value: statsLoading ? '—' : formatEarnings(paidOutEarnings),
-      icon: <Banknote className="h-5 w-5 text-green-600" />,
-      bg: 'bg-green-50',
-    },
+  const quickLinks = [
+    { label: 'Bookings', icon: <BookOpen className="h-5 w-5 text-blue-600" />, bg: 'bg-blue-50', path: '/tutor/bookings' },
+    { label: 'Wallet & Earnings', icon: <Banknote className="h-5 w-5 text-purple-600" />, bg: 'bg-purple-50', path: '/tutor/earnings' },
   ];
-
-  const upcomingBookings = bookings
-    .filter((b) => b.status === 'PAID' && b.date >= today)
-    .slice(0, 3);
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-8 sm:pb-12 min-w-0">
@@ -117,22 +54,27 @@ function TutorDashboard() {
         </div>
       </div>
 
-      {/* 2. STATS GRID — real data */}
+      {/* 2. QUICK LINKS — navigate to dedicated tabs (no preload) */}
       <div>
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3 px-0 sm:px-1">
           Your activity
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {stats.map((stat) => (
-            <Card key={stat.label} className="border-slate-200 shadow-sm rounded-xl overflow-hidden min-w-0">
-              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl shrink-0 ${stat.bg}`}>
-                  {stat.icon}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          {quickLinks.map((link) => (
+            <Card
+              key={link.label}
+              className="border-slate-200 shadow-sm rounded-xl overflow-hidden min-w-0 cursor-pointer hover:border-[#1A365D]/30 transition-colors"
+              onClick={() => navigate(link.path)}
+            >
+              <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-3">
+                <div className={`p-2.5 rounded-xl shrink-0 ${link.bg}`}>
+                  {link.icon}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-slate-500 mb-0.5">{stat.label}</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1A365D] tabular-nums truncate">{stat.value}</p>
+                  <p className="text-sm font-medium text-[#1A365D]">{link.label}</p>
+                  <p className="text-xs text-slate-500">View details</p>
                 </div>
+                <ChevronRight size={18} className="text-slate-400 shrink-0" />
               </CardContent>
             </Card>
           ))}
@@ -140,7 +82,7 @@ function TutorDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 min-w-0">
-        {/* 3. UPCOMING SESSIONS */}
+        {/* 3. UPCOMING SESSIONS — CTA to Bookings (data loads on that tab) */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0">
           <div className="flex items-center justify-between gap-2 px-0 sm:px-2 min-w-0">
             <h2 className="text-lg sm:text-xl font-bold text-[#1A365D] truncate">Upcoming Sessions</h2>
@@ -152,52 +94,19 @@ function TutorDashboard() {
               View All <ChevronRight size={16} />
             </button>
           </div>
-          <div className="space-y-3 min-w-0">
-            {upcomingBookings.length > 0 ? (
-              upcomingBookings.map((b) => (
-                <Card key={b.id} className="border-slate-200 rounded-xl p-4 flex items-center justify-between gap-3 min-w-0">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#1A365D] truncate">{b.learnerName || 'Learner'}</p>
-                    <p className="text-sm text-slate-500">
-                      {b.date} · {b.startTime} – {b.endTime}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 text-slate-500"
-                    onClick={() => navigate('/tutor/bookings')}
-                  >
-                    View <ChevronRight size={16} />
-                  </Button>
-                </Card>
-              ))
-            ) : (
-              <Card className="border-slate-100 rounded-2xl sm:rounded-[24px] p-6 sm:p-8 border-dashed flex flex-col items-center justify-center text-center min-w-0">
-                <div className="bg-slate-50 p-4 rounded-full mb-4">
-                  <Calendar className="text-slate-300" size={32} />
-                </div>
-                <p className="text-slate-500 font-medium text-sm sm:text-base">No sessions scheduled yet</p>
-                <Button
-                  variant="outline"
-                  className="mt-4 rounded-xl border-slate-200 text-[#1A365D] w-full sm:w-auto"
-                  onClick={() => navigate('/tutor/tuition-requests')}
-                >
-                  Browse tuition requests
-                </Button>
-              </Card>
-            )}
-            {upcomingBookings.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-xl border-slate-200 text-[#1A365D]"
-                onClick={() => navigate('/tutor/tuition-requests')}
-              >
-                Browse tuition requests
-              </Button>
-            )}
-          </div>
+          <Card className="border-slate-100 rounded-2xl sm:rounded-[24px] p-6 sm:p-8 border-dashed flex flex-col items-center justify-center text-center min-w-0">
+            <div className="bg-slate-50 p-4 rounded-full mb-4">
+              <Calendar className="text-slate-300" size={32} />
+            </div>
+            <p className="text-slate-500 font-medium text-sm sm:text-base">View your bookings and sessions</p>
+            <Button
+              variant="outline"
+              className="mt-4 rounded-xl border-slate-200 text-[#1A365D] w-full sm:w-auto"
+              onClick={() => navigate('/tutor/bookings')}
+            >
+              Go to Bookings
+            </Button>
+          </Card>
         </div>
 
 

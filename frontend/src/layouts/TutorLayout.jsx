@@ -11,7 +11,6 @@ import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-do
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser, logout } from '@/services/authService';
-import { getTutorProfileStatus } from '@/services/tutorProfileService';
 import { getNotifications, markAllNotificationsRead } from '@/services/notificationService';
 import {
   LayoutDashboard,
@@ -32,7 +31,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logoImage from '../images/BCT_Logo.png';
-import ProfilePic from '../images/ProfilePic.png';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 const SIDEBAR_ITEMS = [
   { to: '/tutor', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -54,8 +53,7 @@ function TutorLayout() {
   const isTutor = typeof role === 'string' && role.toLowerCase() === 'tutor';
   const isLearner = typeof role === 'string' && role.toLowerCase() === 'learner';
   const isCreatePath = location.pathname === '/tutor/create' || location.pathname.startsWith('/tutor/create/');
-  const [hasProfile, setHasProfile] = useState(true); // assume complete until we know otherwise
-  const [tutorProfilePhoto, setTutorProfilePhoto] = useState(null);
+  const [hasProfile] = useState(true); // no layout API; assume complete
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -63,25 +61,7 @@ function TutorLayout() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const notificationsRef = useRef(null);
 
-  const refreshProfileStatus = () => {
-    if (!isTutor) return;
-    getTutorProfileStatus().then(({ hasProfile: ok, profilePhoto }) => {
-      setHasProfile(ok);
-      setTutorProfilePhoto(profilePhoto ?? null);
-    });
-  };
-
-  useEffect(() => {
-    refreshProfileStatus();
-  }, [isTutor, location.pathname]);
-
-  useEffect(() => {
-    const onProfileUpdated = () => refreshProfileStatus();
-    window.addEventListener('tutor-profile-updated', onProfileUpdated);
-    return () => window.removeEventListener('tutor-profile-updated', onProfileUpdated);
-  }, [isTutor]);
-
-  // Fetch notifications from API (no socket required; tutor sees them when they open dashboard)
+  // Fetch notifications only when user opens dropdown (on-demand), not on mount
   const fetchNotifications = useCallback(async (markAsRead = false) => {
     if (!isTutor) return;
     setNotificationsLoading(true);
@@ -107,10 +87,6 @@ function TutorLayout() {
       setNotificationsLoading(false);
     }
   }, [isTutor]);
-
-  useEffect(() => {
-    if (isTutor) fetchNotifications(false);
-  }, [isTutor, fetchNotifications]);
 
   // Refetch when opening dropdown; mark as read so badge disappears
   useEffect(() => {
@@ -238,7 +214,12 @@ function TutorLayout() {
             className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 hover:opacity-90 transition-opacity min-w-0"
             aria-label="Go to my profile"
           >
-            <img src={tutorProfilePhoto || user?.profilePhoto || ProfilePic} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0" alt="" />
+            <ProfileAvatar
+              src={user?.profilePhoto}
+              alt="Profile"
+              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0"
+              iconClassName="h-4 w-4 sm:h-5 sm:w-5"
+            />
             <div className="hidden md:block text-left min-w-0">
               <p className="text-sm font-bold text-[#1A365D] leading-none truncate max-w-[120px] lg:max-w-none">{user?.name || 'Tutor'}</p>
             </div>

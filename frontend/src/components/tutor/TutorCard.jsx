@@ -8,7 +8,7 @@ import { Star, ChevronRight, MapPin, GraduationCap, Briefcase, CheckCircle, Shie
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isAuthenticated } from '../../lib/auth';
-import ProfilePic from '../../images/ProfilePic.png';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 function TutorCard({ tutor }) {
   const navigate = useNavigate();
@@ -40,8 +40,8 @@ function TutorCard({ tutor }) {
       <CardContent className="p-6 flex flex-col lg:flex-row gap-6">
         {/* Left: Avatar + main info */}
         <div className="flex gap-5 flex-1 min-w-0">
-          <img
-            src={tutor.profilePhoto || ProfilePic}
+          <ProfileAvatar
+            src={tutor.profilePhoto}
             alt={tutor.fullName || 'Tutor'}
             className="w-20 h-20 rounded-full object-cover flex-shrink-0 border-2 border-slate-100"
           />

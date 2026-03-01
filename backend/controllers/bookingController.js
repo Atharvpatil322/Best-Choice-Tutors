@@ -208,7 +208,6 @@ export const updateTestPaymentStatus = async (req, res, next) => {
  * - Booking must belong to learner
  * - Booking status must be PAID
  * - Booking must not be COMPLETED or CANCELLED
- * - Booking must not be under dispute
  *
  * Expected body:
  * {

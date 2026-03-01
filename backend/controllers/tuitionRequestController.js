@@ -6,6 +6,7 @@
 import { validationResult } from 'express-validator';
 import TuitionRequest from '../models/TuitionRequest.js';
 import Tutor from '../models/Tutor.js';
+import { normalizeSubjects } from '../utils/subjectUtils.js';
 import TutorInterest from '../models/TutorInterest.js';
 import { getTutorRating } from '../services/reviewService.js';
 import { presignProfilePhotoUrl } from '../services/s3Service.js';
@@ -32,13 +33,16 @@ export const createTuitionRequest = async (req, res, next) => {
     const { subject, subjects: subjectsRaw, budget, mode, description } = req.body;
 
     // Normalize to subjects array (at least one)
-    let subjectsArr = Array.isArray(subjectsRaw) && subjectsRaw.length > 0
-      ? subjectsRaw.map((s) => (typeof s === 'string' ? s.trim() : String(s))).filter(Boolean)
-      : null;
-    if (!subjectsArr?.length && subject != null && String(subject).trim()) {
-      subjectsArr = [String(subject).trim()];
+    let rawSubjects = Array.isArray(subjectsRaw) && subjectsRaw.length > 0
+      ? subjectsRaw
+      : subject != null && String(subject).trim()
+        ? [String(subject).trim()]
+        : [];
+    const { values: subjectsArr, error: subjectError } = normalizeSubjects(rawSubjects);
+    if (subjectError) {
+      return res.status(400).json({ message: subjectError });
     }
-    if (!subjectsArr?.length) {
+    if (!subjectsArr.length) {
       return res.status(400).json({ message: 'At least one subject is required (subject or subjects array)' });
     }
 
@@ -92,7 +96,8 @@ export const getActiveTuitionRequestsForTutor = async (req, res, next) => {
       });
     }
 
-    const tutorSubjects = Array.isArray(tutor.subjects) ? tutor.subjects : [];
+    const rawTutorSubjects = Array.isArray(tutor.subjects) ? tutor.subjects : [];
+    const { values: tutorSubjects } = normalizeSubjects(rawTutorSubjects);
     if (tutorSubjects.length === 0) {
       return res.json({ requests: [] });
     }

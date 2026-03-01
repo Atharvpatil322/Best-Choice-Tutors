@@ -155,11 +155,6 @@ function TutorBookings() {
                         >
                           {sessionLabel}
                         </span>
-                        {b.hasDispute && b.disputeStatus === 'OPEN' && !b.tutorEvidenceSubmitted && (
-                          <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 shrink-0">
-                            Dispute — submit evidence
-                          </span>
-                        )}
                       </div>
                     </div>
                     <div

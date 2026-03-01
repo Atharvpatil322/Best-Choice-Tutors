@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import { validationResult } from 'express-validator';
+import { normalizeSubjects } from '../utils/subjectUtils.js';
 import { uploadImage, presignProfilePhotoUrl, deleteProfilePhotoByUrl } from '../services/s3Service.js';
 
 /**
@@ -113,9 +114,9 @@ export const updateProfile = async (req, res, next) => {
     }
 
     if (subjectsOfInterest !== undefined) {
-      user.subjectsOfInterest = Array.isArray(subjectsOfInterest) 
-        ? subjectsOfInterest.filter(subject => subject && subject.trim()).map(subject => subject.trim())
-        : [];
+      const raw = Array.isArray(subjectsOfInterest) ? subjectsOfInterest : [];
+      const { values } = normalizeSubjects(raw);
+      user.subjectsOfInterest = values;
     }
     if (dob !== undefined) {
       user.dob = dob ? new Date(dob) : null;

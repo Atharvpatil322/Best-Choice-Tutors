@@ -1,10 +1,9 @@
 /**
  * Admin Controller
- * Read-only APIs and admin actions (e.g. dispute resolution).
+ * Read-only APIs and admin actions.
  */
 
 import Review from "../models/Review.js";
-import Dispute from "../models/Dispute.js";
 import Booking from "../models/Booking.js";
 import User from "../models/User.js";
 import Tutor from "../models/Tutor.js";
@@ -17,7 +16,6 @@ import PlatformConfig from "../models/PlatformConfig.js";
 import SupportTicket from "../models/SupportTicket.js";
 import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
-import { resolveDispute, DisputeError } from "../services/disputeService.js";
 import { presignDocumentUrl } from "../services/s3Service.js";
 
 /**
@@ -73,7 +71,7 @@ export async function getSummary(req, res, next) {
 
 /**
  * GET /api/admin/financials
- * Admin only. Read-only financial overview from TutorEarnings and Dispute.
+ * Admin only. Read-only financial overview from TutorEarnings.
  * Amounts in paise. totalPayments = sum of all TutorEarnings; totalEscrow = pendingRelease; totalPaidOut = available; totalRefunded = refunded.
  */
 export async function getFinancials(req, res, next) {
@@ -89,7 +87,6 @@ export async function getFinancials(req, res, next) {
       escrowResult,
       paidOutResult,
       refundedResult,
-      activeDisputesCount,
     ] = await Promise.all([
       TutorEarnings.aggregate([
         { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -106,7 +103,6 @@ export async function getFinancials(req, res, next) {
         { $match: { status: "refunded" } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
-      Dispute.countDocuments({ status: "OPEN" }),
     ]);
 
     const totalPayments = paymentsResult[0]?.total ?? 0;
@@ -119,7 +115,6 @@ export async function getFinancials(req, res, next) {
       totalEscrow,
       totalPaidOut,
       totalRefunded,
-      activeDisputesCount,
     });
   } catch (err) {
     next(err);
@@ -838,154 +833,6 @@ export async function getReportedReviews(req, res, next) {
       reportedReviews: items,
     });
   } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * GET /api/admin/disputes
- * Admin only. Returns list of disputes (OPEN first, then RESOLVED).
- */
-export async function getDisputes(req, res, next) {
-  try {
-    if (req.user.role !== "Admin") {
-      return res.status(403).json({
-        message: "Access denied: Admin role required",
-      });
-    }
-
-    const disputes = await Dispute.find({})
-      .populate("bookingId", "date startTime endTime status")
-      .populate("learnerId", "name email")
-      .populate("tutorId", "fullName")
-      .sort({ status: 1, createdAt: -1 })
-      .lean();
-
-    const items = disputes.map((d) => ({
-      id: d._id.toString(),
-      bookingId:
-        d.bookingId?._id?.toString() ?? d.bookingId?.toString() ?? null,
-      date: d.bookingId?.date ?? null,
-      startTime: d.bookingId?.startTime ?? null,
-      endTime: d.bookingId?.endTime ?? null,
-      learnerName: d.learnerId?.name ?? "—",
-      tutorName: d.tutorId?.fullName ?? "—",
-      status: d.status,
-      createdAt: d.createdAt,
-    }));
-
-    return res.status(200).json({ disputes: items });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * GET /api/admin/disputes/:disputeId
- * Admin only. Returns full dispute detail for review and resolution.
- */
-export async function getDisputeById(req, res, next) {
-  try {
-    if (req.user.role !== "Admin") {
-      return res.status(403).json({
-        message: "Access denied: Admin role required",
-      });
-    }
-
-    const dispute = await Dispute.findById(req.params.disputeId)
-      .populate("bookingId")
-      .populate("learnerId", "name email")
-      .populate("tutorId", "fullName")
-      .lean();
-
-    if (!dispute) {
-      return res.status(404).json({ message: "Dispute not found" });
-    }
-
-    const bookingId = dispute.bookingId?._id ?? dispute.bookingId;
-    const walletEntry = await TutorEarnings.findOne({ bookingId }).lean();
-    const amountInPaise = walletEntry?.amount ?? null;
-
-    const booking = dispute.bookingId;
-    return res.status(200).json({
-      id: dispute._id.toString(),
-      bookingId: booking?._id?.toString() ?? null,
-      status: dispute.status,
-      learnerEvidence: dispute.learnerEvidence ?? null,
-      tutorEvidence: dispute.tutorEvidence ?? null,
-      createdAt: dispute.createdAt,
-      resolvedAt: dispute.resolvedAt ?? null,
-      outcome: dispute.outcome ?? null,
-      refundAmountInPaise: dispute.refundAmountInPaise ?? null,
-      booking: booking
-        ? {
-            date: booking.date,
-            startTime: booking.startTime,
-            endTime: booking.endTime,
-            status: booking.status,
-            learnerName: dispute.learnerId?.name ?? "—",
-            learnerEmail: dispute.learnerId?.email ?? null,
-            tutorName: dispute.tutorId?.fullName ?? "—",
-          }
-        : null,
-      amountInPaise,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * PATCH /api/admin/disputes/:disputeId/resolve
- * Admin only. Resolve a dispute. Decision is final.
- * Body: { outcome: 'FULL_REFUND' | 'PARTIAL_REFUND' | 'RELEASE_PAYMENT_TO_TUTOR', refundAmountInPaise?: number }
- */
-export async function resolveDisputeHandler(req, res, next) {
-  try {
-    if (req.user.role !== "Admin") {
-      return res.status(403).json({
-        message: "Access denied: Admin role required",
-      });
-    }
-
-    const { disputeId } = req.params;
-    const { outcome, refundAmountInPaise } = req.body ?? {};
-
-    const dispute = await resolveDispute({
-      disputeId,
-      outcome,
-      refundAmountInPaise,
-      adminId: req.user._id.toString(),
-    });
-
-    await AdminAuditLog.create({
-      adminId: req.user._id,
-      action: "DISPUTE_RESOLVED",
-      entityType: "Dispute",
-      entityId: dispute._id,
-      metadata: {
-        bookingId:
-          dispute.bookingId?.toString?.() ?? dispute.bookingId?.toString(),
-        outcome: dispute.outcome,
-        refundAmountInPaise: dispute.refundAmountInPaise ?? null,
-      },
-    });
-
-    return res.status(200).json({
-      message: "Dispute resolved successfully",
-      dispute: {
-        id: dispute._id.toString(),
-        bookingId: dispute.bookingId.toString(),
-        status: dispute.status,
-        outcome: dispute.outcome,
-        refundAmountInPaise: dispute.refundAmountInPaise ?? null,
-        resolvedAt: dispute.resolvedAt,
-      },
-    });
-  } catch (err) {
-    if (err instanceof DisputeError) {
-      return res.status(err.statusCode).json({ message: err.message });
-    }
     next(err);
   }
 }

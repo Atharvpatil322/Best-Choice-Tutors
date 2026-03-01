@@ -58,15 +58,7 @@ describe('Phase 7: Regression', () => {
     });
   });
 
-  describe('Dispute and Connect services', () => {
-    it('disputeService resolveDispute and DISPUTE_OUTCOMES present', async () => {
-      const disputeService = await import('../../backend/services/disputeService.js');
-      assert.strictEqual(typeof disputeService.resolveDispute, 'function');
-      assert.ok(disputeService.DISPUTE_OUTCOMES?.includes('FULL_REFUND'));
-      assert.ok(disputeService.DISPUTE_OUTCOMES?.includes('PARTIAL_REFUND'));
-      // Expected: dispute resolution and outcomes unchanged.
-    });
-
+  describe('Connect services', () => {
     it('stripeConnectService onboarding exports present', async () => {
       const connectService = await import('../../backend/services/stripeConnectService.js');
       assert.strictEqual(typeof connectService.getOrCreateStripeAccountForTutor, 'function');
@@ -77,16 +69,14 @@ describe('Phase 7: Regression', () => {
   });
 
   describe('Key models exist', () => {
-    it('Booking, TutorEarnings, Tutor, Dispute, User models load', async () => {
+    it('Booking, TutorEarnings, Tutor, User models load', async () => {
       const Booking = (await import('../../backend/models/Booking.js')).default;
       const TutorEarnings = (await import('../../backend/models/TutorEarnings.js')).default;
       const Tutor = (await import('../../backend/models/Tutor.js')).default;
-      const Dispute = (await import('../../backend/models/Dispute.js')).default;
       const User = (await import('../../backend/models/User.js')).default;
       assert.ok(Booking);
       assert.ok(TutorEarnings);
       assert.ok(Tutor);
-      assert.ok(Dispute);
       assert.ok(User);
       // Expected: no accidental removal of core models.
     });

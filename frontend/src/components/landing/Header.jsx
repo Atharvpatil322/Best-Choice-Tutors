@@ -3,13 +3,7 @@ import { Link } from "react-router-dom";
 import { Search, Menu, X, ChevronDown } from "lucide-react";
 import '../../styles/LandingPage.css';
 import logoImage from '../../images/BCT_Logo.png';
-
-const SUBJECTS_LIST = [
-  'Mathematics', 'English', 'Science', 'Physics', 'Chemistry', 'Biology',
-  'History', 'Geography', 'French', 'Spanish', 'German', 'Computer Science',
-  'Economics', 'Business Studies', 'Psychology', 'Art', 'Music', 'Drama',
-  'Physical Education', 'Other',
-];
+import { CANONICAL_SUBJECTS } from '@/constants/subjects';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -58,7 +52,7 @@ export default function Header() {
             >
               <div className="header-subjects-dropdown-inner">
                 <div className="header-subjects-grid">
-                  {SUBJECTS_LIST.map((subject) => (
+                  {CANONICAL_SUBJECTS.map((subject) => (
                     <Link
                       key={subject}
                       to={`/?subject=${encodeURIComponent(subject)}`}
@@ -119,7 +113,7 @@ export default function Header() {
               aria-hidden={!subjectsOpen}
             >
               <div className="header-subjects-grid header-subjects-grid-mobile">
-                {SUBJECTS_LIST.map((subject) => (
+                {CANONICAL_SUBJECTS.map((subject) => (
                   <Link
                     key={subject}
                     to={`/?subject=${encodeURIComponent(subject)}`}

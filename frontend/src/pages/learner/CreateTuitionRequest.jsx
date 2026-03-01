@@ -18,19 +18,13 @@ import {
 } from '@/components/ui/select';
 import { createTuitionRequest } from '@/services/tuitionRequestService';
 import { toast } from 'sonner';
+import { SubjectSelector } from '@/components/SubjectSelector';
 import { Plus, ChevronRight, PoundSterling, Video, MessageSquare } from 'lucide-react';
 
 const MODE_OPTIONS = [
   { value: 'ONLINE', label: 'Online' },
   { value: 'IN_PERSON', label: 'In-Person' },
   { value: 'EITHER', label: 'Either' },
-];
-
-const AVAILABLE_SUBJECTS = [
-  'Mathematics', 'English', 'Science', 'Physics', 'Chemistry', 'Biology',
-  'History', 'Geography', 'French', 'Spanish', 'German', 'Computer Science',
-  'Economics', 'Business Studies', 'Psychology', 'Art', 'Music', 'Drama',
-  'Physical Education', 'Other',
 ];
 
 function CreateTuitionRequest() {
@@ -61,20 +55,6 @@ function CreateTuitionRequest() {
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: undefined }));
-  };
-
-  const toggleSubject = (subject) => {
-    setFormData((prev) => {
-      const arr = Array.isArray(prev.subjects) ? [...prev.subjects] : [];
-      const idx = arr.indexOf(subject);
-      if (idx >= 0) {
-        arr.splice(idx, 1);
-      } else {
-        arr.push(subject);
-      }
-      return { ...prev, subjects: arr };
-    });
-    if (errors.subjects) setErrors((prev) => ({ ...prev, subjects: undefined }));
   };
 
   const handleSubmit = async (e) => {
@@ -109,25 +89,16 @@ return (
           <div className="space-y-2">
             <Label className="text-[#1A365D] font-bold text-sm">Subjects</Label>
             <p className="text-xs text-slate-500 mb-2">Select all that apply (at least one)</p>
-            <div className="flex flex-wrap gap-2">
-              {AVAILABLE_SUBJECTS.map((s) => {
-                const selected = Array.isArray(formData.subjects) && formData.subjects.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSubject(s)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      selected
-                        ? 'bg-[#1A365D] text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
+            <SubjectSelector
+              value={formData.subjects}
+              onChange={(subjects) => {
+                setFormData((prev) => ({ ...prev, subjects }));
+                if (errors.subjects) setErrors((prev) => ({ ...prev, subjects: undefined }));
+              }}
+              chipClassName="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              chipSelectedClassName="bg-[#1A365D] text-white"
+              chipUnselectedClassName="bg-slate-100 text-slate-600 hover:bg-slate-200"
+            />
             {errors.subjects && (
               <p className="text-sm text-red-600 mt-1">{errors.subjects}</p>
             )}

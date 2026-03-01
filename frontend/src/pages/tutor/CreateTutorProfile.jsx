@@ -19,6 +19,7 @@ import {
 import { createTutorProfile } from '@/services/tutorService';
 import { getStoredUser, getCurrentRole, logout } from '@/services/authService';
 import { toast } from 'sonner';
+import { SubjectSelector } from '@/components/SubjectSelector';
 import '../../styles/Profile.css';
 
 function CreateTutorProfile() {
@@ -41,30 +42,6 @@ function CreateTutorProfile() {
     profilePhoto: null,
     profilePhotoPreview: null,
   });
-
-  // Available subjects
-  const availableSubjects = [
-    'Mathematics',
-    'English',
-    'Science',
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'History',
-    'Geography',
-    'French',
-    'Spanish',
-    'German',
-    'Computer Science',
-    'Economics',
-    'Business Studies',
-    'Psychology',
-    'Art',
-    'Music',
-    'Drama',
-    'Physical Education',
-    'Other',
-  ];
 
   // Teaching modes
   const teachingModes = [
@@ -153,29 +130,6 @@ function CreateTutorProfile() {
           return newErrors;
         });
       }
-    }
-  };
-
-  const handleSubjectToggle = (subject) => {
-    setFormData((prev) => {
-      const currentSubjects = prev.subjects || [];
-      const isSelected = currentSubjects.includes(subject);
-      const newSubjects = isSelected
-        ? currentSubjects.filter((s) => s !== subject)
-        : [...currentSubjects, subject];
-
-      return {
-        ...prev,
-        subjects: newSubjects,
-      };
-    });
-    // Clear validation error
-    if (validationErrors.subjects) {
-      setValidationErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.subjects;
-        return newErrors;
-      });
     }
   };
 
@@ -377,21 +331,19 @@ function CreateTutorProfile() {
           <div className="info-block col-span-3">
             <Label>Subjects *</Label>
             <p className="mt-1 text-xs text-muted-foreground mb-2">Select all subjects you can teach.</p>
-            <div className="flex flex-wrap gap-2">
-              {availableSubjects.map((subject) => {
-                const isSelected = formData.subjects.includes(subject);
-                return (
-                  <button
-                    key={subject}
-                    type="button"
-                    onClick={() => handleSubjectToggle(subject)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${isSelected ? 'bg-[#1a365d] text-white border-[#1a365d]' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
-                  >
-                    {subject}
-                  </button>
-                );
-              })}
-            </div>
+            <SubjectSelector
+              value={formData.subjects}
+              onChange={(subjects) => {
+                setFormData((prev) => ({ ...prev, subjects }));
+                if (validationErrors.subjects) {
+                  setValidationErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.subjects;
+                    return next;
+                  });
+                }
+              }}
+            />
             {validationErrors.subjects && (
               <p className="mt-1 text-xs text-red-600">{validationErrors.subjects}</p>
             )}

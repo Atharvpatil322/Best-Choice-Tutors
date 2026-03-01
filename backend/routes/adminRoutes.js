@@ -19,9 +19,6 @@ import {
   getConversations,
   getBookingMessages,
   getReportedReviews,
-  getDisputes,
-  getDisputeById,
-  resolveDisputeHandler,
   getConfig,
   updateConfig,
   getAuditLog,
@@ -70,13 +67,6 @@ router.get('/bookings/:bookingId/messages', authenticate, getBookingMessages);
 
 // GET /api/admin/reported-reviews - List reported reviews (admin only, read-only)
 router.get('/reported-reviews', authenticate, getReportedReviews);
-
-// GET /api/admin/disputes - List disputes (admin only)
-router.get('/disputes', authenticate, getDisputes);
-// GET /api/admin/disputes/:disputeId - Get dispute detail (admin only)
-router.get('/disputes/:disputeId', authenticate, getDisputeById);
-// PATCH /api/admin/disputes/:disputeId/resolve - Resolve dispute (admin only, Phase 10)
-router.patch('/disputes/:disputeId/resolve', authenticate, resolveDisputeHandler);
 
 // GET /api/admin/config - Get platform config (admin only, read-only)
 router.get('/config', authenticate, getConfig);

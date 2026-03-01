@@ -27,20 +27,14 @@ export default function FooterSection() {
             <div className="link-column">
               <Link to="/dashboard/browse-tutors">Book a Tutor</Link>
               <Link to="/register?role=tutor">Become a Tutor</Link>
-              <Link to="/dashboard">Student Dashboard</Link>
-              <Link to="/locations">Popular Locations</Link>
             </div>
             <div className="link-column">
               <Link to="/about">About Us</Link>
-              <Link to="/stories">Success Stories</Link>
-              <Link to="/safety">Safety & Trust</Link>
               <Link to="/contact">Contact</Link>
             </div>
             <div className="link-column">
               <Link to="/privacy">Privacy Policy</Link>
-              <Link to="/terms">Success Stories</Link>
-              <Link to="/cookies">Cookie Policy</Link>
-              <Link to="/refunds">Refund Policy</Link>
+              <Link to="/terms">Terms</Link>
             </div>
           </div>
 

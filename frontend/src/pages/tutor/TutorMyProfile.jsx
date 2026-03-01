@@ -41,6 +41,7 @@ import { getTutorProfile, updateTutorProfile, createPayoutSetupLink } from '@/se
 import { getMyReceivedReviews, reportReview as reportReviewApi } from '@/services/reviewService';
 import { forgotPassword } from '@/services/authService';
 import { toast } from 'sonner';
+import { SubjectSelector } from '@/components/SubjectSelector';
 
 function TutorMyProfile() {
   const navigate = useNavigate();
@@ -73,12 +74,6 @@ function TutorMyProfile() {
   const [phoneError, setPhoneError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const availableSubjects = [
-    'Mathematics', 'English', 'Science', 'Physics', 'Chemistry', 'Biology',
-    'History', 'Geography', 'French', 'Spanish', 'German', 'Computer Science',
-    'Economics', 'Business Studies', 'Psychology', 'Art', 'Music', 'Drama',
-    'Physical Education', 'Other',
-  ];
   const teachingModes = [
     { value: 'Online', label: 'Online' },
     { value: 'In-Person', label: 'In-Person' },
@@ -339,12 +334,6 @@ setLocation(
       const next = prev.filter((_, i) => i !== index);
       return next.length ? next : [{ title: '', institution: '', year: '' }];
     });
-  };
-
-  const handleSubjectToggle = (subject) => {
-    setSubjects((prev) =>
-      prev.includes(subject) ? prev.filter((s) => s !== subject) : [...prev, subject]
-    );
   };
 
   const handleModeChange = (value) => {
@@ -870,17 +859,8 @@ setLocation(
             <div className="info-block">
               <Label>Subjects</Label>
               {isEditing ? (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {availableSubjects.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => handleSubjectToggle(s)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${subjects.includes(s) ? 'bg-[#1a365d] text-white border-[#1a365d]' : 'bg-white text-slate-500 border-slate-200'}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                <div className="mt-2">
+                  <SubjectSelector value={subjects} onChange={setSubjects} />
                 </div>
               ) : (
                 <p>{subjects.length > 0 ? subjects.join(', ') : 'Not set'}</p>

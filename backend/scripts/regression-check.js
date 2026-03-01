@@ -65,18 +65,7 @@ async function main() {
     fail('stripeConnectService load', e);
   }
 
-  // 4) Dispute service (refund + reversal)
-  try {
-    const disputeService = await import('../services/disputeService.js');
-    if (typeof disputeService.resolveDispute !== 'function') throw new Error('Missing resolveDispute');
-    if (!disputeService.DISPUTE_OUTCOMES.includes('FULL_REFUND')) throw new Error('FULL_REFUND outcome missing');
-    if (!disputeService.DISPUTE_OUTCOMES.includes('PARTIAL_REFUND')) throw new Error('PARTIAL_REFUND outcome missing');
-    pass('disputeService: resolveDispute + outcomes');
-  } catch (e) {
-    fail('disputeService load', e);
-  }
-
-  // 5) Webhook controller (Stripe only)
+  // 4) Webhook controller (Stripe only)
   try {
     const webhookController = await import('../controllers/webhookController.js');
     if (typeof webhookController.handleStripeWebhook !== 'function') throw new Error('Missing handleStripeWebhook');
@@ -86,7 +75,7 @@ async function main() {
     fail('webhookController load', e);
   }
 
-  // 6) Webhook routes
+  // 5) Webhook routes
   try {
     const webhookRoutes = await import('../routes/webhookRoutes.js');
     const router = webhookRoutes.default;
@@ -98,7 +87,7 @@ async function main() {
     fail('webhookRoutes check', e);
   }
 
-  // 7) Booking model (Stripe fields, no Razorpay)
+  // 6) Booking model (Stripe fields, no Razorpay)
   try {
     const Booking = (await import('../models/Booking.js')).default;
     const schema = Booking.schema.obj;
@@ -109,7 +98,7 @@ async function main() {
     fail('Booking model', e);
   }
 
-  // 8) TutorEarnings has stripeTransferId
+  // 7) TutorEarnings has stripeTransferId
   try {
     const TutorEarnings = (await import('../models/TutorEarnings.js')).default;
     if (!TutorEarnings.schema.obj.stripeTransferId) throw new Error('stripeTransferId missing');
@@ -118,7 +107,7 @@ async function main() {
     fail('TutorEarnings model', e);
   }
 
-  // 9) Tutor has Stripe Connect fields, no razorpay
+  // 8) Tutor has Stripe Connect fields, no razorpay
   try {
     const Tutor = (await import('../models/Tutor.js')).default;
     const schema = Tutor.schema.obj;

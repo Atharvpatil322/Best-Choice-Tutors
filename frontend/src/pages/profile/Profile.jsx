@@ -30,6 +30,7 @@ import {
 import { getLearnerProfile, updateLearnerProfile } from '@/services/learnerProfileService';
 import { toast } from 'sonner';
 import { logout, getCurrentRole } from '@/services/authService';
+import { SubjectSelector } from '@/components/SubjectSelector';
 
 function Profile() {
   const navigate = useNavigate();
@@ -70,30 +71,6 @@ function Profile() {
     { value: 'A-Level', label: 'A-Level' },
     { value: 'University', label: 'University' },
     { value: 'Adult Learning', label: 'Adult Learning' },
-  ];
-
-  // Available subjects
-  const availableSubjects = [
-    'Mathematics',
-    'English',
-    'Science',
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'History',
-    'Geography',
-    'French',
-    'Spanish',
-    'German',
-    'Computer Science',
-    'Economics',
-    'Business Studies',
-    'Psychology',
-    'Art',
-    'Music',
-    'Drama',
-    'Physical Education',
-    'Other',
   ];
 
   useEffect(() => {
@@ -241,28 +218,6 @@ function Profile() {
     }
   };
 
-  const handleSubjectToggle = (subject) => {
-    setFormData((prev) => {
-      const currentSubjects = prev.subjectsOfInterest || [];
-      const isSelected = currentSubjects.includes(subject);
-      const newSubjects = isSelected
-        ? currentSubjects.filter((s) => s !== subject)
-        : [...currentSubjects, subject];
-
-      return {
-        ...prev,
-        subjectsOfInterest: newSubjects,
-      };
-    });
-    // Clear validation error
-    if (validationErrors.subjectsOfInterest) {
-      setValidationErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.subjectsOfInterest;
-        return newErrors;
-      });
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -533,24 +488,20 @@ function Profile() {
                   {/* Subjects Multi-select */}
                   <div>
                     <Label>Subjects of Interest</Label>
-                    <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      {availableSubjects.map((subject) => {
-                        const isSelected = formData.subjectsOfInterest.includes(subject);
-                        return (
-                          <label
-                            key={subject}
-                            className="flex cursor-pointer items-center space-x-2 rounded-md border p-2 hover:bg-gray-50"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleSubjectToggle(subject)}
-                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm">{subject}</span>
-                          </label>
-                        );
-                      })}
+                    <div className="mt-2">
+                      <SubjectSelector
+                        value={formData.subjectsOfInterest}
+                        onChange={(subjects) => {
+                          setFormData((prev) => ({ ...prev, subjectsOfInterest: subjects }));
+                          if (validationErrors.subjectsOfInterest) {
+                            setValidationErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.subjectsOfInterest;
+                              return next;
+                            });
+                          }
+                        }}
+                      />
                     </div>
                     {validationErrors.subjectsOfInterest && (
                       <p className="mt-1 text-sm text-red-600">

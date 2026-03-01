@@ -111,7 +111,8 @@ const updateTutorProfileValidation = [
     .optional()
     .isString()
     .trim()
-    .withMessage('Each subject must be a non-empty string'),
+    .isLength({ max: 80 })
+    .withMessage('Each subject must be at most 80 characters'),
   body('hourlyRate')
     .optional()
     .isFloat({ min: 0.01 })

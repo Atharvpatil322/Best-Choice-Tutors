@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import heroImage from '../../images/Hero_Section_Image.png';
+import { CANONICAL_SUBJECTS, SUBJECT_OTHER } from '@/constants/subjects';
+import { normalizeSubject } from '@/utils/subjectUtils';
 import { getAllTutors } from '../../services/tutorService';
 import { isAuthenticated } from '../../lib/auth';
 import LandingTutorCard from './LandingTutorCard';
@@ -8,6 +10,8 @@ import '../../styles/LandingPage.css';
 
 export default function HeroSection() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const subjectFromUrl = searchParams.get('subject') || '';
   const [filters, setFilters] = useState({
     subject: '',
     price: '',
@@ -25,30 +29,13 @@ export default function HeroSection() {
     totalPages: 0,
   });
   const [hasSearched, setHasSearched] = useState(false);
+  const [customSubjectInput, setCustomSubjectInput] = useState('');
 
-  // Available subjects
-  const availableSubjects = [
-    'Mathematics',
-    'English',
-    'Science',
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'History',
-    'Geography',
-    'French',
-    'Spanish',
-    'German',
-    'Computer Science',
-    'Economics',
-    'Business Studies',
-    'Psychology',
-    'Art',
-    'Music',
-    'Drama',
-    'Physical Education',
-    'Other',
-  ];
+  useEffect(() => {
+    if (subjectFromUrl && CANONICAL_SUBJECTS.includes(subjectFromUrl)) {
+      setFilters((prev) => ({ ...prev, subject: subjectFromUrl }));
+    }
+  }, [subjectFromUrl]);
 
   const teachingModes = [
     { value: '', label: 'All Modes' },
@@ -90,8 +77,11 @@ export default function HeroSection() {
         limit: CARDS_PER_PAGE,
       };
 
-      if (filters.subject) {
-        filterParams.subject = filters.subject;
+      const rawSubject = filters.subject === SUBJECT_OTHER
+        ? customSubjectInput.trim()
+        : filters.subject;
+      if (rawSubject) {
+        filterParams.subject = normalizeSubject(rawSubject) || rawSubject;
       }
 
       if (filters.mode) {
@@ -161,12 +151,22 @@ export default function HeroSection() {
                 onChange={(e) => handleFilterChange('subject', e.target.value)}
               >
                 <option value="">All Subjects</option>
-                {availableSubjects.map((subject) => (
+                {CANONICAL_SUBJECTS.map((subject) => (
                   <option key={subject} value={subject}>
                     {subject}
                   </option>
                 ))}
               </select>
+              {filters.subject === SUBJECT_OTHER && (
+                <input
+                  type="text"
+                  className="filter-input"
+                  placeholder="Enter custom subject (e.g. Latin)"
+                  value={customSubjectInput}
+                  onChange={(e) => setCustomSubjectInput(e.target.value)}
+                  maxLength={80}
+                />
+              )}
 
               <select
                 className="filter-input"
@@ -207,7 +207,7 @@ export default function HeroSection() {
               <button
                 className="btn-book-hero"
                 onClick={() => handleSearch(1)}
-                disabled={loading}
+                disabled={loading || (filters.subject === SUBJECT_OTHER && !customSubjectInput.trim())}
               >
                 {loading ? 'Searching...' : 'Search Tutor'}
               </button>

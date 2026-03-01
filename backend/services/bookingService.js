@@ -1,5 +1,4 @@
 import Booking from '../models/Booking.js';
-import Dispute from '../models/Dispute.js';
 import Tutor from '../models/Tutor.js';
 import TutorEarnings from '../models/TutorEarnings.js';
 import TuitionRequest from '../models/TuitionRequest.js';
@@ -268,7 +267,7 @@ export const createPaymentOrderForBooking = async ({
  *
  * Handles: earnings (TutorEarnings pendingRelease), booking integrity, tuition request
  * closure, commission snapshot. Chat eligibility and completion timer depend on status PAID
- * (no extra work here). Dispute window starts from session completion (unchanged).
+ * (no extra work here).
  *
  * @param {import('mongoose').Document} booking - Booking document (must be loaded)
  * @param {{ stripePaymentIntentId?: string }} [options] - Payment metadata when from Stripe
@@ -491,17 +490,11 @@ export const getSessionEndPlusBuffer = (booking) => {
 
 /**
  * Transition TutorEarnings from pendingRelease → available for a booking.
- * Phase 10: Never credits wallet when an OPEN dispute exists.
- * Wallet balance remains unchanged until dispute is resolved.
  *
  * @param {mongoose.Types.ObjectId} bookingId
- * @returns {Promise<boolean>} true if transition was performed, false if skipped (e.g. dispute OPEN)
+ * @returns {Promise<boolean>} true if transition was performed
  */
 export async function releaseWalletForBooking(bookingId) {
-  const openDispute = await Dispute.findOne({ bookingId, status: 'OPEN' });
-  if (openDispute) {
-    return false;
-  }
   return releaseWalletForBookingInternal(bookingId);
 }
 
@@ -560,7 +553,7 @@ async function ensureTransferForEarnings(bookingId, amountInPaise) {
 }
 
 /**
- * Release wallet without dispute check. For admin dispute resolution (RELEASE_PAYMENT_TO_TUTOR) or cron completion.
+ * Release wallet and create Stripe transfer. Used by completion cron.
  * After release, creates Stripe transfer to tutor Connect account if payoutsEnabled (idempotent).
  * @param {mongoose.Types.ObjectId} bookingId
  * @param {{ performedBy?: 'SYSTEM'|'ADMIN', performedById?: import('mongoose').Types.ObjectId }} [auditOpts] - For financial audit; default SYSTEM
@@ -639,7 +632,6 @@ export async function releasePartialToTutor(bookingId, netAmountInPaise, auditOp
  * Wallet lifecycle rule 3: On session completion (booking.status = COMPLETED), transition
  * the corresponding wallet entry from pendingRelease → available only. Idempotent: we only
  * update entries that are currently pendingRelease.
- * Phase 10: TutorEarnings must NOT transition to available while dispute is OPEN.
  *
  * @returns {Promise<{ updated: number }>} Number of bookings updated
  */
@@ -651,14 +643,7 @@ export const completeEligibleBookings = async () => {
   for (const b of paidBookings) {
     const sessionEndPlusBuffer = getSessionEndPlusBuffer(b);
     if (sessionEndPlusBuffer.getTime() <= now.getTime()) {
-      // Phase 10: Skip completion if an OPEN dispute exists — keep escrow frozen
-      const openDispute = await Dispute.findOne({ bookingId: b._id, status: 'OPEN' });
-      if (openDispute) {
-        continue;
-      }
-
       await Booking.updateOne({ _id: b._id }, { status: 'COMPLETED' });
-      // Wallet: use centralised release; never credits when dispute OPEN
       const released = await releaseWalletForBooking(b._id);
       if (released) {
         console.info('Wallet entry transitioned pendingRelease → available', {
@@ -750,7 +735,6 @@ function isSlotWithinAvailability(availability, date, startTime, endTime) {
  * - Booking must exist and belong to learner
  * - Booking status must be PAID
  * - Booking must not be COMPLETED or CANCELLED
- * - Booking must not be under dispute
  * - Cannot reschedule within 24 hours before the original session start time
  * - New date/time must be in the future
  * - New slot must be within tutor's availability
@@ -814,19 +798,6 @@ export const rescheduleBooking = async ({
     console.log('[Reschedule] Rejected: within 24h of session', { hoursUntilSession, originalSessionStart: booking.date + ' ' + booking.startTime });
     throw new BookingError(
       'Cannot reschedule within 24 hours before the session start time',
-      400
-    );
-  }
-
-  // Check if booking is under dispute
-  const dispute = await Dispute.findOne({
-    bookingId: booking._id,
-    status: 'OPEN',
-  });
-  if (dispute) {
-    console.log('[Reschedule] Rejected: booking is under dispute');
-    throw new BookingError(
-      'Cannot reschedule a booking that is under dispute',
       400
     );
   }

@@ -6,6 +6,7 @@
 
 import User from '../models/User.js';
 import { validationResult } from 'express-validator';
+import { normalizeSubjects } from '../utils/subjectUtils.js';
 import { presignProfilePhotoUrl } from '../services/s3Service.js';
 
 /**
@@ -111,9 +112,12 @@ export const updateProfile = async (req, res, next) => {
       user.instituteName = instituteName ? String(instituteName).trim() : null;
     }
     if (subjectsOfInterest !== undefined) {
-      user.subjectsOfInterest = Array.isArray(subjectsOfInterest)
-        ? subjectsOfInterest.filter((s) => s && String(s).trim()).map((s) => String(s).trim())
-        : [];
+      const raw = Array.isArray(subjectsOfInterest) ? subjectsOfInterest : [];
+      const { values, error } = normalizeSubjects(raw);
+      if (error) {
+        return res.status(400).json({ message: error });
+      }
+      user.subjectsOfInterest = values;
     }
     if (learningGoal !== undefined) {
       user.learningGoal = learningGoal ? String(learningGoal).trim() : null;

@@ -1,22 +1,19 @@
 /**
  * Tutor Booking Detail
- * Read-only: learner, session, status. Open Chat. Submit evidence for OPEN disputes.
+ * Read-only: learner, session, status. Open Chat.
  * Styling aligned with Tutor dashboard (profile-page-content, #1A365D, rounded-2xl cards).
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getTutorBooking } from '@/services/tutorBookingsService';
-import { submitTutorEvidence } from '@/services/disputeService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
 import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
 import '../../styles/Profile.css';
-
-const MAX_EVIDENCE_LENGTH = 2000;
 
 function TutorBookingDetail() {
   const { bookingId } = useParams();
@@ -24,10 +21,6 @@ function TutorBookingDetail() {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [tutorEvidence, setTutorEvidence] = useState('');
-  const [tutorEvidenceSubmitted, setTutorEvidenceSubmitted] = useState(false);
-  const [submittingEvidence, setSubmittingEvidence] = useState(false);
-  const [evidenceError, setEvidenceError] = useState(null);
 
   useEffect(() => {
     if (!bookingId) {
@@ -48,25 +41,6 @@ function TutorBookingDetail() {
     };
     fetchBooking();
   }, [bookingId]);
-
-  const canSubmitTutorEvidence =
-    booking?.hasDispute === true &&
-    booking?.disputeStatus === 'OPEN' &&
-    !(booking?.tutorEvidenceSubmitted || tutorEvidenceSubmitted);
-
-  const handleSubmitTutorEvidence = async () => {
-    if (!bookingId || !tutorEvidence.trim()) return;
-    setSubmittingEvidence(true);
-    setEvidenceError(null);
-    try {
-      await submitTutorEvidence(bookingId, tutorEvidence);
-      setTutorEvidenceSubmitted(true);
-    } catch (err) {
-      setEvidenceError(err.message || 'Failed to submit evidence');
-    } finally {
-      setSubmittingEvidence(false);
-    }
-  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -194,69 +168,6 @@ function TutorBookingDetail() {
           </div>
         </div>
       </Card>
-
-      {canSubmitTutorEvidence && (
-        <Card className="mt-6 rounded-2xl border-amber-200 bg-amber-50/30 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-800">
-              <AlertCircle className="h-5 w-5" />
-              Dispute — Submit Your Evidence
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-slate-600">
-              A dispute has been raised for this session. Please provide your evidence below.
-            </p>
-            <div>
-              <Label htmlFor="tutor-evidence" className="text-sm text-slate-500">
-                Your evidence
-              </Label>
-              <textarea
-                id="tutor-evidence"
-                value={tutorEvidence}
-                onChange={(e) => {
-                  setTutorEvidence(e.target.value.slice(0, MAX_EVIDENCE_LENGTH));
-                  setEvidenceError(null);
-                }}
-                disabled={submittingEvidence}
-                placeholder="Provide your side of the story…"
-                maxLength={MAX_EVIDENCE_LENGTH}
-                rows={4}
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#1A365D] disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <p className="mt-0.5 text-xs text-slate-500">
-                {tutorEvidence.length}/{MAX_EVIDENCE_LENGTH}
-              </p>
-            </div>
-            {evidenceError && (
-              <p className="flex items-center gap-1 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {evidenceError}
-              </p>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-lg border-amber-300 text-amber-800 hover:bg-amber-100"
-              disabled={!tutorEvidence.trim() || submittingEvidence}
-              onClick={handleSubmitTutorEvidence}
-            >
-              {submittingEvidence ? 'Submitting…' : 'Submit evidence'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {(booking?.hasDispute && (booking?.tutorEvidenceSubmitted || tutorEvidenceSubmitted)) && (
-        <Card className="mt-6 rounded-2xl border-amber-200 bg-amber-50/20 shadow-sm">
-          <CardContent className="pt-6">
-            <p className="flex items-center gap-2 text-sm text-amber-800">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              Your evidence has been submitted. The dispute is under admin review.
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-6">
         {canJoin && (

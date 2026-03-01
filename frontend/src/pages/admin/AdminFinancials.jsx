@@ -1,6 +1,6 @@
 /**
  * Admin Financial Overview
- * Displays payments summary, escrow, payouts, refunds, disputes count.
+ * Displays payments summary, escrow, payouts, refunds.
  * Fetches from GET /api/admin/financials.
  */
 
@@ -11,7 +11,6 @@ import {
   Lock,
   ArrowUpRight,
   ArrowDownLeft,
-  AlertCircle,
   Banknote,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -103,7 +102,7 @@ function AdminFinancials() {
           <Banknote className="h-7 w-7" />
           Financial Overview
         </h1>
-        <p className="text-sm text-slate-500 mt-1">Payments, escrow, payouts, refunds and disputes.</p>
+        <p className="text-sm text-slate-500 mt-1">Payments, escrow, payouts and refunds.</p>
       </div>
 
       {error && (
@@ -175,38 +174,7 @@ function AdminFinancials() {
                 <p className="text-xs text-muted-foreground">Refunded to learners</p>
               </CardContent>
             </Card>
-
-            <Card className="rounded-2xl border-gray-100 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-500">
-                  Disputes count
-                </CardTitle>
-                <AlertCircle className="h-4 w-4 text-[#1A365D]" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-[#1A365D]">
-                  {financials.activeDisputesCount ?? 0}
-                </p>
-                <p className="text-xs text-muted-foreground">Open disputes</p>
-              </CardContent>
-            </Card>
           </div>
-        )}
-
-        {financials && (
-          <Card className="rounded-2xl border-gray-100 shadow-sm mt-6">
-            <CardHeader>
-              <CardTitle className="text-[#1A365D]">Quick actions</CardTitle>
-              <CardDescription>
-                Review and resolve open disputes from the disputes page.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" onClick={() => navigate('/admin/disputes')} className="rounded-lg">
-                View disputes
-              </Button>
-            </CardContent>
-          </Card>
         )}
     </div>
   );

@@ -19,12 +19,13 @@ import {
 } from '@/components/ui/select';
 import { CountryCodePicker } from '@/components/ui/country-code-picker';
 import { getLearnerProfile, updateLearnerProfile } from '@/services/learnerProfileService';
+import { SubjectSelector } from '@/components/SubjectSelector';
 import { logout, getCurrentRole, getStoredUser, setUser } from '@/services/authService';
 import { toast } from 'sonner';
 import { Pencil, Camera, MapPin, Save, X, Phone, Mail, Book, Target, ChevronRight, Trash2 } from 'lucide-react';
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import "../../styles/Profile.css";
-import ProfilePic from "../../images/ProfilePic.png"
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 function MyProfile() {
   const navigate = useNavigate();
@@ -75,31 +76,6 @@ function MyProfile() {
     { value: 'A-Level', label: 'A-Level' },
     { value: 'University', label: 'University' },
     { value: 'Adult Learning', label: 'Adult Learning' },
-  ];
-
-  // Available subjects
-  // TODO: CLARIFICATION REQUIRED - Should subjects be fetched from backend or config?
-  const availableSubjects = [
-    'Mathematics',
-    'English',
-    'Science',
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'History',
-    'Geography',
-    'French',
-    'Spanish',
-    'German',
-    'Computer Science',
-    'Economics',
-    'Business Studies',
-    'Psychology',
-    'Art',
-    'Music',
-    'Drama',
-    'Physical Education',
-    'Other',
   ];
 
   useEffect(() => {
@@ -308,29 +284,6 @@ function MyProfile() {
     }
   };
 
-  const handleSubjectToggle = (subject) => {
-    setFormData((prev) => {
-      const currentSubjects = prev.subjectsOfInterest || [];
-      const isSelected = currentSubjects.includes(subject);
-      const newSubjects = isSelected
-        ? currentSubjects.filter((s) => s !== subject)
-        : [...currentSubjects, subject];
-
-      return {
-        ...prev,
-        subjectsOfInterest: newSubjects,
-      };
-    });
-    // Clear validation error
-    if (validationErrors.subjectsOfInterest) {
-      setValidationErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.subjectsOfInterest;
-        return newErrors;
-      });
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -465,17 +418,13 @@ return (
     <div className="profile-hero-banner mt-6">
       <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6">
         <div className="relative shrink-0 w-32 h-32 sm:w-28 sm:h-28 md:w-24 md:h-24 flex items-center justify-center">
-          {!removeProfilePhoto && (formData.profilePhotoPreview || profile?.profilePhoto) ? (
-            <img
-              src={formData.profilePhotoPreview || profile?.profilePhoto}
-              className="w-32 h-32 sm:w-28 sm:h-28 md:w-24 md:h-24 rounded-full border-4 border-white/20 object-cover object-center"
-              alt="Profile"
-            />
-          ) : (
-            <div className="w-32 h-32 sm:w-28 sm:h-28 md:w-24 md:h-24 rounded-full border-4 border-white/20 flex items-center justify-center bg-white/10">
-              <img src={ProfilePic} className="w-16 h-16 sm:w-14 sm:h-14 rounded-full object-cover opacity-80" alt="" />
-            </div>
-          )}
+          <ProfileAvatar
+            src={!removeProfilePhoto && (formData.profilePhotoPreview || profile?.profilePhoto) ? (formData.profilePhotoPreview || profile?.profilePhoto) : null}
+            alt="Profile"
+            className="w-32 h-32 sm:w-28 sm:h-28 md:w-24 md:h-24 rounded-full border-4 border-white/20 object-cover object-center"
+            iconClassName="w-14 h-14 sm:w-12 sm:h-12 text-white/80"
+            fallbackClassName="bg-white/10"
+          />
           {isEditing && (
             <>
               <label className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full cursor-pointer shadow-md hover:scale-110 transition-transform" title="Change photo">
@@ -604,21 +553,20 @@ return (
           <div className="info-block col-span-2">
             <Label>Subjects of Interest</Label>
             {isEditing ? (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {availableSubjects.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => handleSubjectToggle(s)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      formData.subjectsOfInterest.includes(s) 
-                      ? 'bg-[#1a365d] text-white border-[#1a365d]' 
-                      : 'bg-white text-slate-500 border-slate-200'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
+              <div className="mt-2">
+                <SubjectSelector
+                  value={formData.subjectsOfInterest}
+                  onChange={(subjects) => {
+                    setFormData((prev) => ({ ...prev, subjectsOfInterest: subjects }));
+                    if (validationErrors.subjectsOfInterest) {
+                      setValidationErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.subjectsOfInterest;
+                        return next;
+                      });
+                    }
+                  }}
+                />
               </div>
             ) : <p>{profile?.learningPreferences?.subjectsOfInterest?.join(', ') || 'Not set'}</p>}
           </div>

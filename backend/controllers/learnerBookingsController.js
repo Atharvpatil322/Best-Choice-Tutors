@@ -4,7 +4,6 @@
  */
 
 import Booking from '../models/Booking.js';
-import Dispute from '../models/Dispute.js';
 import Conversation from '../models/Conversation.js';
 import { getCanReview } from '../services/bookingService.js';
 import { presignProfilePhotoUrl } from '../services/s3Service.js';
@@ -13,7 +12,6 @@ import mongoose from 'mongoose';
  * Get learner bookings
  * FR-4.1.3: Display history of past and upcoming bookings
  * UC-4.3: Learner Views Booking History
- * Phase 10: Includes hasDispute for COMPLETED bookings
  *
  * @returns {Promise<Array>} Array of booking objects with tutor name, date, time, status
  */
@@ -46,13 +44,6 @@ export const getBookings = async (req, res, next) => {
 
     const bookingIds = bookings.map((b) => b._id);
 
-    console.time('2-disputes-query');
-    const disputes = await Dispute.find({ bookingId: { $in: bookingIds } })
-      .select('bookingId status learnerEvidence')
-      .lean();
-    console.timeEnd('2-disputes-query');
-    console.log('📊 Disputes found:', disputes.length);
-
     const convos = await Conversation.find({ bookingId: { $in: bookingIds } })
       .select('bookingId lastMessageAt')
       .lean();
@@ -61,14 +52,8 @@ export const getBookings = async (req, res, next) => {
     );
 
     console.time('3-data-processing');
-    const disputeByBookingId = new Map(disputes.map((d) => [d.bookingId.toString(), d]));
-
     const list = await Promise.all(
       bookings.map(async (b) => {
-        const dispute = disputeByBookingId.get(b._id.toString());
-        const hasDispute = !!dispute;
-        const disputeStatus = dispute?.status ?? null;
-        const learnerEvidenceSubmitted = hasDispute && !!dispute?.learnerEvidence?.trim();
         const durationHours =
           b.startTime && b.endTime
             ? (() => {
@@ -94,9 +79,6 @@ export const getBookings = async (req, res, next) => {
           agreedHourlyRate: rate ?? undefined,
           totalAmount: totalAmount ?? undefined,
           canReview: getCanReview(b),
-          hasDispute,
-          disputeStatus,
-          learnerEvidenceSubmitted,
           lastMessageAt: lastMessageAtByBookingId.get(b._id.toString()) ?? null,
         };
       })

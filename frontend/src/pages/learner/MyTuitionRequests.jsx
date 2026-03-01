@@ -21,7 +21,7 @@ import { Star } from 'lucide-react';
 import { getMyTuitionRequests, getInterestedTutorsForRequest, withdrawTuitionRequest } from '@/services/tuitionRequestService';
 import { Plus, ChevronRight, PoundSterling, Video, MessageSquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import ProfilePic from '../../images/ProfilePic.png';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 function MyTuitionRequestsList() {
   const navigate = useNavigate();
@@ -309,8 +309,13 @@ function TuitionRequestDetail() {
           <Card key={t.tutorId} className="border-slate-100 hover:border-slate-200 transition-all rounded-2xl shadow-sm">
             <CardContent className="p-5 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-slate-100 overflow-hidden shrink-0">
-                  <img src={t.profilePhoto || ProfilePic} className="w-full h-full object-cover" alt="" />
+                <div className="w-14 h-14 rounded-full overflow-hidden shrink-0">
+                  <ProfileAvatar
+                    src={t.profilePhoto}
+                    alt=""
+                    className="w-full h-full object-cover rounded-full"
+                    iconClassName="h-6 w-6"
+                  />
                 </div>
                 <div>
                   <p className="font-bold text-[#1A365D] text-lg">{t.name}</p>

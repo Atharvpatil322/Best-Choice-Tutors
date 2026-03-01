@@ -8,7 +8,7 @@ import { ChevronRight, CheckCircle, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isAuthenticated } from '../../lib/auth';
-import ProfilePic from '../../images/ProfilePic.png';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 function LandingTutorCard({ tutor }) {
   const navigate = useNavigate();
@@ -28,10 +28,11 @@ function LandingTutorCard({ tutor }) {
       <CardContent className="p-0 flex flex-col flex-1 min-h-0">
         {/* Top: photo – takes ~40% of card in square layout */}
         <div className="tutor-card-landing__photo overflow-hidden bg-slate-100">
-          <img
-            src={tutor.profilePhoto || ProfilePic}
+          <ProfileAvatar
+            src={tutor.profilePhoto}
             alt={tutor.fullName || 'Tutor'}
             className="h-full w-full object-cover"
+            iconClassName="h-16 w-16 sm:h-20 sm:w-20 text-slate-400"
           />
         </div>
 

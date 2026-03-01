@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { getAllTutors } from '@/services/tutorService';
 import TutorCard from '@/components/tutor/TutorCard';
+import { normalizeSubject } from '@/utils/subjectUtils';
 
 function TutorListing() {
   const navigate = useNavigate();
@@ -37,12 +38,15 @@ function TutorListing() {
     maxPrice: '',
   });
 
-  // Available subjects for filter (extracted from all tutors)
+  // Available subjects for filter (extracted from tutors, normalized and deduplicated)
   const availableSubjects = useMemo(() => {
     const subjectsSet = new Set();
     tutors.forEach((tutor) => {
       if (tutor.subjects && Array.isArray(tutor.subjects)) {
-        tutor.subjects.forEach((subject) => subjectsSet.add(subject));
+        tutor.subjects.forEach((subject) => {
+          const n = normalizeSubject(subject);
+          if (n) subjectsSet.add(n);
+        });
       }
     });
     return Array.from(subjectsSet).sort();
@@ -77,11 +81,13 @@ function TutorListing() {
   // Client-side filtering
   const filteredTutors = useMemo(() => {
     return tutors.filter((tutor) => {
-      // Subject filter
+      // Subject filter (normalized comparison for case-insensitive matching)
       if (filters.subject) {
-        const tutorSubjects = tutor.subjects || [];
-        if (!tutorSubjects.includes(filters.subject)) {
-          return false;
+        const normalizedFilter = normalizeSubject(filters.subject);
+        if (normalizedFilter) {
+          const tutorSubjects = tutor.subjects || [];
+          const hasMatch = tutorSubjects.some((s) => normalizeSubject(s) === normalizedFilter);
+          if (!hasMatch) return false;
         }
       }
 

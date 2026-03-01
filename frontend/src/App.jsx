@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
@@ -7,54 +8,73 @@ import Register from '@/pages/auth/Register';
 import ForgotPassword from '@/pages/auth/ForgotPassword';
 import ResetPassword from '@/pages/auth/ResetPassword';
 import AuthCallbackPage from '@/components/auth/AuthCallbackPage';
-import LearnerDashboard from '@/pages/dashboard/LearnerDashboard';
-import LearnerMessages from '@/pages/dashboard/LearnerMessages';
-import LearnerReviews from '@/pages/dashboard/LearnerReviews';
-import LearnerSupportTickets from '@/pages/dashboard/LearnerSupportTickets';
-import LearnerCreateSupportTicket from '@/pages/dashboard/LearnerCreateSupportTicket';
-import LearnerSupportTicketDetail from '@/pages/dashboard/LearnerSupportTicketDetail';
-import TutorDashboard from '@/pages/dashboard/TutorDashboard';
-import TutorMessages from '@/pages/tutor/TutorMessages';
-import TutorSupportTickets from '@/pages/tutor/TutorSupportTickets';
-import TutorCreateSupportTicket from '@/pages/tutor/TutorCreateSupportTicket';
-import TutorSupportTicketDetail from '@/pages/tutor/TutorSupportTicketDetail';
-import CreateTuitionRequest from '@/pages/learner/CreateTuitionRequest';
-import { MyTuitionRequestsList, TuitionRequestDetail } from '@/pages/learner/MyTuitionRequests';
-import MyProfile from '@/pages/profile/MyProfile';
-import MyBookings from '@/pages/bookings/MyBookings';
-import TutorBookings from '@/pages/bookings/TutorBookings';
-import TutorBookingDetail from '@/pages/bookings/TutorBookingDetail';
-import BookingChat from '@/pages/bookings/BookingChat';
-import CreateTutorProfile from '@/pages/tutor/CreateTutorProfile';
-import TutorProfile from '@/pages/tutor/TutorProfile';
-import TutorMyProfile from '@/pages/tutor/TutorMyProfile';
-import TutorListing from '@/pages/tutor/TutorListing';
-import BrowseTutors from '@/pages/tutor/BrowseTutors';
-import ManageAvailability from '@/pages/tutor/ManageAvailability';
-import TutorWallet from '@/pages/tutor/TutorWallet';
-import TutorVerificationDocuments from '@/pages/tutor/TutorVerificationDocuments';
-import BrowseTuitionRequests from '@/pages/tutor/BrowseTuitionRequests';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import AdminUsers from '@/pages/admin/AdminUsers';
-import AdminTutorVerification from '@/pages/admin/AdminTutorVerification';
-import AdminDbsVerification from '@/pages/admin/AdminDbsVerification';
-import AdminFinancials from '@/pages/admin/AdminFinancials';
-import AdminChatViewer from '@/pages/admin/AdminChatViewer';
-import AdminAuditLog from '@/pages/admin/AdminAuditLog';
-import AdminConfig from '@/pages/admin/AdminConfig';
-import AdminReportedReviews from '@/pages/admin/AdminReportedReviews';
-import AdminDisputes from '@/pages/admin/AdminDisputes';
-import AdminDisputeDetail from '@/pages/admin/AdminDisputeDetail';
-import AdminSupportTickets from '@/pages/admin/AdminSupportTickets';
-import AdminSupportTicketDetail from '@/pages/admin/AdminSupportTicketDetail';
-import AdminNotifications from '@/pages/admin/AdminNotifications';
 import AdminLayout from '@/layouts/AdminLayout';
 import LearnerLayout from '@/layouts/LearnerLayout';
 import TutorLayout from '@/layouts/TutorLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import OnBoardingScreen from './pages/auth/OnBoardingScreen';
 import AgeConsent from './pages/auth/AgeConsent';
-import Policy from './pages/Policy';
+import { Loader2 } from 'lucide-react';
+
+// Lazy-loaded Learner dashboard routes
+const LearnerDashboard = lazy(() => import('@/pages/dashboard/LearnerDashboard'));
+const LearnerMessages = lazy(() => import('@/pages/dashboard/LearnerMessages'));
+const LearnerReviews = lazy(() => import('@/pages/dashboard/LearnerReviews'));
+const LearnerSupportTickets = lazy(() => import('@/pages/dashboard/LearnerSupportTickets'));
+const LearnerCreateSupportTicket = lazy(() => import('@/pages/dashboard/LearnerCreateSupportTicket'));
+const LearnerSupportTicketDetail = lazy(() => import('@/pages/dashboard/LearnerSupportTicketDetail'));
+
+// Lazy-loaded Tutor dashboard routes
+const TutorDashboard = lazy(() => import('@/pages/dashboard/TutorDashboard'));
+const TutorMessages = lazy(() => import('@/pages/tutor/TutorMessages'));
+const TutorSupportTickets = lazy(() => import('@/pages/tutor/TutorSupportTickets'));
+const TutorCreateSupportTicket = lazy(() => import('@/pages/tutor/TutorCreateSupportTicket'));
+const TutorSupportTicketDetail = lazy(() => import('@/pages/tutor/TutorSupportTicketDetail'));
+
+// Lazy-loaded shared / learner pages
+const CreateTuitionRequest = lazy(() => import('@/pages/learner/CreateTuitionRequest'));
+const MyTuitionRequestsList = lazy(() => import('@/pages/learner/MyTuitionRequests').then((m) => ({ default: m.MyTuitionRequestsList })));
+const TuitionRequestDetail = lazy(() => import('@/pages/learner/MyTuitionRequests').then((m) => ({ default: m.TuitionRequestDetail })));
+const MyProfile = lazy(() => import('@/pages/profile/MyProfile'));
+const MyBookings = lazy(() => import('@/pages/bookings/MyBookings'));
+const TutorBookings = lazy(() => import('@/pages/bookings/TutorBookings'));
+const TutorBookingDetail = lazy(() => import('@/pages/bookings/TutorBookingDetail'));
+const BookingChat = lazy(() => import('@/pages/bookings/BookingChat'));
+const CreateTutorProfile = lazy(() => import('@/pages/tutor/CreateTutorProfile'));
+const TutorProfile = lazy(() => import('@/pages/tutor/TutorProfile'));
+const TutorMyProfile = lazy(() => import('@/pages/tutor/TutorMyProfile'));
+const TutorListing = lazy(() => import('@/pages/tutor/TutorListing'));
+const BrowseTutors = lazy(() => import('@/pages/tutor/BrowseTutors'));
+const ManageAvailability = lazy(() => import('@/pages/tutor/ManageAvailability'));
+const TutorWallet = lazy(() => import('@/pages/tutor/TutorWallet'));
+const TutorVerificationDocuments = lazy(() => import('@/pages/tutor/TutorVerificationDocuments'));
+const BrowseTuitionRequests = lazy(() => import('@/pages/tutor/BrowseTuitionRequests'));
+const Policy = lazy(() => import('@/pages/Policy'));
+const About = lazy(() => import('@/pages/About'));
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
+const Contact = lazy(() => import('@/pages/Contact'));
+
+// Lazy-loaded Admin routes (for consistency; user asked learner + tutor only, but admin uses same layout pattern)
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
+const AdminTutorVerification = lazy(() => import('@/pages/admin/AdminTutorVerification'));
+const AdminDbsVerification = lazy(() => import('@/pages/admin/AdminDbsVerification'));
+const AdminFinancials = lazy(() => import('@/pages/admin/AdminFinancials'));
+const AdminChatViewer = lazy(() => import('@/pages/admin/AdminChatViewer'));
+const AdminAuditLog = lazy(() => import('@/pages/admin/AdminAuditLog'));
+const AdminConfig = lazy(() => import('@/pages/admin/AdminConfig'));
+const AdminReportedReviews = lazy(() => import('@/pages/admin/AdminReportedReviews'));
+const AdminSupportTickets = lazy(() => import('@/pages/admin/AdminSupportTickets'));
+const AdminSupportTicketDetail = lazy(() => import('@/pages/admin/AdminSupportTicketDetail'));
+const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'));
+
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[200px]">
+      <Loader2 className="h-8 w-8 animate-spin text-[#4FD1C5]" />
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -72,13 +92,21 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/onboarding" element={<OnBoardingScreen />} />
         <Route path="/age-consent?" element={<AgeConsent/>} />
+
+        {/* Public info pages */}
+        <Route path="/about" element={<Suspense fallback={<RouteFallback />}><About /></Suspense>} />
+        <Route path="/privacy" element={<Suspense fallback={<RouteFallback />}><PrivacyPolicy /></Suspense>} />
+        <Route path="/terms" element={<Suspense fallback={<RouteFallback />}><PrivacyPolicy /></Suspense>} />
+        <Route path="/contact" element={<Suspense fallback={<RouteFallback />}><Contact /></Suspense>} />
         
         {/* All other routes require authentication */}
         <Route
           path="/tutors"
           element={
             <ProtectedRoute>
-              <TutorListing />
+              <Suspense fallback={<RouteFallback />}>
+                <TutorListing />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -91,21 +119,21 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<LearnerDashboard />} />
-          <Route path="bookings" element={<MyBookings />} />
-          <Route path="bookings/:bookingId/chat" element={<BookingChat />} />
-          <Route path="tuition-requests" element={<MyTuitionRequestsList />} />
-          <Route path="tuition-requests/new" element={<CreateTuitionRequest />} />
-          <Route path="tuition-requests/:requestId" element={<TuitionRequestDetail />} />
-          <Route path="browse-tutors" element={<BrowseTutors />} />
-          <Route path="tutors/:id" element={<TutorProfile />} />
-          <Route path="messages" element={<LearnerMessages />} />
-          <Route path="reviews" element={<LearnerReviews />} />
-          <Route path="profile" element={<MyProfile />} />
-          <Route path="policy" element={<Policy />} />
-          <Route path="support" element={<LearnerSupportTickets />} />
-          <Route path="support/new" element={<LearnerCreateSupportTicket />} />
-          <Route path="support/:ticketId" element={<LearnerSupportTicketDetail />} />
+          <Route index element={<Suspense fallback={<RouteFallback />}><LearnerDashboard /></Suspense>} />
+          <Route path="bookings" element={<Suspense fallback={<RouteFallback />}><MyBookings /></Suspense>} />
+          <Route path="bookings/:bookingId/chat" element={<Suspense fallback={<RouteFallback />}><BookingChat /></Suspense>} />
+          <Route path="tuition-requests" element={<Suspense fallback={<RouteFallback />}><MyTuitionRequestsList /></Suspense>} />
+          <Route path="tuition-requests/new" element={<Suspense fallback={<RouteFallback />}><CreateTuitionRequest /></Suspense>} />
+          <Route path="tuition-requests/:requestId" element={<Suspense fallback={<RouteFallback />}><TuitionRequestDetail /></Suspense>} />
+          <Route path="browse-tutors" element={<Suspense fallback={<RouteFallback />}><BrowseTutors /></Suspense>} />
+          <Route path="tutors/:id" element={<Suspense fallback={<RouteFallback />}><TutorProfile /></Suspense>} />
+          <Route path="messages" element={<Suspense fallback={<RouteFallback />}><LearnerMessages /></Suspense>} />
+          <Route path="reviews" element={<Suspense fallback={<RouteFallback />}><LearnerReviews /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={<RouteFallback />}><MyProfile /></Suspense>} />
+          <Route path="policy" element={<Suspense fallback={<RouteFallback />}><Policy /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={<RouteFallback />}><LearnerSupportTickets /></Suspense>} />
+          <Route path="support/new" element={<Suspense fallback={<RouteFallback />}><LearnerCreateSupportTicket /></Suspense>} />
+          <Route path="support/:ticketId" element={<Suspense fallback={<RouteFallback />}><LearnerSupportTicketDetail /></Suspense>} />
         </Route>
         {/* Tutor: sidebar layout, nested routes under /tutor/* */}
         <Route
@@ -116,21 +144,21 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<TutorDashboard />} />
-          <Route path="bookings" element={<TutorBookings />} />
-          <Route path="bookings/:bookingId" element={<TutorBookingDetail />} />
-          <Route path="bookings/:bookingId/chat" element={<BookingChat />} />
-          <Route path="tuition-requests" element={<BrowseTuitionRequests />} />
-          <Route path="messages" element={<TutorMessages />} />
-          <Route path="earnings" element={<TutorWallet />} />
-          <Route path="profile" element={<TutorMyProfile />} />
-          <Route path="verification-documents" element={<TutorVerificationDocuments />} />
-          <Route path="policy" element={<Policy />} />
-          <Route path="availability" element={<ManageAvailability />} />
-          <Route path="create" element={<CreateTutorProfile />} />
-          <Route path="support" element={<TutorSupportTickets />} />
-          <Route path="support/new" element={<TutorCreateSupportTicket />} />
-          <Route path="support/:ticketId" element={<TutorSupportTicketDetail />} />
+          <Route index element={<Suspense fallback={<RouteFallback />}><TutorDashboard /></Suspense>} />
+          <Route path="bookings" element={<Suspense fallback={<RouteFallback />}><TutorBookings /></Suspense>} />
+          <Route path="bookings/:bookingId" element={<Suspense fallback={<RouteFallback />}><TutorBookingDetail /></Suspense>} />
+          <Route path="bookings/:bookingId/chat" element={<Suspense fallback={<RouteFallback />}><BookingChat /></Suspense>} />
+          <Route path="tuition-requests" element={<Suspense fallback={<RouteFallback />}><BrowseTuitionRequests /></Suspense>} />
+          <Route path="messages" element={<Suspense fallback={<RouteFallback />}><TutorMessages /></Suspense>} />
+          <Route path="earnings" element={<Suspense fallback={<RouteFallback />}><TutorWallet /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={<RouteFallback />}><TutorMyProfile /></Suspense>} />
+          <Route path="verification-documents" element={<Suspense fallback={<RouteFallback />}><TutorVerificationDocuments /></Suspense>} />
+          <Route path="policy" element={<Suspense fallback={<RouteFallback />}><Policy /></Suspense>} />
+          <Route path="availability" element={<Suspense fallback={<RouteFallback />}><ManageAvailability /></Suspense>} />
+          <Route path="create" element={<Suspense fallback={<RouteFallback />}><CreateTutorProfile /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={<RouteFallback />}><TutorSupportTickets /></Suspense>} />
+          <Route path="support/new" element={<Suspense fallback={<RouteFallback />}><TutorCreateSupportTicket /></Suspense>} />
+          <Route path="support/:ticketId" element={<Suspense fallback={<RouteFallback />}><TutorSupportTicketDetail /></Suspense>} />
         </Route>
         {/* Admin: sidebar layout, nested routes, no full page reload */}
         <Route
@@ -141,20 +169,18 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<AdminDashboard />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="tutors/pending" element={<AdminTutorVerification />} />
-          <Route path="dbs" element={<AdminDbsVerification />} />
-          <Route path="financials" element={<AdminFinancials />} />
-          <Route path="disputes" element={<AdminDisputes />} />
-          <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
-          <Route path="chat" element={<AdminChatViewer />} />
-          <Route path="audit-log" element={<AdminAuditLog />} />
-          <Route path="config" element={<AdminConfig />} />
-          <Route path="notifications" element={<AdminNotifications />} />
-          <Route path="reported-reviews" element={<AdminReportedReviews />} />
-          <Route path="support" element={<AdminSupportTickets />} />
-          <Route path="support/:ticketId" element={<AdminSupportTicketDetail />} />
+          <Route index element={<Suspense fallback={<RouteFallback />}><AdminDashboard /></Suspense>} />
+          <Route path="users" element={<Suspense fallback={<RouteFallback />}><AdminUsers /></Suspense>} />
+          <Route path="tutors/pending" element={<Suspense fallback={<RouteFallback />}><AdminTutorVerification /></Suspense>} />
+          <Route path="dbs" element={<Suspense fallback={<RouteFallback />}><AdminDbsVerification /></Suspense>} />
+          <Route path="financials" element={<Suspense fallback={<RouteFallback />}><AdminFinancials /></Suspense>} />
+          <Route path="chat" element={<Suspense fallback={<RouteFallback />}><AdminChatViewer /></Suspense>} />
+          <Route path="audit-log" element={<Suspense fallback={<RouteFallback />}><AdminAuditLog /></Suspense>} />
+          <Route path="config" element={<Suspense fallback={<RouteFallback />}><AdminConfig /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={<RouteFallback />}><AdminNotifications /></Suspense>} />
+          <Route path="reported-reviews" element={<Suspense fallback={<RouteFallback />}><AdminReportedReviews /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={<RouteFallback />}><AdminSupportTickets /></Suspense>} />
+          <Route path="support/:ticketId" element={<Suspense fallback={<RouteFallback />}><AdminSupportTicketDetail /></Suspense>} />
         </Route>
       </Routes>
       </BrowserRouter>

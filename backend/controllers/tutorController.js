@@ -2,6 +2,7 @@ import Tutor from "../models/Tutor.js";
 import User from "../models/User.js";
 import Availability from "../models/Availability.js";
 import { validationResult } from "express-validator";
+import { normalizeSubjects, normalizeSubject } from "../utils/subjectUtils.js";
 import { createPayoutOnboardingLink } from "../services/stripeConnectService.js";
 import {
   uploadImage,
@@ -106,12 +107,15 @@ export const createTutor = async (req, res, next) => {
       }
     }
 
-    // Ensure subjects is an array
-    const subjectsArray = Array.isArray(subjects)
-      ? subjects.filter((s) => s && s.trim())
-      : subjects
-        ? [subjects].filter((s) => s && s.trim())
-        : [];
+    // Normalize subjects (trim, collapse spaces, title case, dedupe)
+    const rawSubjects = Array.isArray(subjects) ? subjects : subjects ? [subjects] : [];
+    const { values: subjectsArray, error: subjectError } = normalizeSubjects(rawSubjects);
+    if (subjectError) {
+      return res.status(400).json({ message: subjectError });
+    }
+    if (subjectsArray.length === 0) {
+      return res.status(400).json({ message: "At least one subject is required." });
+    }
 
     // Normalize qualifications: array of { title, institution, year }
     const qualificationsArray = Array.isArray(qualifications)
@@ -217,7 +221,10 @@ export const listTutors = async (req, res, next) => {
     // Build base match query for non-geo filters (used in $geoNear.query or $match)
     let matchQuery = {};
     if (subject && subject.trim()) {
-      matchQuery.subjects = { $in: [subject.trim()] };
+      const { value: normalizedSubject } = normalizeSubject(subject.trim());
+      if (normalizedSubject) {
+        matchQuery.subjects = { $in: [normalizedSubject] };
+      }
     }
     if (mode && mode.trim()) {
       const modeValue = mode.trim();
@@ -633,15 +640,19 @@ export const updateMyTutorProfile = async (req, res, next) => {
 
     // Update subjects if provided (at least one required when provided)
     if (subjectsPayload !== undefined) {
-      const arr = Array.isArray(subjectsPayload)
-        ? subjectsPayload.filter((s) => s != null && String(s).trim())
+      const rawArr = Array.isArray(subjectsPayload)
+        ? subjectsPayload.filter((s) => s != null)
         : [];
+      const { values: arr, error: subjectError } = normalizeSubjects(rawArr);
+      if (subjectError) {
+        return res.status(400).json({ message: subjectError });
+      }
       if (arr.length === 0) {
         return res
           .status(400)
           .json({ message: "At least one subject is required." });
       }
-      tutor.subjects = arr.map((s) => String(s).trim());
+      tutor.subjects = arr;
     }
 
     // Update hourly rate if provided (must be positive)
