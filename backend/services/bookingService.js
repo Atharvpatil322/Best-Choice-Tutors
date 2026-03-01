@@ -8,7 +8,11 @@ import PlatformConfig from '../models/PlatformConfig.js';
 import Availability from '../models/Availability.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { createCheckoutSession, createTransfer } from './stripeService.js';
+import {
+  createCheckoutSession,
+  createTransfer,
+  findCheckoutSessionByPaymentIntentId,
+} from './stripeService.js';
 import { logFinancialAudit } from './financialAuditService.js';
 
 /** Statuses that reserve a slot; only these block rebooking for the same slot */
@@ -233,6 +237,12 @@ export const createPaymentOrderForBooking = async ({
     successUrl: successUrl || undefined,
     cancelUrl: cancelUrl || undefined,
     clientReferenceId: booking._id.toString(),
+    metadata: {
+      bookingId: booking._id.toString(),
+    },
+    paymentIntentMetadata: {
+      bookingId: booking._id.toString(),
+    },
   });
 
   const paymentIntentId =
@@ -410,14 +420,35 @@ export const updateBookingStatusFromStripeCheckoutSession = async (session) => {
 export const updateBookingStatusFromStripePaymentIntent = async ({
   paymentIntentId,
   targetStatus,
+  bookingIdHint,
 }) => {
   if (!paymentIntentId) {
     throw new BookingError('Stripe payment_intent payload missing id', 400);
   }
 
-  const booking = await Booking.findOne({ stripePaymentIntentId: paymentIntentId });
+  let booking = await Booking.findOne({ stripePaymentIntentId: paymentIntentId });
+
+  // Fallback 1: Use booking ID passed via PaymentIntent metadata (bookingId).
+  if (!booking && bookingIdHint) {
+    booking = await Booking.findById(bookingIdHint);
+  }
+
+  // Fallback 2: Resolve checkout session from payment_intent and match by stripeSessionId.
+  if (!booking) {
+    const checkoutSession = await findCheckoutSessionByPaymentIntentId(paymentIntentId);
+    if (checkoutSession?.id) {
+      booking = await Booking.findOne({ stripeSessionId: checkoutSession.id });
+    }
+  }
+
   if (!booking) {
     return null;
+  }
+
+  // Backfill missing payment intent ID for future webhook lookups.
+  if (booking.stripePaymentIntentId !== paymentIntentId) {
+    booking.stripePaymentIntentId = paymentIntentId;
+    await booking.save();
   }
 
   if (targetStatus === 'PAID') {
@@ -934,4 +965,3 @@ export const rescheduleBooking = async ({
 };
 
 export { BookingError };
-

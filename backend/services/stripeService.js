@@ -55,6 +55,7 @@ export const createCheckoutSession = async ({
   clientReferenceId,
   customerEmail,
   metadata = {},
+  paymentIntentMetadata = {},
 }) => {
   const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.create({
@@ -78,8 +79,30 @@ export const createCheckoutSession = async ({
     ...(clientReferenceId && { client_reference_id: clientReferenceId }),
     ...(customerEmail && { customer_email: customerEmail }),
     ...(Object.keys(metadata).length > 0 && { metadata }),
+    ...(Object.keys(paymentIntentMetadata).length > 0 && {
+      payment_intent_data: {
+        metadata: paymentIntentMetadata,
+      },
+    }),
   });
   return session;
+};
+
+/**
+ * Find a Checkout Session by PaymentIntent ID.
+ * Useful as fallback in webhooks when payment_intent events arrive but booking lacks stored stripePaymentIntentId.
+ *
+ * @param {string} paymentIntentId - Stripe PaymentIntent ID (e.g. pi_xxx)
+ * @returns {Promise<Stripe.Checkout.Session|null>}
+ */
+export const findCheckoutSessionByPaymentIntentId = async (paymentIntentId) => {
+  if (!paymentIntentId) return null;
+  const stripe = getStripeClient();
+  const sessions = await stripe.checkout.sessions.list({
+    payment_intent: paymentIntentId,
+    limit: 1,
+  });
+  return sessions?.data?.[0] ?? null;
 };
 
 /**
@@ -275,6 +298,7 @@ export const retrieveAccountExternalAccounts = async (accountId) => {
 export default {
   getStripeClient,
   createCheckoutSession,
+  findCheckoutSessionByPaymentIntentId,
   createPaymentIntent,
   verifyWebhookSignature,
   createRefund,

@@ -82,6 +82,7 @@ export const handleStripeWebhook = async (req, res, next) => {
       const result = await updateBookingStatusFromStripePaymentIntent({
         paymentIntentId: paymentIntent.id,
         targetStatus: 'PAID',
+        bookingIdHint: paymentIntent?.metadata?.bookingId || paymentIntent?.metadata?.booking_id,
       });
       if (result === null) {
         console.warn('Stripe webhook: booking not found for payment_intent_id', {
@@ -95,6 +96,7 @@ export const handleStripeWebhook = async (req, res, next) => {
       const result = await updateBookingStatusFromStripePaymentIntent({
         paymentIntentId: paymentIntent.id,
         targetStatus: 'FAILED',
+        bookingIdHint: paymentIntent?.metadata?.bookingId || paymentIntent?.metadata?.booking_id,
       });
       if (result === null) {
         console.warn('Stripe webhook: booking not found for payment_intent_id', {
@@ -193,4 +195,3 @@ export const handleStripeWebhook = async (req, res, next) => {
     next(error);
   }
 };
-
