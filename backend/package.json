@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "backfill:payouts": "node scripts/backfill-stripe-payouts.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.991.0",

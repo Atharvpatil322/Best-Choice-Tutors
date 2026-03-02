@@ -58,7 +58,7 @@ function TutorDashboard() {
   const completedSessions = bookings.filter((b) => b.status === 'COMPLETED').length;
   const today = new Date().toISOString().slice(0, 10);
 
-  const availableEarnings = wallet?.availableEarnings ?? 0;
+  const stripeBalanceEarnings = wallet?.availableEarnings ?? 0;
   const paidOutEarnings = wallet?.paidOutEarnings ?? 0;
   const stats = [
     {
@@ -74,8 +74,8 @@ function TutorDashboard() {
       bg: 'bg-emerald-50',
     },
     {
-      label: 'Available to Withdraw',
-      value: statsLoading ? '—' : formatEarnings(availableEarnings),
+      label: 'Available balance',
+      value: statsLoading ? '—' : formatEarnings(stripeBalanceEarnings),
       icon: <Banknote className="h-5 w-5 text-purple-600" />,
       bg: 'bg-purple-50',
     },

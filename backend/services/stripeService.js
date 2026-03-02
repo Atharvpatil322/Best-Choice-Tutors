@@ -295,6 +295,43 @@ export const retrieveAccountExternalAccounts = async (accountId) => {
   return stripe.accounts.listExternalAccounts(accountId);
 };
 
+/**
+ * Retrieve current balance for a connected account.
+ * @param {string} accountId - Stripe Connect account ID (acct_xxx)
+ * @returns {Promise<Stripe.Balance>}
+ */
+export const retrieveConnectedAccountBalance = async (accountId) => {
+  const stripe = getStripeClient();
+  return stripe.balance.retrieve({}, { stripeAccount: accountId });
+};
+
+/**
+ * List payouts for a connected account.
+ * @param {string} accountId - Stripe Connect account ID (acct_xxx)
+ * @param {{ limit?: number, startingAfter?: string }} [opts]
+ * @returns {Promise<Stripe.ApiList<Stripe.Payout>>}
+ */
+export const listConnectedAccountPayouts = async (accountId, opts = {}) => {
+  const stripe = getStripeClient();
+  return stripe.payouts.list(
+    {
+      limit: opts.limit ?? 100,
+      ...(opts.startingAfter ? { starting_after: opts.startingAfter } : {}),
+    },
+    { stripeAccount: accountId }
+  );
+};
+
+/**
+ * Retrieve a transfer by ID.
+ * @param {string} transferId - Stripe Transfer ID (e.g. tr_xxx)
+ * @returns {Promise<Stripe.Transfer>}
+ */
+export const retrieveTransfer = async (transferId) => {
+  const stripe = getStripeClient();
+  return stripe.transfers.retrieve(transferId);
+};
+
 export default {
   getStripeClient,
   createCheckoutSession,
@@ -306,4 +343,7 @@ export default {
   createAccountLink,
   createTransfer,
   createTransferReversal,
+  retrieveConnectedAccountBalance,
+  listConnectedAccountPayouts,
+  retrieveTransfer,
 };

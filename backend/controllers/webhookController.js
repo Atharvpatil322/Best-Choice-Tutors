@@ -6,7 +6,7 @@ import {
 import { verifyWebhookSignature as verifyStripeWebhookSignature } from '../services/stripeService.js';
 import { updateTutorFromStripeAccount } from '../services/stripeConnectService.js';
 import Tutor from '../models/Tutor.js';
-import TutorEarnings from '../models/TutorEarnings.js';
+import TutorPayout from '../models/TutorPayout.js';
 
 /**
  * Stripe webhook handler
@@ -155,33 +155,28 @@ export const handleStripeWebhook = async (req, res, next) => {
           eventAccount: event.account,
         });
       } else {
-        // Update all available earnings entries for this tutor that haven't been paid out yet
-        // This handles manual payouts from Stripe Dashboard
-        let paidAt;
-        if (payout.arrival_date) {
-          paidAt = new Date(payout.arrival_date * 1000); // Stripe uses Unix timestamp
-        } else {
-          paidAt = new Date(); // Fallback to current time
-        }
+        const paidAt = payout.arrival_date
+          ? new Date(payout.arrival_date * 1000) // Stripe uses Unix timestamp
+          : new Date();
 
-        const result = await TutorEarnings.updateMany(
-          {
+        // Idempotent record by payoutId. Prevents double counting on webhook retries.
+        const existing = await TutorPayout.findOne({ payoutId: payout.id }).lean();
+        if (!existing) {
+          await TutorPayout.create({
             tutorId: tutor._id,
-            status: 'available',
-            payoutId: null,
-          },
-          {
-            $set: {
-              payoutId: payout.id,
-              paidAt,
-            },
-          }
-        );
+            payoutId: payout.id,
+            amount: Number(payout.amount) || 0,
+            currency: String(payout.currency || 'gbp').toLowerCase(),
+            paidAt,
+          });
+        }
 
         console.info('Stripe webhook: payout recorded', {
           tutorId: tutor._id.toString(),
           payoutId: payout.id,
-          entriesUpdated: result.modifiedCount,
+          amount: Number(payout.amount) || 0,
+          currency: String(payout.currency || 'gbp').toLowerCase(),
+          alreadyRecorded: Boolean(existing),
         });
       }
     }

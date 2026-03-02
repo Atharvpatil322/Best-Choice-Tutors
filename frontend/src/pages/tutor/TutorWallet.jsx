@@ -142,7 +142,7 @@ function TutorWallet() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">{formatAmount(data.availableEarnings)}</p>
-              <p className="text-xs text-muted-foreground">Ready to be paid out</p>
+              <p className="text-xs text-muted-foreground">Current balance in connected Stripe account</p>
             </CardContent>
           </Card>
           <Card>
@@ -164,7 +164,7 @@ function TutorWallet() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">{formatAmount(data.totalEarnings)}</p>
-              <p className="text-xs text-muted-foreground">Pending + available</p>
+              <p className="text-xs text-muted-foreground">Available + paid out</p>
             </CardContent>
           </Card>
         </div>
@@ -224,7 +224,9 @@ function TutorWallet() {
                         >
                           {statusLabel(e.status, e.paidAt)}
                         </span>
-                        <span className="font-medium tabular-nums">{formatAmount(e.amount)}</span>
+                        <span className="font-medium tabular-nums">
+                          {formatAmount(e.netAmount ?? e.amount)}
+                        </span>
                       </div>
                     </div>
                   </li>
