@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, AlertCircle, Video, MessageCircle, CalendarClock, CheckCircle2 } from 'lucide-react';
+import { Star, AlertCircle, Video, MessageCircle, CalendarClock, CheckCircle2, XCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/accordion';
 import { getLearnerBookings } from '@/services/learnerBookingsService';
 import { submitReview } from '@/services/reviewService';
-import { rescheduleBooking } from '@/services/bookingService';
+import { rescheduleBooking, cancelBooking } from '@/services/bookingService';
 import { getTutorSlots } from '@/services/tutorService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
 import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
@@ -57,6 +57,10 @@ function MyBookings() {
   const [rescheduleSuccessByBookingId, setRescheduleSuccessByBookingId] = useState({});
   const [confirmReschedule, setConfirmReschedule] = useState({ bookingId: null, slot: null }); // { bookingId, slot } when open
   const confirmRescheduleRef = useRef({ bookingId: null, slot: null }); // keep a ref so Continue click has values if dialog closes first
+  // Cancel state
+  const [cancelConfirmBooking, setCancelConfirmBooking] = useState(null); // booking when confirm dialog open
+  const [cancellingBookingId, setCancellingBookingId] = useState(null);
+  const [cancelErrorByBookingId, setCancelErrorByBookingId] = useState({});
 
   const refetchBookings = useCallback(async (options = {}) => {
     const { silent = false } = options; // silent: don't show full-page loading (e.g. after reschedule)
@@ -265,6 +269,42 @@ function MyBookings() {
     }
   };
 
+  // Cancel: hours until session start (for learner refund policy)
+  const getHoursUntilSessionStart = (booking) => {
+    if (!booking?.date || !booking?.startTime) return 0;
+    const sessionStart = new Date(`${booking.date}T${booking.startTime}:00`);
+    if (Number.isNaN(sessionStart.getTime())) return 0;
+    return (sessionStart.getTime() - Date.now()) / (1000 * 60 * 60);
+  };
+
+  /** Refund message for learner: 75% if 24+ hours, 0% within 24 hours */
+  const getCancelRefundMessage = (booking) => {
+    const hours = getHoursUntilSessionStart(booking);
+    if (hours >= 24) return { text: 'You will receive a 75% refund (25% cancellation fee).', percent: 75 };
+    return { text: 'Cancellation within 24 hours of the session — no refund.', percent: 0 };
+  };
+
+  const handleOpenCancelConfirm = (booking) => {
+    setCancelConfirmBooking(booking);
+    setCancelErrorByBookingId((prev) => ({ ...prev, [booking.id]: undefined }));
+  };
+
+  const handleCancelConfirmSubmit = async () => {
+    const booking = cancelConfirmBooking;
+    if (!booking) return;
+    setCancelConfirmBooking(null);
+    setCancellingBookingId(booking.id);
+    setCancelErrorByBookingId((prev) => ({ ...prev, [booking.id]: undefined }));
+    try {
+      await cancelBooking(booking.id, { initiator: 'learner' });
+      refetchBookings({ silent: true });
+    } catch (err) {
+      setCancelErrorByBookingId((prev) => ({ ...prev, [booking.id]: err.message || 'Failed to cancel' }));
+    } finally {
+      setCancellingBookingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
@@ -357,6 +397,7 @@ function MyBookings() {
                   const reviewError = reviewErrorByBookingId[b.id];
                   // Reschedule state for this booking
                   const canReschedule = b.status === 'PAID' && sessionStatus === 'upcoming';
+                  const canCancel = (b.status === 'PAID' || b.status === 'PENDING') && (sessionStatus === 'upcoming' || sessionStatus === 'ongoing');
                   const rescheduleModalOpen = rescheduleModalOpenByBookingId[b.id] === true;
                   const rescheduleSlots = rescheduleSlotsByBookingId[b.id] || [];
                   const rescheduleSlotsLoading = rescheduleSlotsLoadingByBookingId[b.id] === true;
@@ -364,6 +405,8 @@ function MyBookings() {
                   const isRescheduling = reschedulingBookingId === b.id;
                   const rescheduleError = rescheduleErrorByBookingId[b.id];
                   const rescheduleSuccess = rescheduleSuccessByBookingId[b.id] === true;
+                  const isCancelling = cancellingBookingId === b.id;
+                  const cancelError = cancelErrorByBookingId[b.id];
 
           return (
             <Card key={b.id} className="booking-premium-card overflow-hidden">
@@ -418,6 +461,19 @@ function MyBookings() {
                     >
                       <CalendarClock size={16} className="mr-2" /> Reschedule
                     </Button>
+                  )}
+                  {canCancel && (
+                    <Button
+                      variant="outline"
+                      className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 font-bold"
+                      onClick={() => handleOpenCancelConfirm(b)}
+                      disabled={isCancelling}
+                    >
+                      <XCircle size={16} className="mr-2" /> Cancel session
+                    </Button>
+                  )}
+                  {cancelError && (
+                    <p className="text-xs text-red-600 mt-1">{cancelError}</p>
                   )}
                 </div>
               </CardContent>
@@ -696,6 +752,45 @@ function MyBookings() {
             className="bg-[#1A365D] hover:bg-[#1A365D]/90"
           >
             {reschedulingBookingId ? 'Rescheduling…' : 'Continue'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Cancel confirmation AlertDialog */}
+    <AlertDialog
+      open={!!cancelConfirmBooking}
+      onOpenChange={(open) => {
+        if (!open) setCancelConfirmBooking(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel session</AlertDialogTitle>
+          <AlertDialogDescription>
+            {cancelConfirmBooking && (
+              <>
+                {cancelConfirmBooking.status === 'PENDING' && (
+                  <span>This booking has not been paid yet. Cancelling will free the slot. No refund applies.</span>
+                )}
+                {cancelConfirmBooking?.status === 'PAID' && (
+                  <>
+                    <span className="block mb-2">{getCancelRefundMessage(cancelConfirmBooking).text}</span>
+                    <span>Are you sure you want to cancel this session?</span>
+                  </>
+                )}
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={!!cancellingBookingId}>Keep booking</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleCancelConfirmSubmit}
+            disabled={!!cancellingBookingId}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            {cancellingBookingId ? 'Cancelling…' : 'Yes, cancel session'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

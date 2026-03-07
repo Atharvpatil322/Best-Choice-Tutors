@@ -569,6 +569,10 @@ function TutorProfile({ tutorId: propTutorId }) {
                 <p className="text-sm text-muted-foreground mb-2">
                   Select one time slot, then click Book Session. You will be redirected to Stripe Checkout to pay.
                 </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Refund policy: 75% refund if you cancel 24+ hours before the session; no refund within 24 hours. Tutor cancellation: 100% refund.{' '}
+                  <Link to="/terms" className="text-primary underline underline-offset-1">Full policy</Link>
+                </p>
                 {selectedSlot && (
                   <div className="mb-3 space-y-2">
                     <p className="text-sm font-medium text-primary">

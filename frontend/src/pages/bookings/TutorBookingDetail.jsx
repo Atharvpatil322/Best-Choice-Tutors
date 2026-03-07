@@ -6,11 +6,22 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar } from 'lucide-react';
+import { Calendar, XCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { getTutorBooking } from '@/services/tutorBookingsService';
+import { cancelBooking } from '@/services/bookingService';
 import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
 import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
 import '../../styles/Profile.css';
@@ -21,6 +32,9 @@ function TutorBookingDetail() {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
 
   useEffect(() => {
     if (!bookingId) {
@@ -70,6 +84,25 @@ function TutorBookingDetail() {
     : null;
   const sessionLabel = sessionStatus ? getSessionStatusLabel(sessionStatus) : '—';
   const canJoin = sessionStatus === 'upcoming' || sessionStatus === 'ongoing';
+  const canCancel =
+    booking &&
+    (booking.status === 'PAID' || booking.status === 'PENDING') &&
+    (sessionStatus === 'upcoming' || sessionStatus === 'ongoing');
+
+  const handleCancelSubmit = async () => {
+    if (!booking?.id) return;
+    setCancelConfirmOpen(false);
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelBooking(booking.id, { initiator: 'tutor' });
+      navigate('/tutor/bookings');
+    } catch (err) {
+      setCancelError(err.message || 'Failed to cancel booking');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -169,6 +202,12 @@ function TutorBookingDetail() {
         </div>
       </Card>
 
+      {cancelError && (
+        <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+          {cancelError}
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-6">
         {canJoin && (
           <Button disabled className="rounded-lg" title="Video integration coming soon">
@@ -184,7 +223,39 @@ function TutorBookingDetail() {
         <Button variant="outline" onClick={() => navigate('/tutor/bookings')} className="rounded-lg">
           Back to Bookings
         </Button>
+        {canCancel && (
+          <Button
+            variant="outline"
+            className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => setCancelConfirmOpen(true)}
+            disabled={cancelling}
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Cancel session
+          </Button>
+        )}
       </div>
+
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel session</AlertDialogTitle>
+            <AlertDialogDescription>
+              If you cancel, the learner will receive a 100% refund. This will free the slot. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep booking</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelSubmit}
+              disabled={cancelling}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {cancelling ? 'Cancelling…' : 'Yes, cancel session'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

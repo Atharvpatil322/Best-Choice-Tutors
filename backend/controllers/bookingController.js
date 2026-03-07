@@ -6,6 +6,7 @@ import {
   handleBookingPaid,
   handleBookingFailed,
   rescheduleBooking,
+  cancelBooking,
   BookingError,
 } from '../services/bookingService.js';
 
@@ -274,6 +275,50 @@ export const rescheduleBookingHandler = async (req, res, next) => {
       return res.status(error.statusCode).json({ message: error.message });
     }
 
+    next(error);
+  }
+};
+
+/**
+ * Cancel a booking (learner or tutor).
+ * POST /api/bookings/:id/cancel
+ * Body: { initiator: 'learner' | 'tutor', reason?: string }
+ */
+export const cancelBookingHandler = async (req, res, next) => {
+  try {
+    const { id: bookingId } = req.params;
+    const { initiator, reason } = req.body;
+
+    if (!initiator || !['learner', 'tutor'].includes(initiator)) {
+      return res.status(400).json({
+        message: 'initiator is required and must be "learner" or "tutor"',
+      });
+    }
+
+    const { booking, refundPercent, refundAmountInPaise } = await cancelBooking({
+      bookingId,
+      initiator,
+      initiatorUserId: req.user._id,
+      reason: reason || undefined,
+    });
+
+    return res.status(200).json({
+      message: 'Booking cancelled successfully',
+      booking: {
+        id: booking._id,
+        status: booking.status,
+        canReview: getCanReview(booking),
+      },
+      ...(refundPercent != null && { refundPercent }),
+      ...(refundAmountInPaise != null && { refundAmountInPaise }),
+    });
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid booking ID format' });
+    }
+    if (error instanceof BookingError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     next(error);
   }
 };

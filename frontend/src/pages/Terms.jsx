@@ -44,6 +44,22 @@ export default function Terms() {
           </section>
 
           <section>
+            <h2 className="font-semibold text-slate-900 mb-2">Refund &amp; cancellation policy</h2>
+            <p className="mb-2">
+              Refunds and cancellations are handled as follows:
+            </p>
+            <ul className="list-disc pl-6 space-y-1 text-slate-700">
+              <li><strong>Learner cancels 24+ hours before the session:</strong> 75% refund (25% cancellation fee).</li>
+              <li><strong>Learner cancels within 24 hours of the session:</strong> No refund.</li>
+              <li><strong>Tutor cancels:</strong> 100% refund to the learner.</li>
+              <li><strong>Booking not yet paid (PENDING):</strong> Cancelling frees the slot; no payment or refund applies.</li>
+            </ul>
+            <p className="mt-2">
+              Cancellation is available from your Bookings page. By completing payment, you agree to this policy.
+            </p>
+          </section>
+
+          <section>
             <h2 className="font-semibold text-slate-900 mb-2">4. Privacy and data</h2>
             <p>
               Your use of Best Choice Tutors is also governed by our{' '}

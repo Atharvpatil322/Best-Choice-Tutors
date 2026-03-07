@@ -102,3 +102,42 @@ export const rescheduleBooking = async (bookingId, { date, startTime, endTime })
 
   return data;
 };
+
+/**
+ * Cancel a booking (learner or tutor).
+ * Calls backend: POST /api/bookings/:id/cancel
+ * Policy: Learner 24+ hours → 75% refund; Learner <24 hours → no refund. Tutor → 100% refund.
+ *
+ * @param {string} bookingId - Booking ID
+ * @param {Object} [options]
+ * @param {'learner' | 'tutor'} options.initiator - Who is cancelling
+ * @param {string} [options.reason] - Optional cancellation reason
+ * @returns {Promise<Object>} { message, booking: { id, status }, refundPercent?, refundAmountInPaise? }
+ */
+export const cancelBooking = async (bookingId, { initiator, reason } = {}) => {
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const body = { initiator: initiator || 'learner' };
+  if (reason) body.reason = reason;
+
+  const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to cancel booking');
+  }
+
+  return data;
+};

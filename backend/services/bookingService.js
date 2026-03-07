@@ -10,6 +10,8 @@ import Notification from '../models/Notification.js';
 import {
   createCheckoutSession,
   createTransfer,
+  createRefund,
+  createTransferReversal,
   findCheckoutSessionByPaymentIntentId,
 } from './stripeService.js';
 import { logFinancialAudit } from './financialAuditService.js';
@@ -17,8 +19,11 @@ import { logFinancialAudit } from './financialAuditService.js';
 /** Statuses that reserve a slot; only these block rebooking for the same slot */
 const ACTIVE_SLOT_STATUSES = ['PENDING', 'PAID'];
 
-/** Final states: no further transitions (cancellation UI not exposed yet) */
+/** Final states: no further transitions */
 export const BOOKING_FINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
+
+/** Learner cancel: 75% refund if 24+ hours before session; 0% within 24 hours. Tutor cancel: 100% refund. */
+const CANCELLATION_REFUND_HOURS_THRESHOLD = 24;
 
 /**
  * Review eligibility: canReview is true only when booking is COMPLETED and payment was PAID.
@@ -934,5 +939,187 @@ export const rescheduleBooking = async ({
 
   return updatedBooking;
 };
+
+/**
+ * Get hours until session start (booking.date + booking.startTime). Uses local time interpretation.
+ * @param {Object} booking - Must have date (YYYY-MM-DD) and startTime (HH:mm)
+ * @returns {number} Hours until start (can be negative if in the past)
+ */
+function getHoursUntilSessionStart(booking) {
+  const sessionStart = new Date(`${booking.date}T${booking.startTime}:00`);
+  if (Number.isNaN(sessionStart.getTime())) return 0;
+  return (sessionStart.getTime() - Date.now()) / (1000 * 60 * 60);
+}
+
+/**
+ * Cancel a booking. Learner or tutor can cancel.
+ * Policy: Learner 24+ hours → 75% refund, 25% to tutor; Learner <24 hours → 0% refund, 100% to tutor.
+ * Tutor cancel → 100% refund to learner.
+ *
+ * @param {Object} params
+ * @param {string} params.bookingId - Booking ID
+ * @param {string} params.initiator - 'learner' | 'tutor'
+ * @param {string} params.initiatorUserId - User ID of the person cancelling (for auth)
+ * @param {string} [params.reason] - Optional cancellation reason
+ * @returns {Promise<{ booking: Booking, refundPercent?: number, refundAmountInPaise?: number }>}
+ */
+export async function cancelBooking({
+  bookingId,
+  initiator,
+  initiatorUserId,
+  reason,
+}) {
+  if (!['learner', 'tutor'].includes(initiator)) {
+    throw new BookingError('initiator must be learner or tutor', 400);
+  }
+
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new BookingError('Booking not found', 404);
+  }
+
+  if (BOOKING_FINAL_STATUSES.includes(booking.status)) {
+    throw new BookingError(`Cannot cancel a booking with status ${booking.status}`, 400);
+  }
+
+  if (booking.status !== 'PENDING' && booking.status !== 'PAID') {
+    throw new BookingError(`Cannot cancel booking with status ${booking.status}`, 400);
+  }
+
+  // Authorization: learner must own booking; tutor must be the booking's tutor
+  if (initiator === 'learner') {
+    if (booking.learnerId.toString() !== initiatorUserId.toString()) {
+      throw new BookingError('You are not allowed to cancel this booking', 403);
+    }
+  } else {
+    const tutor = await Tutor.findById(booking.tutorId).select('userId').lean();
+    if (!tutor || tutor.userId?.toString() !== initiatorUserId.toString()) {
+      throw new BookingError('You are not allowed to cancel this booking', 403);
+    }
+  }
+
+  const hoursUntil = getHoursUntilSessionStart(booking);
+
+  // PENDING: no payment yet, just mark cancelled
+  if (booking.status === 'PENDING') {
+    booking.status = 'CANCELLED';
+    await booking.save();
+    await createCancellationNotifications(booking, initiator, reason);
+    return { booking, refundPercent: undefined, refundAmountInPaise: undefined };
+  }
+
+  // PAID: apply refund policy
+  let amountInPaise = getBookingAmountInPaiseFromBooking(booking);
+  if (amountInPaise == null) {
+    const tutor = await Tutor.findById(booking.tutorId);
+    amountInPaise = tutor ? getBookingAmountInPaise(booking, tutor) : null;
+  }
+  if (amountInPaise == null || amountInPaise <= 0) {
+    throw new BookingError('Unable to determine booking amount for refund', 400);
+  }
+  if (!booking.stripePaymentIntentId) {
+    throw new BookingError('Payment intent not found; cannot process refund', 400);
+  }
+
+  let refundPercent = 0;
+  if (initiator === 'tutor') {
+    refundPercent = 100;
+  } else {
+    refundPercent = hoursUntil >= CANCELLATION_REFUND_HOURS_THRESHOLD ? 75 : 0;
+  }
+
+  const refundAmountInPaise = refundPercent > 0 ? Math.round((amountInPaise * refundPercent) / 100) : 0;
+  const tutorSharePercent = initiator === 'tutor' ? 0 : (refundPercent === 75 ? 25 : 100);
+  const tutorShareInPaise = Math.round((amountInPaise * tutorSharePercent) / 100);
+
+  const earningsEntry = await TutorEarnings.findOne({ bookingId: booking._id }).lean();
+
+  if (refundPercent === 100) {
+    // Full refund: reverse transfer if already sent, then mark earnings refunded, then Stripe refund
+    if (earningsEntry?.stripeTransferId) {
+      try {
+        await createTransferReversal(earningsEntry.stripeTransferId);
+      } catch (err) {
+        console.error('Transfer reversal failed on cancel', { bookingId, error: err?.message });
+      }
+    }
+    await markTutorEarningsRefunded(booking._id);
+    await createRefund({
+      paymentIntentId: booking.stripePaymentIntentId,
+      reason: 'requested_by_customer',
+    });
+    await logFinancialAudit({
+      action: 'REFUND_FULL',
+      tutorId: booking.tutorId,
+      bookingId: booking._id,
+      amountInPaise,
+      performedBy: 'SYSTEM',
+    });
+  } else if (refundPercent === 75) {
+    // Partial refund: 75% to learner, 25% to tutor (no commission on tutor share)
+    await createRefund({
+      paymentIntentId: booking.stripePaymentIntentId,
+      amount: refundAmountInPaise,
+      reason: 'requested_by_customer',
+    });
+    await releasePartialToTutor(booking._id, tutorShareInPaise, { performedBy: 'SYSTEM' });
+    await logFinancialAudit({
+      action: 'REFUND_PARTIAL',
+      tutorId: booking.tutorId,
+      bookingId: booking._id,
+      amountInPaise: refundAmountInPaise,
+      performedBy: 'SYSTEM',
+      metadata: { learnerRefundPercent: 75 },
+    });
+  } else {
+    // 0% refund: tutor gets full amount (minus commission) – release earnings
+    await releaseWalletForBookingInternal(booking._id);
+  }
+
+  booking.status = 'CANCELLED';
+  await booking.save();
+  await createCancellationNotifications(booking, initiator, reason);
+
+  return {
+    booking,
+    refundPercent: refundPercent || undefined,
+    refundAmountInPaise: refundAmountInPaise || undefined,
+  };
+}
+
+/**
+ * Create in-app notifications for learner and tutor when a booking is cancelled.
+ */
+async function createCancellationNotifications(booking, initiator, reason) {
+  try {
+    const tutor = await Tutor.findById(booking.tutorId).select('userId').lean();
+    const learner = await User.findById(booking.learnerId).select('name').lean();
+    const tutorUser = await User.findById(tutor?.userId).select('name').lean();
+    const learnerName = learner?.name || 'A learner';
+    const tutorName = tutorUser?.name || 'The tutor';
+    const sessionLabel = `${booking.date} ${booking.startTime}-${booking.endTime}`;
+
+    if (booking.learnerId) {
+      await Notification.create({
+        userId: booking.learnerId,
+        type: 'booking_cancelled',
+        title: 'Booking cancelled',
+        message: initiator === 'learner' ? `You cancelled the session (${sessionLabel}).` : `${tutorName} cancelled the session (${sessionLabel}).`,
+        data: { bookingId: booking._id.toString(), initiator, reason: reason || null },
+      });
+    }
+    if (tutor?.userId) {
+      await Notification.create({
+        userId: tutor.userId,
+        type: 'booking_cancelled',
+        title: 'Booking cancelled',
+        message: initiator === 'tutor' ? `You cancelled the session (${sessionLabel}).` : `${learnerName} cancelled the session (${sessionLabel}).`,
+        data: { bookingId: booking._id.toString(), initiator, reason: reason || null },
+      });
+    }
+  } catch (err) {
+    console.error('Failed to create cancellation notifications:', err?.message);
+  }
+}
 
 export { BookingError };

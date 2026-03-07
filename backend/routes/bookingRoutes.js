@@ -5,6 +5,7 @@ import {
   payForBooking,
   updateTestPaymentStatus,
   rescheduleBookingHandler,
+  cancelBookingHandler,
 } from '../controllers/bookingController.js';
 import { submitReview } from '../controllers/reviewController.js';
 
@@ -18,6 +19,9 @@ router.post('/', createBooking);
 
 // POST /api/bookings/:id/pay - Create Stripe Checkout Session for a booking
 router.post('/:id/pay', payForBooking);
+
+// POST /api/bookings/:id/cancel - Cancel a booking (learner or tutor)
+router.post('/:id/cancel', cancelBookingHandler);
 
 // DEV TESTING ONLY – REMOVE BEFORE PRODUCTION: override payment status when webhook is not updating (test mode)
 router.patch('/:id/test-payment-status', updateTestPaymentStatus);
