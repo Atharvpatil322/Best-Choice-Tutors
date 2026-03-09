@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { isAuthenticated } from '../../lib/auth';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 
-function TutorCard({ tutor }) {
+function TutorCard({ tutor, firstSessionDiscountAvailable = false }) {
   const navigate = useNavigate();
   const hasReviews = tutor.reviewCount != null && tutor.reviewCount > 0;
   const primarySubject = tutor.subjects?.[0] || 'Tutor';
@@ -26,6 +26,14 @@ function TutorCard({ tutor }) {
     ? tutor.location
     : tutor.location?.address || tutor.location?.city || null;
   const mode = tutor.mode || null;
+
+  const hourlyRate =
+    tutor.hourlyRate !== undefined && tutor.hourlyRate !== null
+      ? Number(tutor.hourlyRate)
+      : null;
+  const hasValidRate = Number.isFinite(hourlyRate) && hourlyRate > 0;
+  const discountedRate =
+    hasValidRate && firstSessionDiscountAvailable ? hourlyRate * 0.8 : null;
 
   const handleViewProfile = () => {
     if (isAuthenticated()) {
@@ -66,12 +74,33 @@ function TutorCard({ tutor }) {
                 </div>
                 <p className="text-[#1A365D] font-medium text-sm mt-0.5">{primarySubject}</p>
               </div>
-              {tutor.hourlyRate !== undefined && tutor.hourlyRate !== null && (
-                <div className="text-right">
-                  <span className="text-2xl font-bold text-[#1A365D]">
-                    £{parseFloat(tutor.hourlyRate).toFixed(2)}
-                  </span>
-                  <span className="text-sm text-slate-500 ml-1">/hour</span>
+              {hasValidRate && (
+                <div className="text-right space-y-0.5">
+                  {discountedRate ? (
+                    <>
+                      <div className="text-xs text-slate-500">
+                        <span className="line-through mr-1">
+                          £{hourlyRate.toFixed(2)}/hour
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xl font-bold text-[#1A365D]">
+                          £{discountedRate.toFixed(2)}
+                        </span>
+                        <span className="text-sm text-slate-500 ml-1">/hour</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-emerald-700">
+                        20% off your first session
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl font-bold text-[#1A365D]">
+                        £{hourlyRate.toFixed(2)}
+                      </span>
+                      <span className="text-sm text-slate-500 ml-1">/hour</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>

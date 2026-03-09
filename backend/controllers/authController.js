@@ -5,8 +5,9 @@ import { generateResetToken, hashResetToken } from '../utils/resetToken.js';
 import { sendPasswordResetEmail } from '../utils/email.js';
 import { uploadImage, presignProfilePhotoUrl } from '../services/s3Service.js';
 import { validationResult } from 'express-validator';
+import { isFirstSessionDiscountEligible } from '../services/bookingService.js';
 
-// Get current user (for OAuth callback and role checks)
+// Get current user (for OAuth callback, role checks, and learner dashboard flags)
 export const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id)
@@ -16,6 +17,12 @@ export const getMe = async (req, res, next) => {
       return res.status(404).json({ message: 'User not found' });
     }
     const profilePhoto = await presignProfilePhotoUrl(user.profilePhoto);
+
+    let firstSessionDiscountAvailable = false;
+    if (user.role === 'Learner') {
+      firstSessionDiscountAvailable = await isFirstSessionDiscountEligible(user._id);
+    }
+
     res.json({
       user: {
         id: user._id,
@@ -24,6 +31,7 @@ export const getMe = async (req, res, next) => {
         role: user.role,
         profilePhoto,
       },
+      firstSessionDiscountAvailable,
     });
   } catch (error) {
     next(error);

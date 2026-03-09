@@ -100,17 +100,24 @@ const TUTOR_STEPS = [
   },
 ];
 
-function StepCard({ step, Icon, title, description }) {
+function StepRow({ step, Icon, title, description, isLast }) {
   return (
-    <div className="how-step-card">
-      <div className="how-step-number" aria-hidden="true">
-        {step}
+    <div className="how-step-row">
+      <div className={`how-step-timeline ${isLast ? 'how-step-timeline-last' : ''}`}>
+        <div className="how-step-dot" aria-hidden="true">
+          {step}
+        </div>
+        <div className="how-step-line" aria-hidden="true" />
       </div>
-      <div className="how-step-icon-wrap">
-        <Icon size={28} strokeWidth={2} aria-hidden="true" />
+      <div className="how-step-card">
+        <div className="how-step-icon-wrap" aria-hidden="true">
+          <Icon size={24} strokeWidth={2} />
+        </div>
+        <div className="how-step-content">
+          <h4 className="how-step-title">{title}</h4>
+          <p className="how-step-desc">{description}</p>
+        </div>
       </div>
-      <h4 className="how-step-title">{title}</h4>
-      <p className="how-step-desc">{description}</p>
     </div>
   );
 }
@@ -189,14 +196,15 @@ export default function HowItWorksSection() {
           hidden={activePath !== 'learner'}
           className="how-panel"
         >
-          <div className="how-steps-grid">
-            {LEARNER_STEPS.map(({ step, icon: Icon, title, description }) => (
-              <StepCard
+          <div className="how-steps-list">
+            {LEARNER_STEPS.map(({ step, icon: Icon, title, description }, index, arr) => (
+              <StepRow
                 key={step}
                 step={step}
                 Icon={Icon}
                 title={title}
                 description={description}
+                isLast={index === arr.length - 1}
               />
             ))}
           </div>
@@ -209,14 +217,15 @@ export default function HowItWorksSection() {
           hidden={activePath !== 'tutor'}
           className="how-panel"
         >
-          <div className="how-steps-grid">
-            {TUTOR_STEPS.map(({ step, icon: Icon, title, description }) => (
-              <StepCard
+          <div className="how-steps-list">
+            {TUTOR_STEPS.map(({ step, icon: Icon, title, description }, index, arr) => (
+              <StepRow
                 key={step}
                 step={step}
                 Icon={Icon}
                 title={title}
                 description={description}
+                isLast={index === arr.length - 1}
               />
             ))}
           </div>

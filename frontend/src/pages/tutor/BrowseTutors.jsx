@@ -5,6 +5,7 @@ import { getAllTutors } from '@/services/tutorService';
 import TutorCard from '@/components/tutor/TutorCard';
 import { LayoutGrid, Map as MapIcon } from 'lucide-react';
 import NearbyTutorsMap from '../../utils/NearbyTutorsMap';
+import { getMe } from '@/services/authService';
 
 const DEFAULT_DISTANCE_KM = 10;
 
@@ -14,6 +15,7 @@ function BrowseTutors() {
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [userLocation, setUserLocation] = useState(null);
+  const [firstSessionDiscountAvailable, setFirstSessionDiscountAvailable] = useState(false);
   const locationRequested = useRef(false);
 
   const requestLocation = () => {
@@ -35,6 +37,26 @@ function BrowseTutors() {
 
   useEffect(() => {
     requestLocation();
+  }, []);
+
+  // Fetch first-session discount eligibility once for the browsing learner.
+  useEffect(() => {
+    let cancelled = false;
+    const loadEligibility = async () => {
+      try {
+        const data = await getMe();
+        if (cancelled) return;
+        setFirstSessionDiscountAvailable(Boolean(data?.firstSessionDiscountAvailable));
+      } catch {
+        if (!cancelled) {
+          setFirstSessionDiscountAvailable(false);
+        }
+      }
+    };
+    loadEligibility();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -114,12 +136,20 @@ function BrowseTutors() {
       ) : viewMode === 'grid' ? (
         <div className="space-y-6">
           {tutors.map((tutor) => (
-            <TutorCard key={tutor.id} tutor={tutor} />
+            <TutorCard
+              key={tutor.id}
+              tutor={tutor}
+              firstSessionDiscountAvailable={firstSessionDiscountAvailable}
+            />
           ))}
         </div>
       ) : (
         <div className="animate-in fade-in duration-500">
-          <NearbyTutorsMap tutorsData={tutors} userLocation={userLocation} />
+          <NearbyTutorsMap
+            tutorsData={tutors}
+            userLocation={userLocation}
+            firstSessionDiscountAvailable={firstSessionDiscountAvailable}
+          />
         </div>
       )}
     </div>

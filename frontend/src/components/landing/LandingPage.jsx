@@ -5,7 +5,6 @@
 
 import Header from "./Header";
 import HeroSection from "./HeroSection";
-import HowItWorksSection from "./HowItWorksSection";
 import TutorSearch from "./TutorSearch";
 import HeroImageSection from "./HeroImageSection";
 import TrustSection from "./TrustSection";
@@ -25,7 +24,6 @@ function LandingPage() {
       <main className="w-full overflow-x-hidden">
         <HeroSection />
         {/* <TutorSearch /> */}
-        <HowItWorksSection />
         <WelcomeSection />
         <SubjectsSections />
         <CommitmentSection />

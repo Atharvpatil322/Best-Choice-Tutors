@@ -5,7 +5,7 @@
 
 import Booking from '../models/Booking.js';
 import Conversation from '../models/Conversation.js';
-import { getCanReview } from '../services/bookingService.js';
+import { getCanReview, isFirstSessionDiscountEligible } from '../services/bookingService.js';
 import { presignProfilePhotoUrl } from '../services/s3Service.js';
 import mongoose from 'mongoose';
 /**
@@ -88,6 +88,26 @@ export const getBookings = async (req, res, next) => {
     console.timeEnd('TOTAL-REQUEST');
     
     res.json({ bookings: list });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get first-session discount eligibility for the logged-in learner.
+ * Business rule: eligible only if learner has no PAID or COMPLETED bookings.
+ */
+export const getFirstSessionDiscountEligibility = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'Learner') {
+      return res.status(403).json({
+        message: 'This endpoint is only accessible to Learners',
+      });
+    }
+
+    const eligible = await isFirstSessionDiscountEligible(req.user._id);
+
+    res.json({ eligible });
   } catch (error) {
     next(error);
   }

@@ -37,7 +37,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { getTutorById, getTutorAvailability, getTutorSlots } from '@/services/tutorService';
-import { createBooking } from '@/services/bookingService.js';
+import { createBooking, getFirstSessionDiscountEligibility } from '@/services/bookingService.js';
 import { getCurrentRole } from '@/services/authService';
 import { createBookingPaymentOrder } from '@/services/bookingPaymentService.js';
 import { toast } from 'sonner';
@@ -52,6 +52,7 @@ function TutorProfile({ tutorId: propTutorId }) {
   const fromRequestBudget = searchParams.get('fromRequestBudget');
   const role = getCurrentRole();
   const isTutor = typeof role === 'string' && role.toLowerCase() === 'tutor';
+  const isLearner = typeof role === 'string' && role.toLowerCase() === 'learner';
   const bookingsPath = isTutor ? '/tutor/bookings' : '/dashboard/bookings';
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,9 @@ function TutorProfile({ tutorId: propTutorId }) {
   /** Age eligibility & parental consent dialog (after confirm; Proceed to Payment runs booking + payment) */
   const [ageConsentDialogOpen, setAgeConsentDialogOpen] = useState(false);
   const [ageConsentChecked, setAgeConsentChecked] = useState(false);
+  /** First-session discount eligibility for current learner */
+  const [firstSessionDiscountEligible, setFirstSessionDiscountEligible] = useState(false);
+  const [firstSessionDiscountChecked, setFirstSessionDiscountChecked] = useState(false);
 
   useEffect(() => {
     const fetchTutor = async () => {
@@ -144,6 +148,28 @@ function TutorProfile({ tutorId: propTutorId }) {
       fetchAvailabilityAndSlots();
     }
   }, [id, loading]);
+
+  // Fetch first-session discount eligibility for learners (server-side check based on booking history).
+  useEffect(() => {
+    const fetchEligibility = async () => {
+      if (!isLearner) {
+        setFirstSessionDiscountEligible(false);
+        setFirstSessionDiscountChecked(true);
+        return;
+      }
+      try {
+        const data = await getFirstSessionDiscountEligibility();
+        setFirstSessionDiscountEligible(Boolean(data?.eligible));
+      } catch (err) {
+        console.error('Failed to fetch first-session discount eligibility', err);
+        setFirstSessionDiscountEligible(false);
+      } finally {
+        setFirstSessionDiscountChecked(true);
+      }
+    };
+
+    fetchEligibility();
+  }, [isLearner]);
 
   // Placeholder for missing data
   const Placeholder = ({ text }) => (
@@ -563,6 +589,29 @@ function TutorProfile({ tutorId: propTutorId }) {
                     </p>
                   </div>
                 )}
+                {!fromRequestId &&
+                  isLearner &&
+                  firstSessionDiscountChecked &&
+                  firstSessionDiscountEligible &&
+                  tutor.hourlyRate !== undefined &&
+                  tutor.hourlyRate !== null && (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 mb-4">
+                      <p className="text-sm font-semibold text-emerald-900">
+                        20% First Session Discount Applied
+                      </p>
+                      <p className="text-sm text-emerald-800 mt-1">
+                        <span className="line-through text-slate-500 mr-2">
+                          £{Number(tutor.hourlyRate).toFixed(2)}/hr
+                        </span>
+                        <span className="font-semibold">
+                          £{(Number(tutor.hourlyRate) * 0.8).toFixed(2)}/hr
+                        </span>
+                      </p>
+                      <p className="text-xs text-emerald-900 mt-1">
+                        This discount is automatically applied to your first paid session on the platform. Future bookings will use the tutor&apos;s standard rate.
+                      </p>
+                    </div>
+                  )}
                 <p className="text-sm text-muted-foreground mb-4">
                   Showing upcoming available time slots for the next 4 weeks
                 </p>
@@ -571,7 +620,7 @@ function TutorProfile({ tutorId: propTutorId }) {
                 </p>
                 <p className="text-xs text-muted-foreground mb-4">
                   Refund policy: 75% refund if you cancel 24+ hours before the session; no refund within 24 hours. Tutor cancellation: 100% refund.{' '}
-                  <Link to="/terms" className="text-primary underline underline-offset-1">Full policy</Link>
+                  {/* <Link to="/terms" className="text-primary underline underline-offset-1">Full policy</Link> */}
                 </p>
                 {selectedSlot && (
                   <div className="mb-3 space-y-2">

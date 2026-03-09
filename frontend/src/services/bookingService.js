@@ -141,3 +141,35 @@ export const cancelBooking = async (bookingId, { initiator, reason } = {}) => {
 
   return data;
 };
+
+/**
+ * Get first-session discount eligibility for the current learner.
+ * Calls backend: GET /api/learner/bookings/first-session-discount-eligibility
+ *
+ * @returns {Promise<{ eligible: boolean }>}
+ */
+export const getFirstSessionDiscountEligibility = async () => {
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL.replace('/api', '')}/api/learner/bookings/first-session-discount-eligibility`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch first-session discount eligibility');
+  }
+
+  return data;
+};

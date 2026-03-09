@@ -7,7 +7,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { getStoredUser } from '@/services/authService';
+import { getStoredUser, getMe, switchToTutor } from '@/services/authService';
 import welcome from '../../images/welcomeFamily.jpeg';
 import {
   BookOpen,
@@ -16,9 +16,9 @@ import {
   ChevronRight,
   Calendar,
   GraduationCap,
+  Gift,
 } from 'lucide-react';
-import { switchToTutor } from '../../services/authService';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -32,10 +32,34 @@ import {
 
 function LearnerDashboard() {
   const navigate = useNavigate();
-  const user = getStoredUser();
+  const [user, setUser] = useState(getStoredUser());
+  const [firstSessionDiscountAvailable, setFirstSessionDiscountAvailable] = useState(false);
   const [switchingToTutor, setSwitchingToTutor] = useState(false);
   const [becomeTutorConsentOpen, setBecomeTutorConsentOpen] = useState(false);
   const [becomeTutorTermsAccepted, setBecomeTutorTermsAccepted] = useState(false);
+
+  // Fetch fresh user + first-session discount flag from backend (single dashboard call).
+  useEffect(() => {
+    let cancelled = false;
+    const loadMe = async () => {
+      try {
+        const data = await getMe();
+        if (cancelled) return;
+        if (data?.user) {
+          setUser(data.user);
+        }
+        setFirstSessionDiscountAvailable(Boolean(data?.firstSessionDiscountAvailable));
+      } catch {
+        if (!cancelled) {
+          setFirstSessionDiscountAvailable(false);
+        }
+      }
+    };
+    loadMe();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleBecomeTutor = async () => {
     setSwitchingToTutor(true);
@@ -83,6 +107,34 @@ function LearnerDashboard() {
           />
         </div>
       </div>
+
+      {/* 1.5 FIRST SESSION DISCOUNT BANNER – visible only for eligible new learners */}
+      {firstSessionDiscountAvailable && (
+        <Card className="mt-4 rounded-2xl border-amber-100 bg-gradient-to-r from-amber-50 via-orange-50 to-white shadow-sm">
+          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-1">
+              <div className="flex items-center justify-center h-10 w-10 rounded-full bg-amber-100 text-amber-700 shrink-0">
+                <Gift className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-sm sm:text-base font-semibold text-[#1A365D]">
+                  🎉 Book your first session at FLAT 20% OFF
+                </p>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  Start learning today with our expert tutors.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="mt-1 sm:mt-0 rounded-xl bg-[#1A365D] hover:bg-[#1A365D]/90 text-white px-4 sm:px-5"
+              onClick={() => navigate('/dashboard/browse-tutors')}
+            >
+              Browse Tutors
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 2. QUICK LINKS – navigate to dedicated tabs (no preload) */}
       <div>

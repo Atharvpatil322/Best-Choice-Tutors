@@ -22,6 +22,9 @@ const ACTIVE_SLOT_STATUSES = ['PENDING', 'PAID'];
 /** Final states: no further transitions */
 export const BOOKING_FINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
+/** Statuses that count as a completed first session for discount eligibility */
+const FIRST_SESSION_ELIGIBLE_STATUSES = ['PAID', 'COMPLETED'];
+
 /** Learner cancel: 75% refund if 24+ hours before session; 0% within 24 hours. Tutor cancel: 100% refund. */
 const CANCELLATION_REFUND_HOURS_THRESHOLD = 24;
 
@@ -36,6 +39,21 @@ export const getCanReview = (booking) => {
     status === 'PAID' || status === 'COMPLETED' ? 'PAID' : status === 'FAILED' ? 'FAILED' : 'PENDING';
   return status === 'COMPLETED' && paymentStatus === 'PAID';
 };
+
+/**
+ * Determine if a learner is eligible for first-session discount.
+ * Business rule: eligible only when they have no PAID or COMPLETED bookings.
+ * @param {import('mongoose').Types.ObjectId|string} learnerId
+ * @returns {Promise<boolean>}
+ */
+export async function isFirstSessionDiscountEligible(learnerId) {
+  if (!learnerId) return false;
+  const count = await Booking.countDocuments({
+    learnerId,
+    status: { $in: FIRST_SESSION_ELIGIBLE_STATUSES },
+  });
+  return count === 0;
+}
 
 /**
  * Parse duration from booking start/end time; return duration in hours or null if invalid.
@@ -130,7 +148,7 @@ export const createBookingForSlot = async ({
     throw new BookingError('Tutor not found', 404);
   }
 
-  let agreedHourlyRate = Number(tutor.hourlyRate);
+  let agreedHourlyRateBase = Number(tutor.hourlyRate);
   let tuitionRequestId = null;
 
   if (requestId) {
@@ -148,8 +166,24 @@ export const createBookingForSlot = async ({
     if (!interest) {
       throw new BookingError('This tutor has not expressed interest in your request', 400);
     }
-    agreedHourlyRate = Number(request.budget);
+    // Request-based negotiated pricing for this booking (no first-session discount applied here).
+    agreedHourlyRateBase = Number(request.budget);
     tuitionRequestId = request._id;
+  }
+
+  // Determine first-session discount eligibility from booking history.
+  const eligibleForFirstSessionDiscount = await isFirstSessionDiscountEligible(learnerId);
+
+  let agreedHourlyRate = agreedHourlyRateBase;
+  let isFirstSessionDiscount = false;
+
+  // Business rule: first session discount is always 20% off tutor.hourlyRate (not negotiated budget).
+  if (!requestId && eligibleForFirstSessionDiscount) {
+    const tutorRate = Number(tutor.hourlyRate);
+    if (Number.isFinite(tutorRate) && tutorRate > 0) {
+      agreedHourlyRate = tutorRate * 0.8;
+      isFirstSessionDiscount = true;
+    }
   }
 
   // Check for existing booking for this slot (only active statuses block)
@@ -173,6 +207,7 @@ export const createBookingForSlot = async ({
     endTime,
     agreedHourlyRate,
     tuitionRequestId,
+    isFirstSessionDiscount,
   });
 
   return booking;
@@ -290,7 +325,8 @@ export async function handleBookingPaid(booking, options = {}) {
     }
     if (amountInPaise != null && amountInPaise > 0) {
       const config = await PlatformConfig.findOne().lean();
-      const commissionRate = config?.commissionRate ?? 0;
+      const baseCommissionRate = config?.commissionRate ?? 0;
+      const commissionRate = booking.isFirstSessionDiscount ? 0 : baseCommissionRate;
       const commissionInPaise = Math.round((amountInPaise * commissionRate) / 100);
       await TutorEarnings.findOneAndUpdate(
         { bookingId: booking._id },
@@ -329,7 +365,8 @@ export async function handleBookingPaid(booking, options = {}) {
   }
   if (amountInPaise != null && amountInPaise > 0) {
     const config = await PlatformConfig.findOne().lean();
-    const commissionRate = config?.commissionRate ?? 0;
+    const baseCommissionRate = config?.commissionRate ?? 0;
+    const commissionRate = booking.isFirstSessionDiscount ? 0 : baseCommissionRate;
     const commissionInPaise = Math.round((amountInPaise * commissionRate) / 100);
     await TutorEarnings.findOneAndUpdate(
       { bookingId: booking._id },

@@ -7,12 +7,23 @@ import { Clock, ChevronRight, MapPin, Globe, CheckCircle, ShieldCheck } from 'lu
 
 const DEFAULT_CENTER = [19.076, 72.877];
 
+function getRates(rate, firstSessionDiscountAvailable) {
+  const numeric = Number(rate);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return { base: null, discounted: null };
+  }
+  if (firstSessionDiscountAvailable) {
+    return { base: numeric, discounted: numeric * 0.8 };
+  }
+  return { base: numeric, discounted: null };
+}
+
 function formatHourlyRate(rate) {
   if (rate == null || rate === '' || !Number.isFinite(Number(rate))) return '—';
   return `£${parseFloat(rate).toFixed(2)}`;
 }
 
-const NearbyTutorsMap = ({ tutorsData, userLocation = null }) => {
+const NearbyTutorsMap = ({ tutorsData, userLocation = null, firstSessionDiscountAvailable = false }) => {
   const navigate = useNavigate();
   const nearestTutor = tutorsData.length > 0 && tutorsData[0].location?.lat != null && tutorsData[0].location?.lng != null
     ? tutorsData[0]
@@ -26,9 +37,11 @@ const NearbyTutorsMap = ({ tutorsData, userLocation = null }) => {
           ? [nearestTutor.location.lat, nearestTutor.location.lng]
           : DEFAULT_CENTER;
 
-  // Enhanced Custom Icon with Hover Animation
+  // Custom Icon with rate label (uses discounted rate when available)
   const createCustomIcon = (tutor) => {
-    const rateText = formatHourlyRate(tutor.hourlyRate);
+    const { discounted, base } = getRates(tutor.hourlyRate, firstSessionDiscountAvailable);
+    const rateValue = discounted ?? base;
+    const rateText = rateValue != null ? `£${rateValue.toFixed(2)}` : '£—';
     return L.divIcon({
       html: `
         <div class="marker-container">
@@ -46,18 +59,14 @@ const NearbyTutorsMap = ({ tutorsData, userLocation = null }) => {
   };
 
   return (
-    <div className="relative w-full h-[650px] rounded-3xl overflow-hidden border border-slate-200 shadow-2xl bg-slate-50">
-      {/* Floating Info Badge */}
-      <div className="absolute top-6 left-6 z-[1000] bg-white/80 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-xl">
-        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <MapPin size={16} className="text-blue-600" />
-          Tutors in this Area
-        </h3>
-        <p className="text-[11px] text-slate-500 mt-1">
-          Showing <span className="text-blue-600 font-bold">{tutorsData.length}</span> verified instructors
+    <div className="relative w-full h-[650px] rounded-3xl overflow-hidden border border-slate-200 bg-slate-50">
+      {/* Simple info badge */}
+      <div className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur border border-slate-200 px-3 py-2 rounded-xl shadow-sm">
+        <p className="text-xs font-medium text-slate-700 flex items-center gap-1">
+          <MapPin size={14} className="text-blue-600" />
+          {tutorsData.length} tutor{tutorsData.length === 1 ? '' : 's'} in this area
         </p>
       </div>
-
       <MapContainer 
         center={defaultCenter} 
         zoom={12} 
@@ -72,98 +81,135 @@ const NearbyTutorsMap = ({ tutorsData, userLocation = null }) => {
 
         {tutorsData
           .filter((t) => t.location?.lat != null && t.location?.lng != null)
-          .map((tutor) => (
-          <Marker 
-            key={tutor.id} 
-            position={[tutor.location.lat, tutor.location.lng]}
-            icon={createCustomIcon(tutor)}
-          >
-           <Popup className="custom-premium-popup" maxWidth={400} minWidth={340}>
-  <div className="w-full bg-white p-2">
-    {/* Header – name, badges, rating */}
-    <div className="mb-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <h4 className="font-extrabold text-slate-900 text-xl leading-tight tracking-tight">
-          {tutor.fullName}
-        </h4>
-        {tutor.isVerified && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700" title="Document verified">
-            <CheckCircle size={12} className="shrink-0" />
-            Verified
-          </span>
-        )}
-        {tutor.isDbsVerified && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700" title="DBS verified">
-            <ShieldCheck size={12} className="shrink-0" />
-            DBS
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-2 text-sm mt-1.5 font-bold text-slate-500">
-        <span className="flex items-center gap-1 text-amber-500 bg-amber-50 px-2 py-0.5 rounded-lg">
-          {tutor.averageRating || 'New'}
-        </span>
-        <span className="text-slate-300">|</span>
-        <span>{tutor.reviewCount || 0} reviews</span>
-      </div>
-    </div>
+          .map((tutor) => {
+            const { base, discounted } = getRates(
+              tutor.hourlyRate,
+              firstSessionDiscountAvailable
+            );
+            const hasRate = base != null;
 
-    {/* Info Grid - Spaced out more with better width */}
-    <div className="grid grid-cols-2 gap-3 mb-5">
-       <div className="bg-slate-50 p-3 rounded-2xl flex items-center gap-3 border border-slate-100">
-          <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600">
-            <Clock size={16} />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase text-slate-400 font-black">Experience</span>
-            <span className="text-xs font-black text-slate-700">{tutor.experienceYears} Years</span>
-          </div>
-       </div>
-       <div className="bg-slate-50 p-3 rounded-2xl flex items-center gap-3 border border-slate-100">
-          <div className="bg-indigo-100 p-1.5 rounded-lg text-indigo-600">
-            <Globe size={16} />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase text-slate-400 font-black">Method</span>
-            <span className="text-xs font-black text-slate-700 truncate">{tutor.mode}</span>
-          </div>
-       </div>
-    </div>
+            return (
+              <Marker 
+                key={tutor.id} 
+                position={[tutor.location.lat, tutor.location.lng]}
+                icon={createCustomIcon(tutor)}
+              >
+                <Popup className="custom-premium-popup" maxWidth={360} minWidth={260}>
+                  <div className="w-full bg-white p-3">
+                    {/* Header – name, badges, rating */}
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-slate-900 text-base leading-snug">
+                          {tutor.fullName}
+                        </h4>
+                        {tutor.isVerified && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                            title="Document verified"
+                          >
+                            <CheckCircle size={12} className="shrink-0" />
+                            Verified
+                          </span>
+                        )}
+                        {tutor.isDbsVerified && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700"
+                            title="DBS verified"
+                          >
+                            <ShieldCheck size={12} className="shrink-0" />
+                            DBS
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs mt-1 text-slate-500">
+                        <span className="flex items-center gap-1 text-amber-500">
+                          {tutor.averageRating || 'New'}
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span>{tutor.reviewCount || 0} reviews</span>
+                      </div>
+                    </div>
 
-    {/* Subjects - More padding and clearer separation */}
-    <div className="space-y-2 mb-6">
-      <p className="text-[10px] uppercase text-slate-400 font-black ml-1">Specializations</p>
-      <div className="flex flex-wrap gap-2">
-        {tutor.subjects?.slice(0, 5).map(s => (
-          <span key={s} className="bg-white border border-blue-100 text-blue-600 text-[11px] px-3 py-1.5 rounded-xl font-extrabold shadow-sm hover:bg-blue-50 transition-colors">
-            {s}
-          </span>
-        ))}
-      </div>
-    </div>
+                    {/* Meta row */}
+                    <div className="flex flex-wrap items-center gap-3 mb-3 text-xs text-slate-600">
+                      {typeof tutor.experienceYears === 'number' && (
+                        <span className="flex items-center gap-1">
+                          <Clock size={14} className="text-slate-400" />
+                          {tutor.experienceYears} yr experience
+                        </span>
+                      )}
+                      {tutor.mode && (
+                        <span className="flex items-center gap-1">
+                          <Globe size={14} className="text-slate-400" />
+                          {tutor.mode}
+                        </span>
+                      )}
+                    </div>
 
-    {/* Price & Action Footer */}
-    <div className="flex items-center gap-3 pt-2">
-      <div className="flex flex-col shrink-0 px-1">
-         <span className="text-[10px] uppercase text-slate-400 font-black">Hourly Rate</span>
-         <span className="text-xl font-black text-slate-900">{formatHourlyRate(tutor.hourlyRate)}/hr</span>
-      </div>
-      <button 
-        type="button"
-        onClick={() => navigate(`/dashboard/tutors/${tutor.id}`)}
-        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 active:scale-95"
-      >
-        View Full Profile
-        <ChevronRight size={18} />
-      </button>
-    </div>
-  </div>
-</Popup>
-          </Marker>
-        ))}
+                    {/* Subjects (compact) */}
+                    {Array.isArray(tutor.subjects) && tutor.subjects.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {tutor.subjects.slice(0, 3).map((s) => (
+                            <span
+                              key={s}
+                              className="bg-slate-50 border border-slate-200 text-[11px] px-2 py-0.5 rounded-full text-slate-700"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                          {tutor.subjects.length > 3 && (
+                            <span className="text-[11px] text-slate-500">
+                              +{tutor.subjects.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Price & Action */}
+                    <div className="flex items-center gap-3 pt-1">
+                      {hasRate && (
+                        <div className="flex flex-col shrink-0">
+                          {discounted ? (
+                            <>
+                              <span className="text-[11px] text-slate-500 line-through">
+                                £{base.toFixed(2)}/hr
+                              </span>
+                              <span className="text-sm font-semibold text-[#1A365D]">
+                                £{discounted.toFixed(2)}/hr
+                              </span>
+                              <span className="text-[11px] text-emerald-700">
+                                20% off your first session
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[11px] text-slate-500">Hourly rate</span>
+                              <span className="text-sm font-semibold text-[#1A365D]">
+                                {formatHourlyRate(base)}/hr
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      <button 
+                        type="button"
+                        onClick={() => navigate(`/dashboard/tutors/${tutor.id}`)}
+                        className="flex-1 bg-[#1A365D] hover:bg-[#1A365D]/90 text-white font-medium py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        View profile
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
       </MapContainer>
 
-      {/* Modern Styles for Animations and Layout */}
+      {/* Marker and popup styles */}
       <style>{`
         /* Marker Styling */
         .marker-container {
@@ -211,14 +257,14 @@ const NearbyTutorsMap = ({ tutorsData, userLocation = null }) => {
 
         /* Popup Cleanup */
         .custom-premium-popup .leaflet-popup-content-wrapper {
-          border-radius: 20px;
-          padding: 12px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-          border: 1px solid #f1f5f9;
+          border-radius: 14px;
+          padding: 4px;
+          box-shadow: 0 12px 30px -12px rgba(15, 23, 42, 0.25);
+          border: 1px solid #e2e8f0;
         }
-        
+
         .custom-premium-popup .leaflet-popup-tip {
-          background: white;
+          background: #ffffff;
         }
 
         .custom-div-icon {

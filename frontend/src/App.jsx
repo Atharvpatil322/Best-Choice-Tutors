@@ -54,6 +54,7 @@ const About = lazy(() => import('@/pages/About'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const Contact = lazy(() => import('@/pages/Contact'));
 const Terms = lazy(() => import('@/pages/Terms'));
+const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 
 // Lazy-loaded Admin routes (for consistency; user asked learner + tutor only, but admin uses same layout pattern)
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
@@ -96,6 +97,7 @@ function App() {
 
         {/* Public info pages */}
         <Route path="/about" element={<Suspense fallback={<RouteFallback />}><About /></Suspense>} />
+        <Route path="/how-it-works" element={<Suspense fallback={<RouteFallback />}><HowItWorks /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<RouteFallback />}><PrivacyPolicy /></Suspense>} />
         <Route path="/terms" element={<Suspense fallback={<RouteFallback />}><Terms /></Suspense>} />
         <Route path="/contact" element={<Suspense fallback={<RouteFallback />}><Contact /></Suspense>} />

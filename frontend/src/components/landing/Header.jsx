@@ -67,7 +67,8 @@ export default function Header() {
               </div>
             </div>
           </div>
-          <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
+          <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it works</Link>
+          <Link to="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
           {/* <Link to="/pricing">Pricing</Link> */}
         </nav>
 
@@ -126,7 +127,8 @@ export default function Header() {
               </div>
             </div>
           </div>
-          <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
+          <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it works</Link>
+          <Link to="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
           {/* <Link to="/pricing" onClick={() => setMenuOpen(false)}>Pricing</Link> */}
         </nav>
         <div className="header-actions">

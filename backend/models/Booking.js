@@ -55,6 +55,11 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       min: [0, 'Agreed hourly rate cannot be negative'],
     },
+    /** True when 20% first-session discount has been applied for this booking. */
+    isFirstSessionDiscount: {
+      type: Boolean,
+      default: false,
+    },
     /** Set when booking is created from a tuition request (negotiated pricing). */
     tuitionRequestId: {
       type: mongoose.Schema.Types.ObjectId,
