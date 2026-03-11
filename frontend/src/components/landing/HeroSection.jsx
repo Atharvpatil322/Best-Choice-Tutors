@@ -140,8 +140,7 @@ export default function HeroSection() {
               Connecting You With Trusted Tutors – Online & In-Person
             </h1>
             <p className="hero-subtitle">
-              Book qualified, verified tutors for GCSE, A-Levels, 11+, University & more.
-              Safe payments. Flexible scheduling. Trusted by parents and students.
+              Book qualified, verified tutors for GCSE, A-Levels, 11+ & SATs, University & more. Safe payments. Flexible scheduling. Trusted by parents and students.
             </p>
 
             <div className="search-filter-box">

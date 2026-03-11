@@ -25,15 +25,15 @@ export default function CommitmentSection() {
            <div className="commitment-footer-list">
   <div className="list-item">
     <CheckCircle2 size={18} className="shrink-0" />
-    <span>DBS Checked (UK)</span>
+    <span>DBS Certified (UK)</span>
   </div>
   <div className="list-item">
     <CheckCircle2 size={18} className="shrink-0" />
-    <span>Identity Verification</span>
+    <span>Identity Verified</span>
   </div>
   <div className="list-item">
     <CheckCircle2 size={18} className="shrink-0" />
-    <span>Criminal Record Checks</span>
+    <span>Criminal Record Checked</span>
   </div>
 </div>
           </div>

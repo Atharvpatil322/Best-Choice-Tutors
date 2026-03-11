@@ -23,14 +23,14 @@ export default function SubjectsSections() {
     { name: 'A-Levels', image: alevels },
     { name: 'University', image: university },
     { name: 'All Languages', image: languages},
-    { name: 'Biology', image: biology },
-    { name: 'History', image: history },
-    { name: 'Geography', image: geography },
-    { name: 'Computer Science', image: computerScience },
-    { name: 'Mathematics', image: mathematics },
-    { name: 'English Literature', image: englishLiterature },
-    { name: 'Physics', image: physics },
-    { name: 'Chemistry', image: chemistry },
+    // { name: 'Biology', image: biology },
+    // { name: 'History', image: history },
+    // { name: 'Geography', image: geography },
+    // { name: 'Computer Science', image: computerScience },
+    // { name: 'Mathematics', image: mathematics },
+    // { name: 'English Literature', image: englishLiterature },
+    // { name: 'Physics', image: physics },
+    // { name: 'Chemistry', image: chemistry },
   ];
 
   return (
