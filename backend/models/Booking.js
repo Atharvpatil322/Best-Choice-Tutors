@@ -60,6 +60,12 @@ const bookingSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    /** How funds are split at charge time. */
+    paymentSplitMode: {
+      type: String,
+      enum: ['PLATFORM_ONLY', 'DESTINATION'],
+      default: 'PLATFORM_ONLY',
+    },
     /** Set when booking is created from a tuition request (negotiated pricing). */
     tuitionRequestId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -85,4 +91,3 @@ bookingSchema.index(
 const Booking = mongoose.model('Booking', bookingSchema);
 
 export default Booking;
-

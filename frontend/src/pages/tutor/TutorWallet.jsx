@@ -35,10 +35,12 @@ function formatPaidDate(paidAt) {
   });
 }
 
-function statusLabel(status, paidAt) {
-  if (status === 'pendingRelease') return 'Pending release';
+function statusLabel(status, paidAt, paymentSplitMode) {
+  if (paidAt) return 'Withdrawn';
+  if (status === 'pendingRelease') {
+    return paymentSplitMode === 'DESTINATION' ? 'Eligible' : 'Pending release';
+  }
   if (status === 'available') {
-    if (paidAt) return 'Paid out';
     return 'Available';
   }
   return status || '—';
@@ -222,7 +224,7 @@ function TutorWallet() {
                               : 'bg-amber-100 text-amber-800'
                           }`}
                         >
-                          {statusLabel(e.status, e.paidAt)}
+                          {statusLabel(e.status, e.paidAt, e.paymentSplitMode)}
                         </span>
                         <span className="font-medium tabular-nums">{formatAmount(e.amount)}</span>
                       </div>

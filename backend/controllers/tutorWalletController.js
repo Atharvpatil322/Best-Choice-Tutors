@@ -37,17 +37,30 @@ export const getWallet = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    const bookingIds = entries
+      .map((entry) => entry.bookingId)
+      .filter(Boolean);
+    const bookingDocs = await TutorEarnings.db
+      .model('Booking')
+      .find({ _id: { $in: bookingIds } })
+      .select('paymentSplitMode')
+      .lean();
+    const bookingSplitMap = new Map(
+      bookingDocs.map((b) => [b._id.toString(), b.paymentSplitMode])
+    );
+
     let pendingEarnings = 0;
     let availableEarnings = 0;
     let paidOutEarnings = 0;
     for (const e of entries) {
-      if (e.status === 'pendingRelease') pendingEarnings += e.amount;
+      const netAmount = Math.max(0, e.amount - (e.commissionInPaise || 0));
+      if (e.paidAt) {
+        paidOutEarnings += netAmount;
+        continue;
+      }
+      if (e.status === 'pendingRelease') pendingEarnings += netAmount;
       if (e.status === 'available') {
-        if (e.paidAt) {
-          paidOutEarnings += e.amount;
-        } else {
-          availableEarnings += e.amount;
-        }
+        availableEarnings += netAmount;
       }
     }
     const totalEarnings = pendingEarnings + availableEarnings;
@@ -55,11 +68,14 @@ export const getWallet = async (req, res, next) => {
     const list = entries.map((e) => ({
       id: e._id.toString(),
       bookingId: e.bookingId?.toString(),
-      amount: e.amount,
+      amount: Math.max(0, e.amount - (e.commissionInPaise || 0)),
       status: e.status,
       payoutId: e.payoutId,
       paidAt: e.paidAt,
       createdAt: e.createdAt,
+      paymentSplitMode: e.bookingId
+        ? bookingSplitMap.get(e.bookingId.toString()) || 'PLATFORM_ONLY'
+        : 'PLATFORM_ONLY',
     }));
 
     res.json({

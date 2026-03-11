@@ -17,6 +17,7 @@ import SupportTicket from "../models/SupportTicket.js";
 import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
 import { presignDocumentUrl } from "../services/s3Service.js";
+import { listPayoutsForAccount } from "../services/stripeService.js";
 
 /**
  * GET /api/admin/summary
@@ -122,6 +123,142 @@ export async function getFinancials(req, res, next) {
 }
 
 /**
+ * POST /api/admin/tutors/:tutorId/payout-sync
+ * Admin only. Fetch paid payouts from Stripe for a tutor and mark wallet entries as withdrawn.
+ * Query: ?limit=25 (optional)
+ */
+export async function syncTutorPayouts(req, res, next) {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        message: "Access denied: Admin role required",
+      });
+    }
+
+    const { tutorId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(tutorId)) {
+      return res.status(400).json({ message: "Invalid tutorId" });
+    }
+
+    const tutor = await Tutor.findById(tutorId)
+      .select("stripeAccountId")
+      .lean();
+    if (!tutor) {
+      return res.status(404).json({ message: "Tutor not found" });
+    }
+    if (!tutor.stripeAccountId) {
+      return res.status(400).json({ message: "Tutor has no connected Stripe account" });
+    }
+
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 25;
+
+    const payouts = await listPayoutsForAccount({
+      accountId: tutor.stripeAccountId,
+      limit,
+    });
+    const paidPayouts = (payouts?.data || []).filter((p) => p.status === "paid");
+
+    if (paidPayouts.length === 0) {
+      return res.json({ updated: 0, payoutsProcessed: 0 });
+    }
+
+    const entries = await TutorEarnings.find({
+      tutorId: tutor._id,
+      payoutId: null,
+      status: { $in: ["available", "pendingRelease"] },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    if (entries.length === 0) {
+      return res.json({ updated: 0, payoutsProcessed: paidPayouts.length });
+    }
+
+    const pendingBookingIds = entries
+      .filter((e) => e.status === "pendingRelease" && e.bookingId)
+      .map((e) => e.bookingId);
+    const destinationBookings = pendingBookingIds.length
+      ? await Booking.find({
+          _id: { $in: pendingBookingIds },
+          paymentSplitMode: "DESTINATION",
+        })
+          .select("_id")
+          .lean()
+      : [];
+    const destinationBookingIds = new Set(
+      destinationBookings.map((b) => b._id.toString())
+    );
+
+    const eligibleEntries = entries.filter((e) => {
+      if (e.status === "available") return true;
+      if (e.status !== "pendingRelease") return false;
+      if (!e.bookingId) return false;
+      return destinationBookingIds.has(e.bookingId.toString());
+    });
+
+    if (eligibleEntries.length === 0) {
+      return res.json({ updated: 0, payoutsProcessed: paidPayouts.length });
+    }
+
+    const sortedPayouts = paidPayouts.sort((a, b) => {
+      const aTime = a.arrival_date || a.created || 0;
+      const bTime = b.arrival_date || b.created || 0;
+      return aTime - bTime;
+    });
+
+    const ops = [];
+    let entryIndex = 0;
+    for (const payout of sortedPayouts) {
+      let remaining = payout.amount || 0;
+      if (remaining <= 0) continue;
+      const paidAt = payout.arrival_date
+        ? new Date(payout.arrival_date * 1000)
+        : new Date((payout.created || Date.now() / 1000) * 1000);
+
+      while (remaining > 0 && entryIndex < eligibleEntries.length) {
+        const entry = eligibleEntries[entryIndex];
+        const netAmount = Math.max(0, entry.amount - (entry.commissionInPaise || 0));
+        if (netAmount <= 0) {
+          entryIndex += 1;
+          continue;
+        }
+        if (netAmount > remaining) {
+          break;
+        }
+        ops.push({
+          updateOne: {
+            filter: { _id: entry._id, payoutId: null },
+            update: {
+              $set: {
+                payoutId: payout.id,
+                paidAt,
+                ...(entry.status === "pendingRelease" && { status: "available" }),
+              },
+            },
+          },
+        });
+        remaining -= netAmount;
+        entryIndex += 1;
+      }
+    }
+
+    if (ops.length === 0) {
+      return res.json({ updated: 0, payoutsProcessed: paidPayouts.length });
+    }
+
+    const bulkResult = await TutorEarnings.bulkWrite(ops);
+
+    return res.json({
+      updated: bulkResult.modifiedCount || 0,
+      payoutsProcessed: paidPayouts.length,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /api/admin/users
  * Admin only. Read-only list of users. Optional filter: ?role=Learner | ?role=Tutor.
  * Returns basic profile and status (ACTIVE | SUSPENDED | BANNED).
@@ -147,11 +284,24 @@ export async function getUsers(req, res, next) {
       .lean()
       .sort({ createdAt: -1 });
 
+    const tutorUserIds = users
+      .filter((u) => u.role === "Tutor")
+      .map((u) => u._id);
+    const tutors = tutorUserIds.length
+      ? await Tutor.find({ userId: { $in: tutorUserIds } })
+          .select("_id userId")
+          .lean()
+      : [];
+    const tutorIdByUserId = new Map(
+      tutors.map((t) => [t.userId.toString(), t._id.toString()])
+    );
+
     const items = users.map((u) => ({
       id: u._id.toString(),
       name: u.name ?? "",
       email: u.email ?? "",
       role: u.role ?? "Learner",
+      tutorId: u.role === "Tutor" ? tutorIdByUserId.get(u._id.toString()) || null : null,
       profilePhoto: u.profilePhoto ?? null,
       authProvider: u.authProvider ?? null,
       phone: u.phone

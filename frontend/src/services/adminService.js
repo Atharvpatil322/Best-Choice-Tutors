@@ -231,6 +231,33 @@ export const banUser = async (userId) => {
 };
 
 /**
+ * Force sync payouts for a tutor (admin only)
+ * POST /api/admin/tutors/:tutorId/payout-sync
+ * @param {string} tutorId
+ * @param {{ limit?: number }} [params]
+ */
+export const syncTutorPayouts = async (tutorId, params = {}) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+  const search = new URLSearchParams();
+  if (params.limit != null) search.set('limit', String(params.limit));
+  const query = search.toString() ? `?${search.toString()}` : '';
+  const response = await fetch(
+    `${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/payout-sync${query}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to sync payouts');
+  return data;
+};
+
+/**
  * Activate user (admin only)
  * PATCH /api/admin/users/:userId/activate
  */
@@ -598,4 +625,3 @@ export const broadcastNotification = async ({ title, message }) => {
   if (!response.ok) throw new Error(data.message || 'Failed to send broadcast');
   return data;
 };
-

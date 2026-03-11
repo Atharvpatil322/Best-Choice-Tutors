@@ -27,6 +27,7 @@ import {
   replyToSupportTicket,
   updateSupportTicketStatus,
   broadcastNotification,
+  syncTutorPayouts,
 } from '../controllers/adminController.js';
 const router = express.Router();
 
@@ -88,5 +89,8 @@ router.patch('/support/tickets/:ticketId/status', authenticate, updateSupportTic
 
 // POST /api/admin/notifications/broadcast - Send notification to all learners and tutors
 router.post('/notifications/broadcast', authenticate, broadcastNotification);
+
+// POST /api/admin/tutors/:tutorId/payout-sync - Force sync payouts for a tutor
+router.post('/tutors/:tutorId/payout-sync', authenticate, syncTutorPayouts);
 
 export default router;

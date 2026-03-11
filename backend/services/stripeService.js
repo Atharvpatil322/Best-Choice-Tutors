@@ -56,8 +56,19 @@ export const createCheckoutSession = async ({
   customerEmail,
   metadata = {},
   paymentIntentMetadata = {},
+  paymentIntentData = {},
 }) => {
   const stripe = getStripeClient();
+  const mergedPaymentIntentMetadata = {
+    ...(paymentIntentData?.metadata || {}),
+    ...(paymentIntentMetadata || {}),
+  };
+  const normalizedPaymentIntentData = {
+    ...paymentIntentData,
+    ...(Object.keys(mergedPaymentIntentMetadata).length > 0 && {
+      metadata: mergedPaymentIntentMetadata,
+    }),
+  };
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],
@@ -79,10 +90,8 @@ export const createCheckoutSession = async ({
     ...(clientReferenceId && { client_reference_id: clientReferenceId }),
     ...(customerEmail && { customer_email: customerEmail }),
     ...(Object.keys(metadata).length > 0 && { metadata }),
-    ...(Object.keys(paymentIntentMetadata).length > 0 && {
-      payment_intent_data: {
-        metadata: paymentIntentMetadata,
-      },
+    ...(Object.keys(normalizedPaymentIntentData).length > 0 && {
+      payment_intent_data: normalizedPaymentIntentData,
     }),
   });
   return session;
@@ -168,6 +177,8 @@ export const createRefund = async ({
   paymentIntentId,
   amount,
   reason = 'requested_by_customer',
+  reverseTransfer,
+  refundApplicationFee,
 }) => {
   const stripe = getStripeClient();
   const options = {
@@ -176,6 +187,12 @@ export const createRefund = async ({
   };
   if (amount != null && amount > 0) {
     options.amount = amount;
+  }
+  if (typeof reverseTransfer === 'boolean') {
+    options.reverse_transfer = reverseTransfer;
+  }
+  if (typeof refundApplicationFee === 'boolean') {
+    options.refund_application_fee = refundApplicationFee;
   }
   return stripe.refunds.create(options);
 };
@@ -286,6 +303,20 @@ export const retrievePayout = async (payoutId) => {
 };
 
 /**
+ * List payouts for a connected account.
+ * @param {Object} params
+ * @param {string} params.accountId - Stripe Connect account ID (acct_xxx)
+ * @param {number} [params.limit] - Max payouts to return
+ * @returns {Promise<Stripe.ApiList<Stripe.Payout>>}
+ */
+export const listPayoutsForAccount = async ({ accountId, limit = 25 } = {}) => {
+  const stripe = getStripeClient();
+  return stripe.payouts.list(
+    { limit },
+    { stripeAccount: accountId }
+  );
+};
+/**
  * Retrieve external accounts (bank accounts/cards) for a Connect account.
  * @param {string} accountId - Stripe Connect account ID (acct_xxx)
  * @returns {Promise<Stripe.ApiList<Stripe.BankAccount|Stripe.Card>>}
@@ -306,4 +337,5 @@ export default {
   createAccountLink,
   createTransfer,
   createTransferReversal,
+  listPayoutsForAccount,
 };

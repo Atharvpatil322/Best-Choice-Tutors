@@ -253,13 +253,17 @@ export const createPaymentOrderForBooking = async ({
     throw new BookingError('Booking is not in PENDING status', 400);
   }
 
+  const tutor = await Tutor.findById(booking.tutorId).select('stripeAccountId hourlyRate').lean();
+  if (!tutor) {
+    throw new BookingError('Tutor not found', 404);
+  }
+  if (!tutor.stripeAccountId) {
+    throw new BookingError('Tutor has not connected Stripe payouts yet', 400);
+  }
+
   // Use agreedHourlyRate (request-based or tutor default); fallback to tutor for legacy bookings (same as before)
   let amountInPaise = getBookingAmountInPaiseFromBooking(booking);
   if (amountInPaise === null) {
-    const tutor = await Tutor.findById(booking.tutorId);
-    if (!tutor) {
-      throw new BookingError('Tutor not found', 404);
-    }
     amountInPaise = getBookingAmountInPaise(booking, tutor);
   }
   if (amountInPaise === null) {
@@ -269,6 +273,17 @@ export const createPaymentOrderForBooking = async ({
   if (amountInPaise <= 0) {
     throw new BookingError('Unable to calculate amount for this booking', 400);
   }
+
+  const config = await PlatformConfig.findOne().lean();
+  const baseCommissionRate = config?.commissionRate ?? 0;
+  const commissionRate = booking.isFirstSessionDiscount ? 0 : baseCommissionRate;
+  const commissionInPaise = Math.round((amountInPaise * commissionRate) / 100);
+
+  const paymentIntentData = {
+    transfer_data: { destination: tutor.stripeAccountId },
+    transfer_group: booking._id.toString(),
+    ...(commissionInPaise > 0 && { application_fee_amount: commissionInPaise }),
+  };
 
   const session = await createCheckoutSession({
     amount: amountInPaise,
@@ -282,6 +297,7 @@ export const createPaymentOrderForBooking = async ({
     paymentIntentMetadata: {
       bookingId: booking._id.toString(),
     },
+    paymentIntentData,
   });
 
   const paymentIntentId =
@@ -291,6 +307,7 @@ export const createPaymentOrderForBooking = async ({
 
   booking.stripeSessionId = session.id;
   booking.stripePaymentIntentId = paymentIntentId;
+  booking.paymentSplitMode = 'DESTINATION';
   await booking.save();
 
   return {
@@ -603,6 +620,7 @@ async function ensureTransferForEarnings(bookingId, amountInPaise) {
  */
 export async function releaseWalletForBookingInternal(bookingId, auditOpts = {}) {
   const entry = await TutorEarnings.findOne({ bookingId, status: 'pendingRelease' }).lean();
+  const booking = await Booking.findById(bookingId).select('paymentSplitMode').lean();
   const result = await TutorEarnings.updateOne(
     { bookingId, status: 'pendingRelease' },
     { $set: { status: 'available' } }
@@ -617,7 +635,9 @@ export async function releaseWalletForBookingInternal(bookingId, auditOpts = {})
       performedById: auditOpts.performedById,
     });
     const netAmount = entry.amount - (entry.commissionInPaise || 0);
-    await ensureTransferForEarnings(bookingId, netAmount);
+    if (booking?.paymentSplitMode !== 'DESTINATION') {
+      await ensureTransferForEarnings(bookingId, netAmount);
+    }
   }
   return result.modifiedCount > 0;
 }
@@ -650,6 +670,7 @@ export async function releasePartialToTutor(bookingId, netAmountInPaise, auditOp
     return false;
   }
   const entry = await TutorEarnings.findOne({ bookingId, status: 'pendingRelease' }).lean();
+  const booking = await Booking.findById(bookingId).select('paymentSplitMode').lean();
   const result = await TutorEarnings.updateOne(
     { bookingId, status: 'pendingRelease' },
     { $set: { amount: netAmountInPaise, status: 'available' } }
@@ -663,7 +684,9 @@ export async function releasePartialToTutor(bookingId, netAmountInPaise, auditOp
       performedBy: auditOpts.performedBy || 'SYSTEM',
       performedById: auditOpts.performedById,
     });
-    await ensureTransferForEarnings(bookingId, netAmountInPaise);
+    if (booking?.paymentSplitMode !== 'DESTINATION') {
+      await ensureTransferForEarnings(bookingId, netAmountInPaise);
+    }
   }
   return result.modifiedCount > 0;
 }
@@ -1058,6 +1081,13 @@ export async function cancelBooking({
     throw new BookingError('Payment intent not found; cannot process refund', 400);
   }
 
+  const useDestinationSplit = booking.paymentSplitMode === 'DESTINATION';
+  const config = await PlatformConfig.findOne().lean();
+  const baseCommissionRate = config?.commissionRate ?? 0;
+  const commissionRate = booking.isFirstSessionDiscount ? 0 : baseCommissionRate;
+  const commissionInPaise = Math.round((amountInPaise * commissionRate) / 100);
+  const shouldRefundApplicationFee = useDestinationSplit && commissionInPaise > 0;
+
   let refundPercent = 0;
   if (initiator === 'tutor') {
     refundPercent = 100;
@@ -1084,6 +1114,10 @@ export async function cancelBooking({
     await createRefund({
       paymentIntentId: booking.stripePaymentIntentId,
       reason: 'requested_by_customer',
+      ...(useDestinationSplit && {
+        reverseTransfer: true,
+        refundApplicationFee: shouldRefundApplicationFee,
+      }),
     });
     await logFinancialAudit({
       action: 'REFUND_FULL',
@@ -1098,6 +1132,10 @@ export async function cancelBooking({
       paymentIntentId: booking.stripePaymentIntentId,
       amount: refundAmountInPaise,
       reason: 'requested_by_customer',
+      ...(useDestinationSplit && {
+        reverseTransfer: true,
+        refundApplicationFee: shouldRefundApplicationFee,
+      }),
     });
     await releasePartialToTutor(booking._id, tutorShareInPaise, { performedBy: 'SYSTEM' });
     await logFinancialAudit({

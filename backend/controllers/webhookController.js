@@ -7,6 +7,7 @@ import { verifyWebhookSignature as verifyStripeWebhookSignature } from '../servi
 import { updateTutorFromStripeAccount } from '../services/stripeConnectService.js';
 import Tutor from '../models/Tutor.js';
 import TutorEarnings from '../models/TutorEarnings.js';
+import Booking from '../models/Booking.js';
 
 /**
  * Stripe webhook handler
@@ -115,8 +116,15 @@ export const handleStripeWebhook = async (req, res, next) => {
           payoutsEnabled: updated.payoutsEnabled,
         });
       }
-    } else if (event.type === 'payout.paid') {
+    } else if (event.type?.startsWith('payout.')) {
       const payout = event.data.object;
+      if (payout?.status && payout.status !== 'paid') {
+        console.info('Stripe webhook: payout event ignored (not paid)', {
+          payoutId: payout.id,
+          status: payout.status,
+        });
+        return res.status(200).json({ received: true });
+      }
       
       // For manual payouts from Stripe Dashboard, we need to find the tutor by their payout account ID
       // The payout.destination is the bank account ID (ba_xxx)
@@ -164,7 +172,7 @@ export const handleStripeWebhook = async (req, res, next) => {
           paidAt = new Date(); // Fallback to current time
         }
 
-        const result = await TutorEarnings.updateMany(
+        const resultAvailable = await TutorEarnings.updateMany(
           {
             tutorId: tutor._id,
             status: 'available',
@@ -178,10 +186,52 @@ export const handleStripeWebhook = async (req, res, next) => {
           }
         );
 
+        const pendingEntries = await TutorEarnings.find({
+          tutorId: tutor._id,
+          status: 'pendingRelease',
+          payoutId: null,
+        })
+          .select('_id bookingId')
+          .lean();
+
+        const pendingBookingIds = pendingEntries
+          .map((entry) => entry.bookingId)
+          .filter(Boolean);
+        const destinationBookings = await Booking.find({
+          _id: { $in: pendingBookingIds },
+          paymentSplitMode: 'DESTINATION',
+        })
+          .select('_id')
+          .lean();
+        const destinationBookingIds = new Set(
+          destinationBookings.map((b) => b._id.toString())
+        );
+
+        const destinationPendingEntryIds = pendingEntries
+          .filter((entry) => {
+            if (!entry.bookingId) return false;
+            return destinationBookingIds.has(entry.bookingId.toString());
+          })
+          .map((entry) => entry._id);
+
+        const resultPending =
+          destinationPendingEntryIds.length > 0
+            ? await TutorEarnings.updateMany(
+                { _id: { $in: destinationPendingEntryIds } },
+                {
+                  $set: {
+                    status: 'available',
+                    payoutId: payout.id,
+                    paidAt,
+                  },
+                }
+              )
+            : { modifiedCount: 0 };
+
         console.info('Stripe webhook: payout recorded', {
           tutorId: tutor._id.toString(),
           payoutId: payout.id,
-          entriesUpdated: result.modifiedCount,
+          entriesUpdated: resultAvailable.modifiedCount + resultPending.modifiedCount,
         });
       }
     }

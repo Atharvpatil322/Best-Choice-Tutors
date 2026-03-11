@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserX, UserCheck, Ban } from 'lucide-react';
+import { Users, UserX, UserCheck, Ban, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +24,7 @@ import {
   suspendUser as apiSuspendUser,
   banUser as apiBanUser,
   activateUser as apiActivateUser,
+  syncTutorPayouts as apiSyncTutorPayouts,
 } from '@/services/adminService';
 import '../../styles/Profile.css';
 
@@ -45,6 +46,7 @@ function AdminUsers() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [emailFilter, setEmailFilter] = useState('');
   const [actingId, setActingId] = useState(null);
+  const [syncingTutorId, setSyncingTutorId] = useState(null);
 
   const filteredUsers = emailFilter.trim()
     ? users.filter((u) =>
@@ -111,6 +113,19 @@ function AdminUsers() {
       setError(err.message || 'Failed to activate user');
     } finally {
       setActingId(null);
+    }
+  };
+
+  const handlePayoutSync = async (tutorId) => {
+    if (!tutorId) return;
+    setSyncingTutorId(tutorId);
+    try {
+      await apiSyncTutorPayouts(tutorId);
+      await fetchUsers();
+    } catch (err) {
+      setError(err.message || 'Failed to sync payouts');
+    } finally {
+      setSyncingTutorId(null);
     }
   };
 
@@ -233,6 +248,8 @@ function AdminUsers() {
                       const status = u.status ?? 'ACTIVE';
                       const isSelf = isCurrentUser(u.id);
                       const busy = actingId === u.id;
+                      const canSyncPayouts = u.role === 'Tutor' && u.tutorId;
+                      const syncing = syncingTutorId === u.tutorId;
                       return (
                         <tr
                           key={u.id}
@@ -254,6 +271,18 @@ function AdminUsers() {
                               <span className="text-xs text-muted-foreground">(you)</span>
                             ) : (
                               <div className="flex flex-wrap justify-end gap-1">
+                                {canSyncPayouts && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={busy || syncing}
+                                    onClick={() => handlePayoutSync(u.tutorId)}
+                                    className="gap-1"
+                                  >
+                                    <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                                    Sync payouts
+                                  </Button>
+                                )}
                                 {status !== 'SUSPENDED' && status !== 'BANNED' && (
                                   <>
                                     <Button
