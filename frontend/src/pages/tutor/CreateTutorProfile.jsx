@@ -19,6 +19,7 @@ import {
 import { createTutorProfile } from '@/services/tutorService';
 import { getStoredUser, getCurrentRole, logout } from '@/services/authService';
 import { toast } from 'sonner';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SubjectSelector } from '@/components/SubjectSelector';
 import '../../styles/Profile.css';
 
@@ -264,19 +265,13 @@ function CreateTutorProfile() {
           {/* Profile photo */}
           <div className="info-block col-span-3 flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex-shrink-0">
-              {formData.profilePhotoPreview ? (
-                <img
-                  src={formData.profilePhotoPreview}
-                  alt="Profile preview"
-                  className="h-24 w-24 rounded-full object-cover border-2 border-slate-200"
-                />
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-100 text-slate-400">
-                  <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-              )}
+              <ProfileAvatar
+                src={formData.profilePhotoPreview}
+                alt="Profile preview"
+                className="h-24 w-24 rounded-full object-cover border-2 border-slate-200"
+                iconClassName="h-10 w-10"
+                fallbackClassName="border-2 border-slate-200 bg-slate-100 text-slate-400"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <Label htmlFor="profilePhoto">Profile photo</Label>

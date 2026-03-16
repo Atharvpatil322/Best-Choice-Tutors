@@ -5,7 +5,7 @@
  * Displays:
  * - Name
  * - Email
- * - Profile photo (or placeholder)
+ * - Profile photo (or user icon when none)
  * - Learning preferences (if present)
  * - Account creation date
  * 
@@ -30,7 +30,9 @@ import {
 import { getLearnerProfile, updateLearnerProfile } from '@/services/learnerProfileService';
 import { toast } from 'sonner';
 import { logout, getCurrentRole } from '@/services/authService';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SubjectSelector } from '@/components/SubjectSelector';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 function Profile() {
   const navigate = useNavigate();
@@ -376,29 +378,13 @@ function Profile() {
                 {/* Profile Photo Upload */}
                 <div className="flex flex-col items-center gap-4 sm:flex-row">
                   <div className="flex-shrink-0">
-                    {formData.profilePhotoPreview ? (
-                      <img
-                        src={formData.profilePhotoPreview}
-                        alt="Profile preview"
-                        className="h-32 w-32 rounded-full object-cover border-2 border-gray-200"
-                      />
-                    ) : (
-                      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-gray-200 text-gray-400">
-                        <svg
-                          className="h-16 w-16"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                      </div>
-                    )}
+                    <ProfileAvatar
+                      src={formData.profilePhotoPreview}
+                      alt="Profile preview"
+                      className="h-32 w-32 rounded-full object-cover border-2 border-gray-200"
+                      iconClassName="h-16 w-16"
+                      fallbackClassName="bg-gray-200 text-gray-400"
+                    />
                   </div>
                   <div className="flex-1">
                     <Label htmlFor="profilePhoto">Profile Photo</Label>
@@ -530,29 +516,13 @@ function Profile() {
                 {/* Profile Photo and Name */}
                 <div className="flex flex-col items-center gap-4 sm:flex-row">
                   <div className="flex-shrink-0">
-                    {profile?.profilePhoto ? (
-                      <img
-                        src={profile.profilePhoto}
-                        alt="Profile"
-                        className="h-32 w-32 rounded-full object-cover border-2 border-gray-200"
-                      />
-                    ) : (
-                      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-gray-200 text-gray-400">
-                        <svg
-                          className="h-16 w-16"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                      </div>
-                    )}
+                    <ProfileAvatar
+                      src={profile?.profilePhoto}
+                      alt="Profile"
+                      className="h-32 w-32 rounded-full object-cover border-2 border-gray-200"
+                      iconClassName="h-16 w-16"
+                      fallbackClassName="bg-gray-200 text-gray-400"
+                    />
                   </div>
                   <div className="text-center sm:text-left">
                     <h2 className="text-2xl font-semibold">

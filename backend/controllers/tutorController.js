@@ -11,6 +11,7 @@ import {
 } from "../services/s3Service.js";
 import { getTutorRating } from "../services/reviewService.js";
 import { geocodeAddress } from "../services/geocodingService.js";
+import { sendTutorUpgradeEmail } from "../services/emailService.js";
 
 /**
  * Return qualifications for API response. Backward compatibility: if tutor has experienceYears
@@ -166,6 +167,14 @@ export const createTutor = async (req, res, next) => {
 
     // Populate user reference for response
     await tutor.populate("userId", "name email");
+
+    // Send tutor congratulations email asynchronously; do not block or fail on email errors
+    const userRef = tutor.userId;
+    if (userRef && userRef.email) {
+      sendTutorUpgradeEmail({ name: userRef.name, email: userRef.email }).catch((err) =>
+        console.error("Tutor upgrade email send failed:", err?.message)
+      );
+    }
 
     const profilePhoto = await presignProfilePhotoUrl(tutor.profilePhoto);
     res.status(201).json({

@@ -41,6 +41,7 @@ import { getTutorProfile, updateTutorProfile, createPayoutSetupLink } from '@/se
 import { getMyReceivedReviews, reportReview as reportReviewApi } from '@/services/reviewService';
 import { forgotPassword } from '@/services/authService';
 import { toast } from 'sonner';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SubjectSelector } from '@/components/SubjectSelector';
 
 function TutorMyProfile() {
@@ -701,23 +702,13 @@ setLocation(
       <div className="profile-hero-banner mt-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6 w-full min-w-0">
           <div className="relative shrink-0 w-24 h-24 flex items-center justify-center">
-            {(() => {
-              const showPhoto = !removeProfilePhoto && (profilePhotoPreview || tutorProfile?.profilePhoto || storedUser?.profilePhoto);
-              const photoSrc = profilePhotoPreview || tutorProfile?.profilePhoto || storedUser?.profilePhoto;
-              return showPhoto && photoSrc ? (
-                <img
-                  src={photoSrc}
-                  alt={tutorProfile?.fullName || storedUser?.name}
-                  className="w-24 h-24 rounded-full border-4 border-white/20 object-cover object-center"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full border-4 border-white/20 flex items-center justify-center bg-white/10 text-white">
-                  <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-              );
-            })()}
+            <ProfileAvatar
+              src={!removeProfilePhoto ? (profilePhotoPreview || tutorProfile?.profilePhoto || storedUser?.profilePhoto) : null}
+              alt={tutorProfile?.fullName || storedUser?.name || 'Profile'}
+              className="w-24 h-24 rounded-full border-4 border-white/20 object-cover object-center"
+              iconClassName="h-12 w-12"
+              fallbackClassName="border-4 border-white/20 bg-white/10 text-white"
+            />
             {isEditing && (
               <>
                 <input

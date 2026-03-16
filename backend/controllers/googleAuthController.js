@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import { generateToken } from '../utils/jwt.js';
+import { sendWelcomeEmail } from '../services/emailService.js';
 
 // Google OAuth callback handler
 export const googleCallback = async (req, res, next) => {
@@ -41,6 +42,11 @@ export const googleCallback = async (req, res, next) => {
         profilePhoto: profilePhoto,
         role: 'Learner', // Default role as per FR-3.1.3
       });
+
+      // Send welcome email asynchronously; do not block or fail on email errors
+      sendWelcomeEmail({ name: user.name, email: user.email }).catch((err) =>
+        console.error('Welcome email send failed:', err?.message)
+      );
 
       // Generate JWT token
       const token = generateToken(user._id);

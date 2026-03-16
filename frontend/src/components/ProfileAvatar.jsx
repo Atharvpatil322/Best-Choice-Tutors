@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
+
 /**
  * Profile avatar – shows profile photo if available, otherwise a user icon.
- * Does not use any image assets; uses SVG icon for fallback.
+ * No placeholder images; uses SVG user icon when no photo or when image fails to load.
  */
 
 const ProfileIcon = ({ className = 'h-1/2 w-1/2' }) => (
@@ -18,12 +20,17 @@ const ProfileIcon = ({ className = 'h-1/2 w-1/2' }) => (
  * @param {string} [props.fallbackClassName] - Extra classes for fallback container (e.g. bg-white/10)
  */
 export function ProfileAvatar({ src, alt = 'Profile', className = '', iconClassName = 'h-1/2 w-1/2', fallbackClassName = '' }) {
-  if (src) {
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => setImgError(false), [src]);
+  const showImage = src && !imgError;
+
+  if (showImage) {
     return (
       <img
         src={src}
         alt={alt}
         className={className}
+        onError={() => setImgError(true)}
       />
     );
   }

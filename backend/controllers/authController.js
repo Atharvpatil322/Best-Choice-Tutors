@@ -3,6 +3,7 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
 import { generateResetToken, hashResetToken } from '../utils/resetToken.js';
 import { sendPasswordResetEmail } from '../utils/email.js';
+import { sendWelcomeEmail } from '../services/emailService.js';
 import { uploadImage, presignProfilePhotoUrl } from '../services/s3Service.js';
 import { validationResult } from 'express-validator';
 import { isFirstSessionDiscountEligible } from '../services/bookingService.js';
@@ -121,6 +122,12 @@ export const register = async (req, res, next) => {
     const token = generateToken(user._id);
 
     const profilePhoto = await presignProfilePhotoUrl(user.profilePhoto);
+
+    // Send welcome email asynchronously; do not block or fail registration on email errors
+    sendWelcomeEmail({ name: user.name, email: user.email }).catch((err) =>
+      console.error('Welcome email send failed:', err?.message)
+    );
+
     res.status(201).json({
       message: 'Registration successful',
       token,
@@ -153,10 +160,10 @@ export const login = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Check if user registered with email (has password)
+    // Check if user registered with Google (no password)
     if (user.authProvider !== 'email' || !user.password) {
       return res.status(401).json({ 
-        message: 'This account was created with Google. Please use Google Sign-In.' 
+        message: 'This account was created with Google. Please use the "Sign in with Google" button to log in.' 
       });
     }
 

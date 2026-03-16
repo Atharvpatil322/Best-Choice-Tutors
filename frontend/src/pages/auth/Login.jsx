@@ -142,11 +142,11 @@ function Login() {
 
                 <Button 
                   type="button" 
-                  onClick={googleLogin} 
+                  onClick={() => googleLogin(role)} 
                   className="btn-google-minimal"
                 >
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-                  Sign up with Google
+                  Sign in with Google
                 </Button>
               </div>
 

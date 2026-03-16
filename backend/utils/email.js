@@ -34,13 +34,17 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
-    subject: 'Password Reset Request - Best Choice Tutors',
+    subject: 'Reset your password — Best Choice Tutors',
     html: `
-      <h2>Password Reset Request</h2>
-      <p>You requested to reset your password. Click the link below to reset it:</p>
-      <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
-      <p>This link will expire in 1 hour.</p>
-      <p>If you did not request this, please ignore this email.</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="font-size: 20px; color: #1a1a1a; margin-bottom: 8px;">Need a fresh start?</h2>
+        <p style="font-size: 16px; color: #444; line-height: 1.6;">No problem — we've got you. Click the button below to choose a new password and get back to your account.</p>
+        <p style="margin: 24px 0 16px;">
+          <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">Reset my password →</a>
+        </p>
+        <p style="font-size: 14px; color: #666;">This link expires in 1 hour. If you didn't request a reset, you can safely ignore this email — your account is secure.</p>
+        <p style="font-size: 13px; color: #888; margin-top: 24px;">— The Best Choice Tutors Team</p>
+      </div>
     `,
   };
 

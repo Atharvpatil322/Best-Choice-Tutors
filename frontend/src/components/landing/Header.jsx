@@ -39,10 +39,10 @@ export default function Header() {
             onMouseEnter={showSubjectsDropdown}
             onMouseLeave={scheduleHideSubjectsDropdown}
           >
-            <Link to="/subjects" className="header-nav-link header-nav-link-subjects">
+            <span className="header-nav-link header-nav-link-subjects">
               Subjects
               <ChevronDown size={14} className="header-subjects-chevron" aria-hidden />
-            </Link>
+            </span>
             <div
               className="header-subjects-dropdown"
               role="menu"

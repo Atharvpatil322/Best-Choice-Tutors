@@ -18,6 +18,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Info, Star, MapPin } from 'lucide-react';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -363,19 +364,13 @@ function TutorProfile({ tutorId: propTutorId }) {
       <div className="profile-hero-banner mt-6">
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex-shrink-0">
-            {tutor.profilePhoto ? (
-              <img
-                src={tutor.profilePhoto}
-                alt={tutor.fullName || 'Tutor'}
-                className="w-24 h-24 rounded-full border-4 border-white/20 object-cover"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full border-4 border-white/20 flex items-center justify-center bg-white/10 text-white">
-                <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-            )}
+            <ProfileAvatar
+              src={tutor.profilePhoto}
+              alt={tutor.fullName || 'Tutor'}
+              className="w-24 h-24 rounded-full border-4 border-white/20 object-cover"
+              iconClassName="h-12 w-12"
+              fallbackClassName="border-4 border-white/20 bg-white/10 text-white"
+            />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">{tutor.fullName || 'Tutor'}</h2>
