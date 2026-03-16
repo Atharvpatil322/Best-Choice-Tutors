@@ -43,6 +43,7 @@ import { getCurrentRole } from '@/services/authService';
 import { createBookingPaymentOrder } from '@/services/bookingPaymentService.js';
 import { toast } from 'sonner';
 import '../../styles/Profile.css';
+import Seo from '@/components/Seo';
 
 function TutorProfile({ tutorId: propTutorId }) {
   const { id: routeId } = useParams();
@@ -348,8 +349,28 @@ function TutorProfile({ tutorId: propTutorId }) {
     ? (typeof tutor.location === 'object' ? tutor.location.address : tutor.location)
     : null;
 
+  const subjectList = Array.isArray(tutor.subjects) ? tutor.subjects.join(', ') : '';
+  const seoTitle = tutor.fullName
+    ? `${tutor.fullName} | ${subjectList || 'Tutor'} | Best Choice Tutors`
+    : 'Tutor Profile | Best Choice Tutors';
+  const seoDescription = [
+    tutor.fullName && `View ${tutor.fullName}'s tutor profile, availability and hourly rates.`,
+    subjectList && `Subjects: ${subjectList}.`,
+    locationDisplay && `Based in ${locationDisplay}.`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div className="profile-page-content space-y-6 pb-12">
+      <Seo
+        title={seoTitle}
+        description={seoDescription}
+        keywords={`tutor profile, ${subjectList}, ${tutor.fullName || 'private tutor'}, online tutoring`}
+        ogTitle={seoTitle}
+        ogDescription={seoDescription}
+        ogType="profile"
+      />
       <div className="profile-intro flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1a365d]">Tutor Profile</h1>

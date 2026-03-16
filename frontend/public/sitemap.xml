@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Landing page -->
+  <url>
+    <loc>https://bestchoicetutors.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Browse tutors (learner dashboard) -->
+  <url>
+    <loc>https://bestchoicetutors.com/dashboard/browse-tutors</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Tutor listing (public tutors page) -->
+  <url>
+    <loc>https://bestchoicetutors.com/tutors</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Example tutor profile URL pattern (dynamic) -->
+  <!-- Replace TUTOR_ID with real IDs if you generate a dynamic sitemap -->
+  <url>
+    <loc>https://bestchoicetutors.com/dashboard/tutors/TUTOR_ID</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Policy and info pages -->
+  <url>
+    <loc>https://bestchoicetutors.com/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://bestchoicetutors.com/how-it-works</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://bestchoicetutors.com/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://bestchoicetutors.com/terms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://bestchoicetutors.com/contact</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://bestchoicetutors.com/dashboard/policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://bestchoicetutors.com/tutor/policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>
+

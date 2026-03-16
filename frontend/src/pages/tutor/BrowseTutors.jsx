@@ -6,6 +6,7 @@ import TutorCard from '@/components/tutor/TutorCard';
 import { LayoutGrid, Map as MapIcon } from 'lucide-react';
 import NearbyTutorsMap from '../../utils/NearbyTutorsMap';
 import { getMe } from '@/services/authService';
+import Seo from '@/components/Seo';
 
 const DEFAULT_DISTANCE_KM = 10;
 
@@ -82,6 +83,14 @@ function BrowseTutors() {
 
   return (
     <div className="space-y-6 pb-12">
+      <Seo
+        title="Browse Tutors | Best Choice Tutors"
+        description="Browse verified online and in-person tutors for Mathematics, Physics, English, Languages and more. Filter by subject, price, mode and location."
+        keywords="browse tutors, find tutors near me, maths tutor, physics tutor, English tutor, language tutor directory"
+        ogTitle="Browse Expert Tutors | Best Choice Tutors"
+        ogDescription="Discover expert tutors for school, exams and university. Compare profiles and book sessions securely."
+        ogType="website"
+      />
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
