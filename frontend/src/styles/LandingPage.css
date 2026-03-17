@@ -419,6 +419,30 @@ body.landing-page-active {
   width: 100%;
 }
 
+.hero-container--image-bg {
+  background-size: cover;
+  background-position: right center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.hero-container--image-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(7, 18, 36, 0.85) 0%, rgba(7, 18, 36, 0.65) 38%, rgba(7, 18, 36, 0.35) 60%, rgba(7, 18, 36, 0.1) 78%, rgba(7, 18, 36, 0) 100%);
+  z-index: 0;
+}
+
+.hero-container--image-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 35%, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 45%);
+  opacity: 0.6;
+  z-index: 0;
+}
+
 .hero-content {
   display: flex;
   flex-direction: column;
@@ -430,6 +454,8 @@ body.landing-page-active {
   padding: 0 var(--section-padding-x);
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-text {
@@ -604,6 +630,10 @@ body.landing-page-active {
   .decorative-circle {
     display: block;
   }
+}
+
+.hero-container--image-bg .hero-image-wrapper {
+  display: none;
 }
 
 /* Landing page tutor card – square, standard UI */
@@ -1276,7 +1306,7 @@ body.landing-page-active {
   list-style: none;
 }
 
-.list-item {
+.list-item1 {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1285,7 +1315,7 @@ body.landing-page-active {
   font-size: 0.9375rem;
 }
 
-.list-item span {
+.list-item1 span {
   opacity: 0.95;
 }
 

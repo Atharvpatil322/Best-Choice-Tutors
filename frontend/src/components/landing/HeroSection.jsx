@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import heroImage from '../../images/Hero_Section_Image.png';
+import heroImage from '../../images/HeroUpdatePic.png';
 import { CANONICAL_SUBJECTS, SUBJECT_OTHER } from '@/constants/subjects';
 import { normalizeSubject } from '@/utils/subjectUtils';
 import { getAllTutors } from '../../services/tutorService';
@@ -132,7 +132,12 @@ export default function HeroSection() {
 
   return (
     <div className="hero-main-wrapper">
-      <div className="hero-container">
+      <div
+        className="hero-container hero-container--image-bg"
+        style={{
+          backgroundImage: `linear-gradient(95deg, rgba(10, 24, 46, 0.95) 0%, rgba(12, 28, 52, 0.88) 32%, rgba(12, 28, 52, 0.55) 55%, rgba(12, 28, 52, 0.15) 72%, rgba(12, 28, 52, 0) 100%), url(${heroImage})`,
+        }}
+      >
         <section className="hero-content">
           {/* LEFT SIDE */}
           <div className="hero-text">

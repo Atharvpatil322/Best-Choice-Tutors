@@ -23,15 +23,15 @@ export default function CommitmentSection() {
               We ensure the safety and trustworthiness of our tutors.
             </p>
            <div className="commitment-footer-list">
-  <div className="list-item">
+  <div className="list-item1">
     <CheckCircle2 size={18} className="shrink-0" />
     <span>DBS Certified (UK)</span>
   </div>
-  <div className="list-item">
+  <div className="list-item1">
     <CheckCircle2 size={18} className="shrink-0" />
     <span>Identity Verified</span>
   </div>
-  <div className="list-item">
+  <div className="list-item1">
     <CheckCircle2 size={18} className="shrink-0" />
     <span>Criminal Record Checked</span>
   </div>
@@ -50,15 +50,15 @@ export default function CommitmentSection() {
               Every tutor's expertise is confirmed for your peace of mind.
             </p>
             <div className="commitment-footer-list">
-              <div className="list-item">
+              <div className="list-item1">
                 <CheckCircle2 size={18} />
                 <span>Degree Verification</span>
               </div>
-              <div className="list-item">
+              <div className="list-item1">
                 <CheckCircle2 size={18} />
                 <span>Subject Competency Tests</span>
               </div>
-              <div className="list-item">
+              <div className="list-item1">
                 <CheckCircle2 size={18} />
                 <span>Professional References</span>
               </div>
