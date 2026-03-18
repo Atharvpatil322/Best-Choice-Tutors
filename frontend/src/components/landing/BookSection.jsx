@@ -21,7 +21,7 @@ Best Choice Tutors <br />
           <div className="cta-button-group">
             <button 
               className="btn-cta-primary" 
-              onClick={() => navigate('/dashboard/browse-tutors')}
+              onClick={() => navigate('/onboarding')}
             >
               Book a Tutor
             </button>

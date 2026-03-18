@@ -52,15 +52,15 @@ export default function CommitmentSection() {
             <div className="commitment-footer-list">
               <div className="list-item1">
                 <CheckCircle2 size={18} />
-                <span>Degree Verification</span>
+                <span>Educational Level</span>
               </div>
               <div className="list-item1">
                 <CheckCircle2 size={18} />
-                <span>Subject Competency Tests</span>
+                <span>Subject Knowledge</span>
               </div>
               <div className="list-item1">
                 <CheckCircle2 size={18} />
-                <span>Professional References</span>
+                <span>Experienced Professionals</span>
               </div>
             </div>
           </div>

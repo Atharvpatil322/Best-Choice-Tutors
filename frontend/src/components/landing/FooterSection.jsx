@@ -25,7 +25,7 @@ export default function FooterSection() {
           {/* Links Columns */}
           <div className="footer-links-grid">
             <div className="link-column">
-              <Link to="/dashboard/browse-tutors">Book a Tutor</Link>
+              <Link to="/onboarding">Book a Tutor</Link>
               <Link to="/register?role=tutor">Become a Tutor</Link>
             </div>
             <div className="link-column">

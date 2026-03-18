@@ -142,7 +142,7 @@ export default function HeroSection() {
           {/* LEFT SIDE */}
           <div className="hero-text">
             <h1 className="hero-title">
-              Find Expert Tutors Online
+             Connecting You With Trusted Tutors – Online & In-Person
             </h1>
             <p className="hero-subtitle">
               Book qualified, verified tutors for GCSE, A-Levels, 11+ & SATs, University & more. Safe payments. Flexible scheduling. Trusted by parents and students.

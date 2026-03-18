@@ -6,7 +6,7 @@ export default function WelcomeSection() {
   return (
     <section className="welcome-section">
       <div className="welcome-container">
-        <h2 className="welcome-title">Welcome to Best Choice Tutors</h2>
+        <h2 className="welcome-title">Get Started in 3 Simple Steps</h2>
         
         {/* Flexbox container for even spacing */}
         <div className="welcome-flex-row">
