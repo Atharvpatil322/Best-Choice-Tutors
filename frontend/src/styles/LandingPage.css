@@ -745,7 +745,7 @@ body.landing-page-active {
 
 @media (min-width: 992px) {
   .features-strip {
-    padding: 5rem 1.5rem;
+    padding: 2rem 1.5rem;
     flex-wrap: nowrap;
     justify-content: space-between;
   }
@@ -1118,16 +1118,17 @@ body.landing-page-active {
 
 .subjects-flex-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
 }
 
 .subject-card {
-  background: #ffffff;
-  border-radius: var(--radius-lg);
+  background: var(--navy-primary);
+  border-radius: 26px;
+  padding: 0.9rem;
   overflow: hidden;
-  box-shadow: var(--shadow-card);
-  transition: all 0.3s ease;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -1135,34 +1136,35 @@ body.landing-page-active {
 }
 
 .subject-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 25px rgba(26, 54, 93, 0.12);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 35px rgba(15, 23, 42, 0.28);
 }
 
 .subject-image-container {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
+  border-radius: 18px;
+  background: #0f2748;
 }
 
 .subject-image-container img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform 0.4s ease;
 }
 
 .subject-card:hover .subject-image-container img {
-  transform: scale(1.08);
+  transform: scale(1.04);
 }
 
 .subject-footer {
-  background-color: var(--navy-primary);
   color: #ffffff;
   text-align: center;
-  padding: 0.75rem 1rem;
+  padding: 0.9rem 0.75rem 0.3rem;
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
 }
 
 .view-more-container {
@@ -1189,8 +1191,8 @@ body.landing-page-active {
 
 @media (min-width: 640px) {
   .subjects-flex-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.75rem;
   }
 }
 
@@ -1204,8 +1206,8 @@ body.landing-page-active {
   }
 
   .subjects-flex-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
   }
 }
 
@@ -1393,7 +1395,7 @@ body.landing-page-active {
   gap: 1rem;
   margin-top: 1rem;
   color: var(--navy-primary);
-  font-weight: 700;
+  font-weight: 500;
   font-size: 0.9375rem;
   justify-content: center;
 }
