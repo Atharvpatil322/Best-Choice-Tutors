@@ -19,7 +19,7 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      enum: ['booking_rescheduled', 'admin_broadcast'],
+      enum: ['booking_rescheduled', 'admin_broadcast', 'dbs_expired'],
     },
     title: {
       type: String,

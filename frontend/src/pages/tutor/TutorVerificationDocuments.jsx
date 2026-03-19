@@ -61,6 +61,7 @@ function TutorVerificationDocuments() {
   const [dbsDocuments, setDbsDocuments] = useState([]);
   const [dbsLoading, setDbsLoading] = useState(true);
   const [dbsUploading, setDbsUploading] = useState(false);
+  const [dbsExpiryDate, setDbsExpiryDate] = useState('');
 
   const fetchDocuments = async () => {
     try {
@@ -132,9 +133,28 @@ function TutorVerificationDocuments() {
       e.target.value = '';
       return;
     }
+
+    if (!dbsExpiryDate) {
+      toast.error('Expiry Date is required.');
+      e.target.value = '';
+      return;
+    }
+
+    const expiry = new Date(`${dbsExpiryDate}T00:00:00.000Z`);
+    if (Number.isNaN(expiry.getTime())) {
+      toast.error('Expiry Date must be a valid date.');
+      e.target.value = '';
+      return;
+    }
+    if (expiry.getTime() <= Date.now()) {
+      toast.error('Expiry Date must be in the future.');
+      e.target.value = '';
+      return;
+    }
+
     setDbsUploading(true);
     try {
-      await uploadDbsDocument(file);
+      await uploadDbsDocument(file, dbsExpiryDate);
       toast.success(`${file.name} uploaded successfully.`);
       fetchDbsDocuments();
     } catch (err) {
@@ -271,6 +291,18 @@ function TutorVerificationDocuments() {
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex-1 min-w-[200px] space-y-2">
+                    <Label htmlFor="dbs-expiry-date">Expiry Date</Label>
+                    <Input
+                      id="dbs-expiry-date"
+                      type="date"
+                      value={dbsExpiryDate}
+                      required
+                      disabled={dbsUploading}
+                      onChange={(e) => setDbsExpiryDate(e.target.value)}
+                      className="rounded-lg"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[200px] space-y-2">
                     <Label htmlFor="dbs-file">Upload DBS certificate</Label>
                     <Input
                       id="dbs-file"
@@ -329,6 +361,9 @@ function TutorVerificationDocuments() {
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {doc.fileType ?? '—'} · {formatDate(doc.uploadedAt)}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Expiry · {formatDate(doc.expiryDate)}
                             </p>
                           </div>
                         </div>

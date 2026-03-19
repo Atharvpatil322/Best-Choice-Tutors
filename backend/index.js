@@ -19,6 +19,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { attachSocketServer } from "./services/socketService.js";
 import { completeEligibleBookings } from "./services/bookingService.js";
+import { runDbsExpiryCheck } from "./services/dbsExpiryService.js";
 import path from "path";
 
 import { fileURLToPath } from "node:url";
@@ -110,10 +111,24 @@ const runCompletionCheck = async () => {
   }
 };
 
+// DBS expiry: un-verify tutors with expired DBS weekly.
+const DBS_EXPIRY_CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const runDbsExpiryCheckSafe = async () => {
+  try {
+    await runDbsExpiryCheck();
+  } catch (err) {
+    console.error('DBS expiry check failed:', err?.message || err);
+  }
+};
+
 // Start server
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   runCompletionCheck();
   setInterval(runCompletionCheck, COMPLETION_CHECK_INTERVAL_MS);
+
+  // Start the weekly DBS expiry job immediately, then keep it running.
+  runDbsExpiryCheckSafe();
+  setInterval(runDbsExpiryCheckSafe, DBS_EXPIRY_CHECK_INTERVAL_MS);
 });

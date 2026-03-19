@@ -12,11 +12,12 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Banknote,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
-import { getFinancials } from '@/services/adminService';
+import { exportFinancialsExcel, getFinancials } from '@/services/adminService';
 import '../../styles/Profile.css';
 
 function AdminFinancials() {
@@ -27,6 +28,7 @@ function AdminFinancials() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [financials, setFinancials] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -60,6 +62,27 @@ function AdminFinancials() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(pounds);
+  };
+
+  const handleExportFinancials = async () => {
+    try {
+      setExporting(true);
+      setError(null);
+
+      const { blob, filename } = await exportFinancialsExcel();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'financial_overview.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Failed to export financials');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!getStoredUser()) {
@@ -103,6 +126,18 @@ function AdminFinancials() {
           Financial Overview
         </h1>
         <p className="text-sm text-slate-500 mt-1">Payments, escrow, payouts and refunds.</p>
+
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="outline"
+            onClick={handleExportFinancials}
+            disabled={exporting}
+            className="rounded-lg gap-1"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {exporting ? 'Exporting…' : 'Export Excel'}
+          </Button>
+        </div>
       </div>
 
       {error && (

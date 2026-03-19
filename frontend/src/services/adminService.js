@@ -3,9 +3,10 @@
  * Admin-only APIs for dashboards, moderation, and support.
  */
 
-import { getAuthToken } from './authService.js';
+import { getAuthToken } from "./authService.js";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 /**
  * Get admin dashboard summary (admin only)
@@ -15,20 +16,20 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 export const getSummary = async () => {
   const token = getAuthToken();
   if (!token) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
 
   const response = await fetch(`${API_BASE_URL}/admin/summary`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch summary');
+    throw new Error(data.message || "Failed to fetch summary");
   }
 
   return data;
@@ -41,16 +42,17 @@ export const getSummary = async () => {
  */
 export const getFinancials = async () => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/financials`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch financials');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch financials");
   return data;
 };
 
@@ -61,16 +63,17 @@ export const getFinancials = async () => {
  */
 export const getConversations = async () => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/conversations`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch conversations');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch conversations");
   return data;
 };
 
@@ -82,16 +85,19 @@ export const getConversations = async () => {
  */
 export const getBookingMessages = async (bookingId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/bookings/${encodeURIComponent(bookingId)}/messages`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/bookings/${encodeURIComponent(bookingId)}/messages`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch messages');
+  if (!response.ok) throw new Error(data.message || "Failed to fetch messages");
   return data;
 };
 
@@ -103,19 +109,20 @@ export const getBookingMessages = async (bookingId) => {
  */
 export const getAuditLog = async (params = {}) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const search = new URLSearchParams();
-  if (params.limit != null) search.set('limit', String(params.limit));
-  const query = search.toString() ? `?${search.toString()}` : '';
+  if (params.limit != null) search.set("limit", String(params.limit));
+  const query = search.toString() ? `?${search.toString()}` : "";
   const response = await fetch(`${API_BASE_URL}/admin/audit-log${query}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch audit log');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch audit log");
   return data;
 };
 
@@ -126,16 +133,16 @@ export const getAuditLog = async (params = {}) => {
  */
 export const getConfig = async () => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/config`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch config');
+  if (!response.ok) throw new Error(data.message || "Failed to fetch config");
   return data;
 };
 
@@ -147,17 +154,17 @@ export const getConfig = async () => {
  */
 export const updateConfig = async (body) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/config`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to update config');
+  if (!response.ok) throw new Error(data.message || "Failed to update config");
   return data;
 };
 
@@ -170,24 +177,24 @@ export const updateConfig = async (body) => {
 export const getUsers = async (params = {}) => {
   const token = getAuthToken();
   if (!token) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
 
   const search = new URLSearchParams();
-  if (params.role) search.set('role', params.role);
-  const query = search.toString() ? `?${search.toString()}` : '';
+  if (params.role) search.set("role", params.role);
+  const query = search.toString() ? `?${search.toString()}` : "";
 
   const response = await fetch(`${API_BASE_URL}/admin/users${query}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch users');
+    throw new Error(data.message || "Failed to fetch users");
   }
   return data;
 };
@@ -198,16 +205,19 @@ export const getUsers = async (params = {}) => {
  */
 export const suspendUser = async (userId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/suspend`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/users/${userId}/suspend`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to suspend user');
+  if (!response.ok) throw new Error(data.message || "Failed to suspend user");
   return data;
 };
 
@@ -217,16 +227,16 @@ export const suspendUser = async (userId) => {
  */
 export const banUser = async (userId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/ban`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to ban user');
+  if (!response.ok) throw new Error(data.message || "Failed to ban user");
   return data;
 };
 
@@ -238,22 +248,22 @@ export const banUser = async (userId) => {
  */
 export const syncTutorPayouts = async (tutorId, params = {}) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const search = new URLSearchParams();
-  if (params.limit != null) search.set('limit', String(params.limit));
-  const query = search.toString() ? `?${search.toString()}` : '';
+  if (params.limit != null) search.set("limit", String(params.limit));
+  const query = search.toString() ? `?${search.toString()}` : "";
   const response = await fetch(
     `${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/payout-sync${query}`,
     {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    }
+    },
   );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to sync payouts');
+  if (!response.ok) throw new Error(data.message || "Failed to sync payouts");
   return data;
 };
 
@@ -263,16 +273,19 @@ export const syncTutorPayouts = async (tutorId, params = {}) => {
  */
 export const activateUser = async (userId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/activate`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/users/${userId}/activate`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to activate user');
+  if (!response.ok) throw new Error(data.message || "Failed to activate user");
   return data;
 };
 
@@ -283,16 +296,17 @@ export const activateUser = async (userId) => {
  */
 export const getPendingTutors = async () => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/tutors/pending`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch pending tutors');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch pending tutors");
   return data;
 };
 
@@ -303,16 +317,16 @@ export const getPendingTutors = async () => {
  */
 export const getTutorVerificationTutors = async () => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/tutors/verification`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch tutors');
+  if (!response.ok) throw new Error(data.message || "Failed to fetch tutors");
   return data;
 };
 
@@ -324,16 +338,20 @@ export const getTutorVerificationTutors = async () => {
  */
 export const getTutorDocuments = async (tutorId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/documents`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/documents`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch tutor documents');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch tutor documents");
   return data;
 };
 
@@ -343,16 +361,19 @@ export const getTutorDocuments = async (tutorId) => {
  */
 export const approveTutor = async (tutorId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/tutors/${tutorId}/approve`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/tutors/${tutorId}/approve`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to approve tutor');
+  if (!response.ok) throw new Error(data.message || "Failed to approve tutor");
   return data;
 };
 
@@ -362,16 +383,19 @@ export const approveTutor = async (tutorId) => {
  */
 export const rejectTutor = async (tutorId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/tutors/${tutorId}/reject`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/tutors/${tutorId}/reject`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to reject tutor');
+  if (!response.ok) throw new Error(data.message || "Failed to reject tutor");
   return data;
 };
 
@@ -383,20 +407,20 @@ export const rejectTutor = async (tutorId) => {
 export const getReportedReviews = async () => {
   const token = getAuthToken();
   if (!token) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
 
   const response = await fetch(`${API_BASE_URL}/admin/reported-reviews`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch reported reviews');
+    throw new Error(data.message || "Failed to fetch reported reviews");
   }
 
   return data;
@@ -409,16 +433,17 @@ export const getReportedReviews = async () => {
  */
 export const getDbsPendingTutors = async () => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(`${API_BASE_URL}/admin/dbs/pending`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch DBS pending tutors');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch DBS pending tutors");
   return data;
 };
 
@@ -430,19 +455,20 @@ export const getDbsPendingTutors = async () => {
  */
 export const getTutorDbsDocuments = async (tutorId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(
     `${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/dbs-documents`,
     {
-      method: 'GET',
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    }
+    },
   );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch tutor DBS documents');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to fetch tutor DBS documents");
   return data;
 };
 
@@ -453,19 +479,20 @@ export const getTutorDbsDocuments = async (tutorId) => {
  */
 export const approveDbsDocument = async (documentId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(
     `${API_BASE_URL}/admin/dbs/${encodeURIComponent(documentId)}/approve`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    }
+    },
   );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to approve DBS document');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to approve DBS document");
   return data;
 };
 
@@ -476,19 +503,20 @@ export const approveDbsDocument = async (documentId) => {
  */
 export const rejectDbsDocument = async (documentId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
   const response = await fetch(
     `${API_BASE_URL}/admin/dbs/${encodeURIComponent(documentId)}/reject`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    }
+    },
   );
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to reject DBS document');
+  if (!response.ok)
+    throw new Error(data.message || "Failed to reject DBS document");
   return data;
 };
 
@@ -500,23 +528,26 @@ export const rejectDbsDocument = async (documentId) => {
  */
 export const getSupportTicketsQueue = async (params = {}) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
 
   const search = new URLSearchParams();
-  if (params.status) search.set('status', params.status);
-  const query = search.toString() ? `?${search.toString()}` : '';
+  if (params.status) search.set("status", params.status);
+  const query = search.toString() ? `?${search.toString()}` : "";
 
-  const response = await fetch(`${API_BASE_URL}/admin/support/tickets${query}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    `${API_BASE_URL}/admin/support/tickets${query}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch support tickets');
+    throw new Error(data.message || "Failed to fetch support tickets");
   }
   return data;
 };
@@ -528,22 +559,22 @@ export const getSupportTicketsQueue = async (params = {}) => {
  */
 export const getSupportTicketAdmin = async (ticketId) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
 
   const response = await fetch(
     `${API_BASE_URL}/admin/support/tickets/${encodeURIComponent(ticketId)}`,
     {
-      method: 'GET',
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch support ticket');
+    throw new Error(data.message || "Failed to fetch support ticket");
   }
   return data;
 };
@@ -555,23 +586,23 @@ export const getSupportTicketAdmin = async (ticketId) => {
  */
 export const replyToSupportTicketAdmin = async (ticketId, { message }) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
 
   const response = await fetch(
     `${API_BASE_URL}/admin/support/tickets/${encodeURIComponent(ticketId)}/messages`,
     {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ message }),
-    }
+    },
   );
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to send reply');
+    throw new Error(data.message || "Failed to send reply");
   }
   return data;
 };
@@ -583,23 +614,23 @@ export const replyToSupportTicketAdmin = async (ticketId, { message }) => {
  */
 export const updateSupportTicketStatusAdmin = async (ticketId, { status }) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
+  if (!token) throw new Error("Authentication required");
 
   const response = await fetch(
     `${API_BASE_URL}/admin/support/tickets/${encodeURIComponent(ticketId)}/status`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ status }),
-    }
+    },
   );
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Failed to update support ticket status');
+    throw new Error(data.message || "Failed to update support ticket status");
   }
   return data;
 };
@@ -612,16 +643,106 @@ export const updateSupportTicketStatusAdmin = async (ticketId, { status }) => {
  */
 export const broadcastNotification = async ({ title, message }) => {
   const token = getAuthToken();
-  if (!token) throw new Error('Authentication required');
-  const response = await fetch(`${API_BASE_URL}/admin/notifications/broadcast`, {
-    method: 'POST',
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/notifications/broadcast`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title, message }),
+    },
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Failed to send broadcast");
+  return data;
+};
+
+function getFilenameFromContentDisposition(contentDisposition) {
+  if (!contentDisposition) return null;
+  // Handles: attachment; filename="abc.xlsx"
+  // Also best-effort: filename*=UTF-8''abc.xlsx
+  const utf8Match = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(
+    contentDisposition,
+  );
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim().replace(/(^"|"$)/g, ""));
+    } catch {
+      return utf8Match[1].trim().replace(/(^"|"$)/g, "");
+    }
+  }
+
+  const fileMatch = /filename\s*=\s*"?([^\";]+)"?/i.exec(contentDisposition);
+  return fileMatch?.[1]?.trim() ?? null;
+}
+
+/**
+ * Export financial overview as .xlsx (admin only)
+ * GET /api/admin/exports/financials
+ * @returns {Promise<{ blob: Blob, filename: string }>}
+ */
+export const exportFinancialsExcel = async () => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+
+  const response = await fetch(`${API_BASE_URL}/admin/exports/financials`, {
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ title, message }),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to send broadcast');
-  return data;
+
+  if (!response.ok) {
+    const data = await response
+      .json()
+      .catch(() => ({ message: "Failed to export financials" }));
+    throw new Error(data.message || "Failed to export financials");
+  }
+
+  const blob = await response.blob();
+  const filename =
+    getFilenameFromContentDisposition(
+      response.headers.get("Content-Disposition"),
+    ) ?? "financial_overview.xlsx";
+  return { blob, filename };
+};
+
+/**
+ * Export users as .xlsx (admin only)
+ * GET /api/admin/exports/users?role=Learner|Tutor&email=<substring>
+ * @param {{ role?: 'Learner'|'Tutor', email?: string }} params
+ * @returns {Promise<{ blob: Blob, filename: string }>}
+ */
+export const exportUsersExcel = async (params = {}) => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+
+  const search = new URLSearchParams();
+  if (params.role) search.set("role", params.role);
+  if (params.email) search.set("email", params.email);
+  const query = search.toString() ? `?${search.toString()}` : "";
+
+  const response = await fetch(`${API_BASE_URL}/admin/exports/users${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const data = await response
+      .json()
+      .catch(() => ({ message: "Failed to export users" }));
+    throw new Error(data.message || "Failed to export users");
+  }
+
+  const blob = await response.blob();
+  const filename =
+    getFilenameFromContentDisposition(
+      response.headers.get("Content-Disposition"),
+    ) ?? "users_export.xlsx";
+  return { blob, filename };
 };

@@ -66,6 +66,9 @@ function DbsDocumentCard({ doc, onApprove, onReject, onPreview, actingId }) {
           <p className="mt-0.5 text-xs text-muted-foreground">
             {doc.fileType ?? '—'} · {formatDocDate(doc.uploadedAt)}
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Expiry · {formatDocDate(doc.expiryDate)}
+          </p>
         </div>
         {canAct && (
           <div className="flex shrink-0 gap-2">

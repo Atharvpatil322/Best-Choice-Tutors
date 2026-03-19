@@ -42,6 +42,7 @@ export async function getMyDbsDocuments(req, res, next) {
           storageKey: d.storageKey ?? '',
           status: d.status ?? 'PENDING',
           uploadedAt: d.uploadedAt,
+          expiryDate: d.expiryDate ?? d.expiryDatePending ?? null,
         };
       })
     );
@@ -84,6 +85,27 @@ export async function uploadDbsDocument(req, res, next) {
       });
     }
 
+    const expiryDateRaw =
+      typeof req.body?.expiryDate === 'string' ? req.body.expiryDate.trim() : '';
+    if (!expiryDateRaw) {
+      return res.status(400).json({
+        message: 'Expiry date is required',
+      });
+    }
+
+    // Parse as a UTC date so comparisons are timezone-consistent.
+    const expiryDate = new Date(`${expiryDateRaw}T00:00:00.000Z`);
+    if (Number.isNaN(expiryDate.getTime())) {
+      return res.status(400).json({
+        message: 'Expiry date must be a valid date',
+      });
+    }
+    if (expiryDate.getTime() <= Date.now()) {
+      return res.status(400).json({
+        message: 'Expiry date must be a future date',
+      });
+    }
+
     const mimetype = req.file.mimetype;
     const fileType =
       mimetype === 'application/pdf' ? 'PDF' : mimetype.startsWith('image/') ? 'IMAGE' : null;
@@ -108,6 +130,7 @@ export async function uploadDbsDocument(req, res, next) {
       fileUrl,
       storageKey,
       status: 'PENDING',
+      expiryDatePending: expiryDate,
     });
 
     await AdminAuditLog.create({
@@ -132,6 +155,7 @@ export async function uploadDbsDocument(req, res, next) {
         storageKey: doc.storageKey,
         status: doc.status,
         uploadedAt: doc.uploadedAt,
+        expiryDate: doc.expiryDate ?? doc.expiryDatePending ?? null,
       },
     });
   } catch (err) {

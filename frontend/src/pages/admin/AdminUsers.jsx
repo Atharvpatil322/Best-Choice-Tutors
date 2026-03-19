@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserX, UserCheck, Ban, RefreshCw } from 'lucide-react';
+import { Users, UserX, UserCheck, Ban, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
 import {
   getUsers,
+  exportUsersExcel,
   suspendUser as apiSuspendUser,
   banUser as apiBanUser,
   activateUser as apiActivateUser,
@@ -47,6 +48,7 @@ function AdminUsers() {
   const [emailFilter, setEmailFilter] = useState('');
   const [actingId, setActingId] = useState(null);
   const [syncingTutorId, setSyncingTutorId] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const filteredUsers = emailFilter.trim()
     ? users.filter((u) =>
@@ -126,6 +128,32 @@ function AdminUsers() {
       setError(err.message || 'Failed to sync payouts');
     } finally {
       setSyncingTutorId(null);
+    }
+  };
+
+  const handleExportUsers = async () => {
+    try {
+      setExporting(true);
+      setError(null);
+
+      const params = {};
+      if (roleFilter && roleFilter !== 'all') params.role = roleFilter;
+      const email = emailFilter.trim();
+      if (email) params.email = email;
+
+      const { blob, filename } = await exportUsersExcel(params);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'users_export.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Failed to export users');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -219,6 +247,17 @@ function AdminUsers() {
                   onChange={(e) => setEmailFilter(e.target.value)}
                   className="w-[220px]"
                 />
+              </div>
+              <div className="self-end">
+                <Button
+                  variant="outline"
+                  onClick={handleExportUsers}
+                  disabled={exporting}
+                  className="rounded-lg gap-1"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {exporting ? 'Exporting…' : 'Export Excel'}
+                </Button>
               </div>
             </div>
           </CardHeader>

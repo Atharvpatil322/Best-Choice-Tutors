@@ -31,13 +31,17 @@ export const getMyDbsDocuments = async () => {
  * Upload a single DBS certificate (PDF or image)
  * POST /api/tutor/dbs-documents
  * @param {File} file - PDF or image file
+ * @param {string} expiryDate - YYYY-MM-DD (must be a future date)
  * @returns {Promise<{ message: string, document: Object }>}
  */
-export const uploadDbsDocument = async (file) => {
+export const uploadDbsDocument = async (file, expiryDate) => {
   const token = getAuthToken();
   if (!token) throw new Error('Authentication required');
   const formData = new FormData();
   formData.append('document', file);
+  if (expiryDate) {
+    formData.append('expiryDate', expiryDate);
+  }
   const response = await fetch(`${API_BASE_URL}/tutor/dbs-documents`, {
     method: 'POST',
     headers: {

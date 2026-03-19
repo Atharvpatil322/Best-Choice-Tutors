@@ -18,6 +18,27 @@ import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
 import { presignDocumentUrl } from "../services/s3Service.js";
 import { listPayoutsForAccount } from "../services/stripeService.js";
+import * as ExcelJSImport from "exceljs";
+
+const ExcelJS = ExcelJSImport.default ?? ExcelJSImport;
+
+function paiseToGBP(paise) {
+  return typeof paise === "number" && Number.isFinite(paise) ? paise / 100 : 0;
+}
+
+function toDateOrNull(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatGender(gender) {
+  if (!gender) return "";
+  if (gender === "MALE") return "Male";
+  if (gender === "FEMALE") return "Female";
+  return String(gender);
+}
 
 /**
  * GET /api/admin/summary
@@ -83,28 +104,24 @@ export async function getFinancials(req, res, next) {
       });
     }
 
-    const [
-      paymentsResult,
-      escrowResult,
-      paidOutResult,
-      refundedResult,
-    ] = await Promise.all([
-      TutorEarnings.aggregate([
-        { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]),
-      TutorEarnings.aggregate([
-        { $match: { status: "pendingRelease" } },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]),
-      TutorEarnings.aggregate([
-        { $match: { status: "available" } },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]),
-      TutorEarnings.aggregate([
-        { $match: { status: "refunded" } },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]),
-    ]);
+    const [paymentsResult, escrowResult, paidOutResult, refundedResult] =
+      await Promise.all([
+        TutorEarnings.aggregate([
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+        TutorEarnings.aggregate([
+          { $match: { status: "pendingRelease" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+        TutorEarnings.aggregate([
+          { $match: { status: "available" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+        TutorEarnings.aggregate([
+          { $match: { status: "refunded" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+      ]);
 
     const totalPayments = paymentsResult[0]?.total ?? 0;
     const totalEscrow = escrowResult[0]?.total ?? 0;
@@ -117,6 +134,100 @@ export async function getFinancials(req, res, next) {
       totalPaidOut,
       totalRefunded,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/exports/financials
+ * Admin only. Exports financial overview as an .xlsx file.
+ * Amounts are in paise (backend) and GBP (human readable).
+ */
+export async function exportFinancialsExcel(req, res, next) {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        message: "Access denied: Admin role required",
+      });
+    }
+
+    const [paymentsResult, escrowResult, paidOutResult, refundedResult] =
+      await Promise.all([
+        TutorEarnings.aggregate([
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+        TutorEarnings.aggregate([
+          { $match: { status: "pendingRelease" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+        TutorEarnings.aggregate([
+          { $match: { status: "available" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+        TutorEarnings.aggregate([
+          { $match: { status: "refunded" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+      ]);
+
+    const totalPayments = paymentsResult[0]?.total ?? 0;
+    const totalEscrow = escrowResult[0]?.total ?? 0;
+    const totalPaidOut = paidOutResult[0]?.total ?? 0;
+    const totalRefunded = refundedResult[0]?.total ?? 0;
+
+    const datePart = new Date().toISOString().slice(0, 10);
+    const sheetName = "Financial Overview";
+    const safeSheetName = sheetName.replace(/\s+/g, "_");
+    const filename = `${safeSheetName}_${datePart}.xlsx`;
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(sheetName);
+
+    worksheet.columns = [
+      { header: "Metric", key: "metric", width: 42 },
+      { header: "Amount (GBP)", key: "gbp", width: 18 },
+    ];
+
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "left" };
+
+    const rows = [
+      {
+        metric: "Total payments",
+        gbp: paiseToGBP(totalPayments),
+      },
+      {
+        metric: "Escrow total (pending release)",
+        gbp: paiseToGBP(totalEscrow),
+      },
+      {
+        metric: "Total paid out (available)",
+        gbp: paiseToGBP(totalPaidOut),
+      },
+      {
+        metric: "Total refunded",
+        gbp: paiseToGBP(totalRefunded),
+      },
+    ];
+
+    for (const r of rows) {
+      const row = worksheet.addRow({
+        metric: r.metric,
+        gbp: r.gbp,
+      });
+
+      // Apply formats to numeric cells
+      row.getCell(2).numFmt = "£#,##0.00"; // GBP
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.status(200).send(buffer);
   } catch (err) {
     next(err);
   }
@@ -147,17 +258,22 @@ export async function syncTutorPayouts(req, res, next) {
       return res.status(404).json({ message: "Tutor not found" });
     }
     if (!tutor.stripeAccountId) {
-      return res.status(400).json({ message: "Tutor has no connected Stripe account" });
+      return res
+        .status(400)
+        .json({ message: "Tutor has no connected Stripe account" });
     }
 
     const limitRaw = Number(req.query.limit);
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 25;
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 25;
 
     const payouts = await listPayoutsForAccount({
       accountId: tutor.stripeAccountId,
       limit,
     });
-    const paidPayouts = (payouts?.data || []).filter((p) => p.status === "paid");
+    const paidPayouts = (payouts?.data || []).filter(
+      (p) => p.status === "paid",
+    );
 
     if (paidPayouts.length === 0) {
       return res.json({ updated: 0, payoutsProcessed: 0 });
@@ -187,7 +303,7 @@ export async function syncTutorPayouts(req, res, next) {
           .lean()
       : [];
     const destinationBookingIds = new Set(
-      destinationBookings.map((b) => b._id.toString())
+      destinationBookings.map((b) => b._id.toString()),
     );
 
     const eligibleEntries = entries.filter((e) => {
@@ -218,7 +334,10 @@ export async function syncTutorPayouts(req, res, next) {
 
       while (remaining > 0 && entryIndex < eligibleEntries.length) {
         const entry = eligibleEntries[entryIndex];
-        const netAmount = Math.max(0, entry.amount - (entry.commissionInPaise || 0));
+        const netAmount = Math.max(
+          0,
+          entry.amount - (entry.commissionInPaise || 0),
+        );
         if (netAmount <= 0) {
           entryIndex += 1;
           continue;
@@ -233,7 +352,9 @@ export async function syncTutorPayouts(req, res, next) {
               $set: {
                 payoutId: payout.id,
                 paidAt,
-                ...(entry.status === "pendingRelease" && { status: "available" }),
+                ...(entry.status === "pendingRelease" && {
+                  status: "available",
+                }),
               },
             },
           },
@@ -293,7 +414,7 @@ export async function getUsers(req, res, next) {
           .lean()
       : [];
     const tutorIdByUserId = new Map(
-      tutors.map((t) => [t.userId.toString(), t._id.toString()])
+      tutors.map((t) => [t.userId.toString(), t._id.toString()]),
     );
 
     const items = users.map((u) => ({
@@ -301,7 +422,10 @@ export async function getUsers(req, res, next) {
       name: u.name ?? "",
       email: u.email ?? "",
       role: u.role ?? "Learner",
-      tutorId: u.role === "Tutor" ? tutorIdByUserId.get(u._id.toString()) || null : null,
+      tutorId:
+        u.role === "Tutor"
+          ? tutorIdByUserId.get(u._id.toString()) || null
+          : null,
       profilePhoto: u.profilePhoto ?? null,
       authProvider: u.authProvider ?? null,
       phone: u.phone
@@ -319,6 +443,120 @@ export async function getUsers(req, res, next) {
       count: items.length,
       users: items,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/exports/users
+ * Admin only. Exports users list as an .xlsx file.
+ * Optional query params:
+ *  - role=Learner|Tutor
+ *  - email=<substring> (case-insensitive)
+ */
+export async function exportUsersExcel(req, res, next) {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        message: "Access denied: Admin role required",
+      });
+    }
+
+    const { role, email } = req.query ?? {};
+    const filter = {};
+    if (role === "Learner" || role === "Tutor") filter.role = role;
+    if (typeof email === "string" && email.trim()) {
+      filter.email = { $regex: email.trim(), $options: "i" };
+    }
+
+    const users = await User.find(filter)
+      .select(
+        "name email role status profilePhoto authProvider phone gender createdAt",
+      )
+      .lean()
+      .sort({ createdAt: -1 });
+
+    const tutorUserIds = users
+      .filter((u) => u.role === "Tutor")
+      .map((u) => u._id);
+    const tutors = tutorUserIds.length
+      ? await Tutor.find({ userId: { $in: tutorUserIds } })
+          .select("_id userId")
+          .lean()
+      : [];
+
+    const tutorIdByUserId = new Map(
+      tutors.map((t) => [t.userId.toString(), t._id.toString()]),
+    );
+
+    const items = users.map((u) => ({
+      id: u._id.toString(),
+      name: u.name ?? "",
+      email: u.email ?? "",
+      role: u.role ?? "Learner",
+      tutorId:
+        u.role === "Tutor"
+          ? tutorIdByUserId.get(u._id.toString()) || null
+          : null,
+      authProvider: u.authProvider ?? null,
+      phone: u.phone
+        ? {
+            countryCode: u.phone.countryCode ?? null,
+            number: u.phone.number ?? null,
+          }
+        : null,
+      gender: u.gender ?? null,
+      createdAt: u.createdAt,
+      status: u.status ?? "ACTIVE",
+    }));
+
+    const datePart = new Date().toISOString().slice(0, 10);
+    const sheetName = "Users";
+    const safeSheetName = sheetName.replace(/\s+/g, "_");
+    const filename = `${safeSheetName}_${datePart}.xlsx`;
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(sheetName);
+    worksheet.columns = [
+      { header: "ID", key: "id", width: 28 },
+      { header: "Name", key: "name", width: 24 },
+      { header: "Email", key: "email", width: 28 },
+      { header: "Role", key: "role", width: 12 },
+      { header: "Tutor ID", key: "tutorId", width: 26 },
+      { header: "Gender", key: "gender", width: 12 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Created At (UTC)", key: "createdAt", width: 18 },
+    ];
+
+    worksheet.getRow(1).font = { bold: true };
+
+    let rowIndex = 2;
+    for (const u of items) {
+      worksheet.addRow({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        tutorId: u.tutorId ?? "",
+        gender: formatGender(u.gender),
+        status: u.status,
+        createdAt: toDateOrNull(u.createdAt),
+      });
+
+      const excelRow = worksheet.getRow(rowIndex);
+      // createdAt is the last column (8)
+      excelRow.getCell(8).numFmt = "yyyy-mm-dd";
+      rowIndex += 1;
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.status(200).send(buffer);
   } catch (err) {
     next(err);
   }
@@ -470,7 +708,10 @@ export async function getPendingTutors(req, res, next) {
 
     const tutors = await Tutor.find({
       isVerified: false,
-      $or: [{ verificationRejectedAt: null }, { verificationRejectedAt: { $exists: false } }],
+      $or: [
+        { verificationRejectedAt: null },
+        { verificationRejectedAt: { $exists: false } },
+      ],
     })
       .populate("userId", "name email")
       .lean()
@@ -563,7 +804,7 @@ export async function rejectTutor(req, res, next) {
     const tutor = await Tutor.findByIdAndUpdate(
       tutorId,
       { verificationRejectedAt: new Date() },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .select("userId fullName isVerified verificationRejectedAt createdAt")
       .lean();
@@ -637,6 +878,7 @@ export async function getDbsPendingTutors(req, res, next) {
         storageKey: d.storageKey ?? "",
         status: d.status ?? "PENDING",
         uploadedAt: d.uploadedAt,
+        expiryDate: d.expiryDate ?? d.expiryDatePending ?? null,
       });
     }
 
@@ -678,18 +920,36 @@ export async function getTutorVerificationDocuments(req, res, next) {
     }
 
     const tutorIdParam = req.params.tutorId;
-    console.log("[TutorVerification] GET documents tutorIdParam:", tutorIdParam);
+    console.log(
+      "[TutorVerification] GET documents tutorIdParam:",
+      tutorIdParam,
+    );
     let tutorId;
     try {
       tutorId = new mongoose.Types.ObjectId(tutorIdParam);
     } catch (e) {
-      console.log("[TutorVerification] Invalid tutor ID:", tutorIdParam, e.message);
+      console.log(
+        "[TutorVerification] Invalid tutor ID:",
+        tutorIdParam,
+        e.message,
+      );
       return res.status(400).json({ message: "Invalid tutor ID" });
     }
     const docs = await TutorVerificationDocument.find({ tutorId })
       .sort({ uploadedAt: -1 })
       .lean();
-    console.log("[TutorVerification] find result for tutorId:", tutorId.toString(), "count:", docs.length, docs.length ? "sample docId:" + docs[0]?._id + " fileUrl:" + (docs[0]?.fileUrl ? "present" : "missing") : "");
+    console.log(
+      "[TutorVerification] find result for tutorId:",
+      tutorId.toString(),
+      "count:",
+      docs.length,
+      docs.length
+        ? "sample docId:" +
+            docs[0]?._id +
+            " fileUrl:" +
+            (docs[0]?.fileUrl ? "present" : "missing")
+        : "",
+    );
 
     const documents = await Promise.all(
       docs.map(async (d) => {
@@ -705,14 +965,21 @@ export async function getTutorVerificationDocuments(req, res, next) {
       }),
     );
 
-    console.log("[TutorVerification] returning documents count:", documents.length);
+    console.log(
+      "[TutorVerification] returning documents count:",
+      documents.length,
+    );
     return res.status(200).json({
       tutorId: tutorIdParam,
       count: documents.length,
       documents,
     });
   } catch (err) {
-    console.error("[TutorVerification] getTutorVerificationDocuments error:", err.message, err.stack);
+    console.error(
+      "[TutorVerification] getTutorVerificationDocuments error:",
+      err.message,
+      err.stack,
+    );
     next(err);
   }
 }
@@ -745,6 +1012,7 @@ export async function getTutorDbsDocuments(req, res, next) {
           fileUrl: fileUrl ?? "",
           status: d.status ?? "PENDING",
           uploadedAt: d.uploadedAt,
+          expiryDate: d.expiryDate ?? d.expiryDatePending ?? null,
         };
       }),
     );
@@ -777,10 +1045,28 @@ export async function approveDbsDocument(req, res, next) {
       return res.status(404).json({ message: "DBS document not found" });
     }
 
+    const now = new Date();
+    const pendingExpiry = doc.expiryDatePending ?? null;
+    if (!pendingExpiry || Number.isNaN(new Date(pendingExpiry).getTime())) {
+      return res.status(400).json({
+        message: "Expiry date is missing for this DBS submission. Ask the tutor to upload again.",
+      });
+    }
+
     await Promise.all([
-      DBSVerificationDocument.findByIdAndUpdate(documentId, {
-        $set: { status: "APPROVED" },
-      }),
+      DBSVerificationDocument.findByIdAndUpdate(
+        documentId,
+        {
+          $set: {
+            status: "APPROVED",
+            isVerified: true,
+            verifiedAt: now,
+            expiryDate: pendingExpiry,
+            expiryDatePending: null,
+          },
+        },
+        { new: true, runValidators: true },
+      ),
       Tutor.findByIdAndUpdate(doc.tutorId, { $set: { isDbsVerified: true } }),
     ]);
 
@@ -800,6 +1086,9 @@ export async function approveDbsDocument(req, res, next) {
         id: doc._id.toString(),
         tutorId: doc.tutorId?.toString?.() ?? doc.tutorId?.toString(),
         status: "APPROVED",
+        isVerified: true,
+        verifiedAt: now,
+        expiryDate: pendingExpiry,
       },
     });
   } catch (err) {
