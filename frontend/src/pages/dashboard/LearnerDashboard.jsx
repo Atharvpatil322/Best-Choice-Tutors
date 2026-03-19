@@ -118,7 +118,7 @@ function LearnerDashboard() {
               </div>
               <div className="space-y-0.5">
                 <p className="text-sm sm:text-base font-semibold text-[#1A365D]">
-                  🎉 Book your first session at FLAT 20% OFF
+                  🎉 Book your first session with 20% OFF
                 </p>
                 <p className="text-xs sm:text-sm text-slate-600">
                   Start learning today with our expert tutors.
