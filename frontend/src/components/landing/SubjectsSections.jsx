@@ -1,17 +1,19 @@
 import React from 'react';
 import '../../styles/LandingPage.css';
-import gcse from '../../images/gcse.png'
-import alevels from '../../images/A-Levels.png'
-import university from '../../images/University.png'
-import languages from '../../images/All Languages.png'
-import biology from '../../images/Biology.png'
-import history from '../../images/History.png'
-import geography from '../../images/Geography.png'
-import computerScience from '../../images/Computer Science.png'
-import mathematics from '../../images/Mathematics.png'
-import englishLiterature from '../../images/English Literature.png'
-import physics from '../../images/Physics.png'
-import chemistry from '../../images/Chemistry.png'
+import { s3ImageUrl } from '@/utils/s3Assets';
+
+const gcse = s3ImageUrl('images/gcse.png');
+const alevels = s3ImageUrl('images/A-Levels.png');
+const university = s3ImageUrl('images/University.png');
+const languages = s3ImageUrl('images/All Languages.png');
+const biology = s3ImageUrl('images/Biology.png');
+const history = s3ImageUrl('images/History.png');
+const geography = s3ImageUrl('images/Geography.png');
+const computerScience = s3ImageUrl('images/Computer Science.png');
+const mathematics = s3ImageUrl('images/Mathematics.png');
+const englishLiterature = s3ImageUrl('images/English Literature.png');
+const physics = s3ImageUrl('images/Physics.png');
+const chemistry = s3ImageUrl('images/Chemistry.png');
 
 // Import your subject images here
 // import gcseImg from '../../images/subjects/gcse.jpg'; 
@@ -22,7 +24,7 @@ export default function SubjectsSections() {
     { name: 'GCSE', image: gcse },
     { name: 'A-Levels', image: alevels },
     { name: 'University', image: university },
-    { name: 'All Languages', image: languages},
+    { name: '11+ & SATs', image: languages},
     // { name: 'Biology', image: biology },
     // { name: 'History', image: history },
     // { name: 'Geography', image: geography },

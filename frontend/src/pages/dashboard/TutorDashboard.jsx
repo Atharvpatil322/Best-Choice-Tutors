@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser } from '@/services/authService';
-import welcome from '../../images/welcomeFamily.jpeg';
+import { s3ImageUrl } from '@/utils/s3Assets';
 import {
   BookOpen,
   Banknote,
@@ -18,6 +18,8 @@ import {
   User,
   FileText,
 } from 'lucide-react';
+
+const welcome = s3ImageUrl('images/welcomeFamily.jpeg');
 
 function TutorDashboard() {
   const navigate = useNavigate();

@@ -1,6 +1,8 @@
 import React from 'react';
 import '../../styles/LandingPage.css';
-import reach from '../../images/reach.png'; 
+import { s3ImageUrl } from '@/utils/s3Assets';
+
+const reach = s3ImageUrl('images/reach.png');
 
 export default function ReachSection() {
   return (

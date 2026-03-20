@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import heroImage from '../../images/HeroUpdatePic.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
 import { CANONICAL_SUBJECTS, SUBJECT_OTHER } from '@/constants/subjects';
 import { normalizeSubject } from '@/utils/subjectUtils';
 import { getAllTutors } from '../../services/tutorService';
 import { isAuthenticated } from '../../lib/auth';
 import LandingTutorCard from './LandingTutorCard';
 import '../../styles/LandingPage.css';
+
+const heroImage = s3ImageUrl('images/HeroUpdatePic.png');
 
 export default function HeroSection() {
   const navigate = useNavigate();

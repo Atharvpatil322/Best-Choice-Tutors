@@ -30,7 +30,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import logoImage from '../images/BCT_Logo.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 const SIDEBAR_ITEMS = [
@@ -44,6 +44,7 @@ const SIDEBAR_ITEMS = [
   { to: '/tutor/policy', end: true, label: 'Policy', icon: Scale },
   { to: '/tutor/support', end: false, label: 'Support', icon: LifeBuoy },
 ];
+const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
 function TutorLayout() {
   const navigate = useNavigate();

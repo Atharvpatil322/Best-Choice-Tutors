@@ -2,8 +2,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import '../../styles/OnBoarding.css';
-import man from '../../images/man.png';
-import woman from '../../images/woman.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
+
+const man = s3ImageUrl('images/man.png');
+const woman = s3ImageUrl('images/woman.png');
 
 function OnBoardingScreen() {
   const navigate = useNavigate();

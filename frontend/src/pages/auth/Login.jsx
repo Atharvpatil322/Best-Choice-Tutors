@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { login, googleLogin } from '@/services/authService';
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import logoImage from '../../images/light_logo.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
 import '../../styles/Register.css'; 
+
+const logoImage = s3ImageUrl('images/light_logo.png');
 
 function Login() {
   const navigate = useNavigate();

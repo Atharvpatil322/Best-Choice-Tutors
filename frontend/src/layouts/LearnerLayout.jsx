@@ -31,7 +31,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import logoImage from '../images/BCT_Logo.png'
+import { s3ImageUrl } from '@/utils/s3Assets';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 
 const SIDEBAR_ITEMS = [
@@ -45,6 +45,7 @@ const SIDEBAR_ITEMS = [
   { to: '/dashboard/policy', end: true, label: 'Policy', icon: Scale },
   { to: '/dashboard/support', end: false, label: 'Support', icon: LifeBuoy },
 ];
+const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
 function LearnerLayout() {
   const navigate = useNavigate();
