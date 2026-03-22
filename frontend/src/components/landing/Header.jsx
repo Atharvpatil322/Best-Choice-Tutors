@@ -2,8 +2,10 @@ import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Search, Menu, X, ChevronDown } from "lucide-react";
 import '../../styles/LandingPage.css';
-import logoImage from '../../images/BCT_Logo.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
 import { CANONICAL_SUBJECTS } from '@/constants/subjects';
+
+const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);

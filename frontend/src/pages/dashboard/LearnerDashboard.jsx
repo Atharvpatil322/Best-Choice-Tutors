@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser, getMe, switchToTutor } from '@/services/authService';
-import welcome from '../../images/welcomeFamily.jpeg';
+import { s3ImageUrl } from '@/utils/s3Assets';
 import {
   BookOpen,
   FileText,
@@ -18,6 +18,8 @@ import {
   GraduationCap,
   Gift,
 } from 'lucide-react';
+
+const welcome = s3ImageUrl('images/welcomeFamily.jpeg');
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {

@@ -2,7 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Twitter, Linkedin, Facebook, Instagram } from 'lucide-react';
 import '../../styles/LandingPage.css';
-import logoImage from '../../images/BCT_Logo.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
+
+const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
 export default function FooterSection() {
   const currentYear = new Date().getFullYear();

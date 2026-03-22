@@ -28,7 +28,7 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import logoImage from '../images/BCT_Logo.png';
+import { s3ImageUrl } from '@/utils/s3Assets';
 
 const SIDEBAR_ITEMS = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -43,6 +43,7 @@ const SIDEBAR_ITEMS = [
   { to: '/admin/notifications', end: true, label: 'Broadcast notification', icon: Megaphone },
   { to: '/admin/support', end: false, label: 'Support Tickets', icon: LifeBuoy },
 ];
+const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
 function AdminLayout() {
   const navigate = useNavigate();
