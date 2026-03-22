@@ -1,16 +1,36 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Menu, X, ChevronDown } from "lucide-react";
+import { Search, Menu, X, ChevronDown, PartyPopper } from "lucide-react";
 import '../../styles/LandingPage.css';
 import { s3ImageUrl } from '@/utils/s3Assets';
 import { CANONICAL_SUBJECTS } from '@/constants/subjects';
+import { isAuthenticated } from '@/lib/auth';
 
 const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
   const hideSubjectsTimerRef = useRef(null);
+  const guest = !isAuthenticated();
+
+  useEffect(() => {
+    if (!promoOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setPromoOpen(false);
+    };
+    const onPointerDown = (e) => {
+      if (e.target.closest(".header-promo-trigger, .header-promo-card")) return;
+      setPromoOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [promoOpen]);
 
   const showSubjectsDropdown = () => {
     if (hideSubjectsTimerRef.current) {
@@ -75,6 +95,18 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
+          {guest && (
+            <button
+              type="button"
+              className="header-promo-trigger header-promo-trigger--desktop"
+              aria-label="Limited offer: first session discount"
+              aria-expanded={promoOpen}
+              aria-controls="header-first-session-promo"
+              onClick={() => setPromoOpen((o) => !o)}
+            >
+              <PartyPopper size={22} strokeWidth={2} aria-hidden />
+            </button>
+          )}
           <Link to="/onboarding" className="btn-book">
             <Search size={16} strokeWidth={3} />
             Book a Tutor
@@ -85,16 +117,59 @@ export default function Header() {
           <Link to="/login" className="login-link">Sign Up / Sign In</Link>
         </div>
 
-        <button
-          type="button"
-          className="header-nav-toggle"
-          aria-label="Toggle menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((prev) => !prev)}
-        >
-          {menuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        <div className="header-end-cluster">
+          {guest && (
+            <button
+              type="button"
+              className="header-promo-trigger header-promo-trigger--mobile"
+              aria-label="Limited offer: first session discount"
+              aria-expanded={promoOpen}
+              aria-controls="header-first-session-promo"
+              onClick={() => setPromoOpen((o) => !o)}
+            >
+              <PartyPopper size={22} strokeWidth={2} aria-hidden />
+            </button>
+          )}
+          <button
+            type="button"
+            className="header-nav-toggle"
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((prev) => !prev)}
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
+
+      {guest && promoOpen && (
+        <div
+          id="header-first-session-promo"
+          className="header-promo-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="header-promo-title"
+        >
+          <div className="header-promo-card-inner">
+            <div className="header-promo-icon-wrap" aria-hidden>
+              <PartyPopper size={28} strokeWidth={2} />
+            </div>
+            <h2 id="header-promo-title" className="header-promo-title">
+              First session: 20% off
+            </h2>
+            <p className="header-promo-text">
+              New learners get 20% off their first tutoring session. Sign up and book to apply the discount.
+            </p>
+            <Link
+              to="/onboarding"
+              className="header-promo-cta"
+              onClick={() => setPromoOpen(false)}
+            >
+              Book a tutor
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className={`header-mobile-menu ${menuOpen ? 'is-open' : ''}`} aria-hidden={!menuOpen}>
         <nav className="header-nav" aria-label="Mobile navigation">
