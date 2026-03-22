@@ -1,8 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Quote, Star } from 'lucide-react';
 import '../../styles/LandingPage.css';
 
+/** Two cards side-by-side from this width up; one card below (matches CSS breakpoints). */
+const WIDE_TWO_CARDS_QUERY = '(min-width: 768px)';
+
 export default function ReviewSection() {
+  const [showTwoCards, setShowTwoCards] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(WIDE_TWO_CARDS_QUERY).matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(WIDE_TWO_CARDS_QUERY);
+    const sync = () => setShowTwoCards(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   const reviews = [
     {
       id: 1,
@@ -67,23 +82,32 @@ export default function ReviewSection() {
         <h2 className="review-main-title">What Our Students & Parents Say</h2>
 
         <div className="review-carousel-wrapper">
-          <button className="carousel-btn prev" onClick={prevSlide}>
-            <ChevronLeft size={40} />
+          <button
+            type="button"
+            className="carousel-btn prev"
+            onClick={prevSlide}
+            aria-label="Previous testimonials"
+          >
+            <ChevronLeft className="carousel-btn-icon" aria-hidden />
           </button>
 
-          <div className="review-flex-track">
-            {/* Showing 2 cards at a time like the screenshot */}
-            {[0, 1].map((offset) => {
+          <div
+            className={`review-flex-track${showTwoCards ? '' : ' review-flex-track--single'}`}
+          >
+            {(showTwoCards ? [0, 1] : [0]).map((offset) => {
               const review = reviews[(currentIndex + offset) % reviews.length];
               return (
-                <div key={review.id} className={`review-card ${review.type}-card`}>
+                <div
+                  key={`${currentIndex}-${offset}-${review.id}`}
+                  className={`review-card ${review.type}-card`}
+                >
                   <div className="quote-icon">
-                    <Quote size={48} fill="currentColor" />
+                    <Quote className="quote-icon-svg" size={48} fill="currentColor" aria-hidden />
                   </div>
                   
                   <div className="star-rating">
                     {[...Array(review.rating)].map((_, i) => (
-                      <Star key={i} size={18} fill="#fbbf24" color="#fbbf24" />
+                      <Star key={i} className="review-star" size={18} fill="#fbbf24" color="#fbbf24" aria-hidden />
                     ))}
                   </div>
 
@@ -101,8 +125,13 @@ export default function ReviewSection() {
             })}
           </div>
 
-          <button className="carousel-btn next" onClick={nextSlide}>
-            <ChevronRight size={40} />
+          <button
+            type="button"
+            className="carousel-btn next"
+            onClick={nextSlide}
+            aria-label="Next testimonials"
+          >
+            <ChevronRight className="carousel-btn-icon" aria-hidden />
           </button>
         </div>
       </div>
