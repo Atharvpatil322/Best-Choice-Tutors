@@ -21,7 +21,7 @@ function AgeConsent() {
         navigate(`/login?role=${role}`);
       }
     } else {
-      alert("You must be 18 or over to create an account.");
+      alert("You must be 13 or over to create an account.");
     }
   };
 
@@ -33,7 +33,7 @@ function AgeConsent() {
             <h1 className="age-title">Age Confirmation</h1>
             <p className="age-subtitle">
               To create an Account on Best Choice Tutors, <br />
-              <span className="font-bold">"You must be 18 years or over"</span>
+              <span className="font-bold">"You must be 13 years or over"</span>
             </p>
 
             <div className="age-options-container">
@@ -47,7 +47,7 @@ function AgeConsent() {
                 ) : (
                   <Circle className="text-gray-300" size={24} />
                 )}
-                <span>I am 18 or over</span>
+                <span>I am 13 or over</span>
               </div>
 
               {/* Option: Under 18 */}
@@ -60,7 +60,7 @@ function AgeConsent() {
                 ) : (
                   <Circle className="text-gray-300" size={24} />
                 )}
-                <span>I am under 18</span>
+                <span>I am under 13</span>
               </div>
             </div>
 

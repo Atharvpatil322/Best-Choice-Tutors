@@ -17,7 +17,7 @@ export default function FooterSection() {
               <img src={logoImage} alt="Best Choice Tutors Logo" />
             </Link>
             <p className="footer-about">
-              Connecting students with expert tutors for personalized learning experiences. 
+              Connecting students with expert tutors for personalised learning experiences. 
               Transform your education journey with quality tutoring.
             </p>
           </div>
@@ -40,7 +40,7 @@ export default function FooterSection() {
 
           {/* Social Icons */}
           <div className="footer-socials">
-            <a href="https://twitter.com" className="social-icon twitter"><Twitter size={20} /></a>
+            {/* <a href="https://twitter.com" className="social-icon twitter"><Twitter size={20} /></a> */}
             <a href="https://linkedin.com" className="social-icon linkedin"><Linkedin size={20} /></a>
             <a href="https://facebook.com" className="social-icon facebook"><Facebook size={20} /></a>
             <a href="https://instagram.com" className="social-icon instagram"><Instagram size={20} /></a>

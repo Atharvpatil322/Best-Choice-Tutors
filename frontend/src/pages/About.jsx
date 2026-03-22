@@ -118,7 +118,7 @@ export default function About() {
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-5 w-5 text-[#4FD1C5] mt-0.5" />
-                  <p className="text-slate-700">Personalized learning plans built around your goals.</p>
+                  <p className="text-slate-700">Personalised learning plans built around your goals.</p>
                 </div>
               </div>
             </div>

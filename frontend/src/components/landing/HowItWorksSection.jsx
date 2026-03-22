@@ -96,7 +96,8 @@ const TUTOR_STEPS = [
     step: 6,
     icon: Banknote,
     title: 'Deliver sessions & get paid',
-    description: 'Teach the lesson, then payment is released to you. Track earnings and payouts in your wallet.',
+    description:
+      'Teach the lesson, then payment is released to you. Best Choice Tutors charges a 25% platform commission on each session; you keep the rest. Track earnings and payouts in your wallet.',
   },
 ];
 
