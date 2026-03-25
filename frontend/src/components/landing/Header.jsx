@@ -56,6 +56,8 @@ export default function Header() {
 
         <nav className="header-nav" aria-label="Main navigation">
           <Link to="/">Home</Link>
+          <Link to="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
+          <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it works</Link>
           <div
             className="header-nav-item-with-dropdown"
             onMouseEnter={showSubjectsDropdown}
@@ -89,8 +91,6 @@ export default function Header() {
               </div>
             </div>
           </div>
-          <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it works</Link>
-          <Link to="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
           {/* <Link to="/pricing">Pricing</Link> */}
         </nav>
 
@@ -174,6 +174,8 @@ export default function Header() {
       <div className={`header-mobile-menu ${menuOpen ? 'is-open' : ''}`} aria-hidden={!menuOpen}>
         <nav className="header-nav" aria-label="Mobile navigation">
           <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link to="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
+          <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it works</Link>
           <div className="header-mobile-subjects-wrap">
             <button
               type="button"
@@ -204,8 +206,6 @@ export default function Header() {
               </div>
             </div>
           </div>
-          <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it works</Link>
-          <Link to="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
           {/* <Link to="/pricing" onClick={() => setMenuOpen(false)}>Pricing</Link> */}
         </nav>
         <div className="header-actions">
