@@ -25,6 +25,25 @@ const S3_PUBLIC_URL_PREFIX = bucket
   : '';
 
 /**
+ * Presign a GET URL for a specific S3 object key.
+ * Returns null if bucket or key is missing.
+ * @param {string} key - S3 object key
+ * @param {number} [expiresIn=3600] - Expiry in seconds
+ * @returns {Promise<string | null>}
+ */
+export async function presignKey(key, expiresIn = 3600) {
+  if (!bucket || !key) return null;
+  try {
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
+    return signedUrl;
+  } catch (err) {
+    console.error('S3 presign failed (key=%s):', key, err.message);
+    return null;
+  }
+}
+
+/**
  * Get public URL for an S3 object (bucket must allow public read or use bucket policy).
  * @param {string} key - S3 object key
  * @returns {string}
