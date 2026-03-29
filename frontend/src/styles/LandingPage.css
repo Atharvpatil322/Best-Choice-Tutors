@@ -518,9 +518,9 @@ body.landing-page-active {
 
 /* Desktop: show nav and actions, hide toggle */
 @media (min-width: 1024px) {
-  .header-container {
+  /* .header-container {
     padding: 0 1.5rem;
-  }
+  } */
 
   .header-nav {
     display: flex;
