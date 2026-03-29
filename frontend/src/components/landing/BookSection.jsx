@@ -10,12 +10,11 @@ export default function BookSection() {
       <div className="cta-container">
         <div className="cta-card">
           <h2 className="cta-title">
-           Start your journey with 
-Best Choice Tutors <br />
+            Start your journey with Best Choice Tutors
           </h2>
           <p className="cta-description">
-            Whether you're looking for expert academic support or want to inspire the next <br /> 
-            generation, we're here to help.
+            Whether you&apos;re looking for expert academic support or want to inspire the next
+            generation, we&apos;re here to help.
           </p>
           
           <div className="cta-button-group">

@@ -38,16 +38,16 @@ export default function About() {
             <p className="mt-4 text-lg text-white/90 max-w-2xl">
               A trusted tutoring marketplace connecting learners with verified tutors for GCSE, A-Levels, 11+, SATs, and university pathways.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
               <Link
                 to="/onboarding"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-[#0F2442] bg-white hover:bg-white/90 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-[#0F2442] bg-white hover:bg-white/90 transition-colors w-full sm:w-auto min-h-[44px] text-center"
               >
                 Book a Tutor
               </Link>
               <Link
                 to="/register?role=tutor"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white border border-white/60 hover:bg-white/10 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white border border-white/60 hover:bg-white/10 transition-colors w-full sm:w-auto min-h-[44px] text-center"
               >
                 Become a Tutor
               </Link>

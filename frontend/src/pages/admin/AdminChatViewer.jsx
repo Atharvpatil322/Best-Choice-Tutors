@@ -133,7 +133,7 @@ function AdminChatViewer() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6 min-w-0">
         {/* Conversation List Panel */}
         <Card className="rounded-2xl border-gray-100 shadow-sm">
           <CardHeader>
@@ -162,7 +162,7 @@ function AdminChatViewer() {
                 chatting.
               </p>
             ) : (
-              <ul className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              <ul className="space-y-2 max-h-[min(600px,70vh)] overflow-y-auto pr-1 min-w-0">
                 {conversations.map((conv) => (
                   <li
                     key={conv.bookingId}
@@ -203,12 +203,12 @@ function AdminChatViewer() {
         {/* Chat Detail Panel */}
         <Card className="rounded-2xl border-gray-100 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg text-[#1A365D]">
+            <CardTitle className="text-lg text-[#1A365D] min-w-0 break-words">
               {selectedConversation
                 ? `Chat: ${selectedConversation.learnerName} ↔ ${selectedConversation.tutorName}`
                 : 'Select a conversation'}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="min-w-0 break-words">
               {selectedConversation
                 ? `Booking ${selectedConversation.bookingId} · ${formatDate(selectedConversation.date)} · ${messages.length} message${messages.length !== 1 ? 's' : ''}`
                 : 'Click on a conversation from the list to view messages'}
@@ -240,7 +240,7 @@ function AdminChatViewer() {
                 No messages found for this conversation.
               </p>
             ) : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[min(600px,70vh)] overflow-y-auto pr-1 min-w-0">
                 {messages.map((m) => (
                   <div
                     key={m.id}

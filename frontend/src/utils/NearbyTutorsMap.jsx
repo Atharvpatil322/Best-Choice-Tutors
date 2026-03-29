@@ -59,9 +59,9 @@ const NearbyTutorsMap = ({ tutorsData, userLocation = null, firstSessionDiscount
   };
 
   return (
-    <div className="relative w-full h-[650px] rounded-3xl overflow-hidden border border-slate-200 bg-slate-50">
-      {/* Simple info badge */}
-      <div className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur border border-slate-200 px-3 py-2 rounded-xl shadow-sm">
+    <div className="relative isolate w-full min-h-[260px] h-[52vh] max-h-[650px] sm:h-[58vh] md:h-[62vh] lg:h-[650px] rounded-3xl overflow-hidden border border-slate-200 bg-slate-50">
+      {/* Simple info badge — z within isolated map stack only */}
+      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-[1000] max-w-[calc(100%-1.5rem)] bg-white/90 backdrop-blur border border-slate-200 px-3 py-2 rounded-xl shadow-sm">
         <p className="text-xs font-medium text-slate-700 flex items-center gap-1">
           <MapPin size={14} className="text-blue-600" />
           {tutorsData.length} tutor{tutorsData.length === 1 ? '' : 's'} in this area

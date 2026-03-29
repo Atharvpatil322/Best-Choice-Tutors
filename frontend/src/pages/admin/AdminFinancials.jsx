@@ -121,18 +121,18 @@ function AdminFinancials() {
   return (
     <div className="profile-page-content">
       <div className="profile-intro">
-        <h1 className="text-2xl font-bold text-[#1A365D] flex items-center gap-2">
-          <Banknote className="h-7 w-7" />
+        <h1 className="text-xl sm:text-2xl font-bold text-[#1A365D] flex items-center gap-2 flex-wrap min-w-0">
+          <Banknote className="h-7 w-7 shrink-0" />
           Financial Overview
         </h1>
         <p className="text-sm text-slate-500 mt-1">Payments, escrow, payouts and refunds.</p>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-col sm:flex-row sm:justify-end sm:items-center gap-2">
           <Button
             variant="outline"
             onClick={handleExportFinancials}
             disabled={exporting}
-            className="rounded-lg gap-1"
+            className="rounded-lg gap-1 w-full sm:w-auto"
           >
             <FileSpreadsheet className="h-4 w-4" />
             {exporting ? 'Exporting…' : 'Export Excel'}
@@ -149,10 +149,10 @@ function AdminFinancials() {
       )}
 
       {financials && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-500">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6 min-w-0">
+          <Card className="rounded-2xl border-gray-100 shadow-sm min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 min-w-0">
+                <CardTitle className="text-sm font-medium text-slate-500 min-w-0">
                   Payments summary
                 </CardTitle>
                 <Wallet className="h-4 w-4 text-[#1A365D]" />
@@ -165,9 +165,9 @@ function AdminFinancials() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-gray-100 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-500">
+            <Card className="rounded-2xl border-gray-100 shadow-sm min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 min-w-0">
+                <CardTitle className="text-sm font-medium text-slate-500 min-w-0">
                   Escrow total
                 </CardTitle>
                 <Lock className="h-4 w-4 text-[#1A365D]" />
@@ -180,9 +180,9 @@ function AdminFinancials() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-gray-100 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-500">
+            <Card className="rounded-2xl border-gray-100 shadow-sm min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 min-w-0">
+                <CardTitle className="text-sm font-medium text-slate-500 min-w-0">
                   Payouts
                 </CardTitle>
                 <ArrowUpRight className="h-4 w-4 text-[#1A365D]" />
@@ -195,9 +195,9 @@ function AdminFinancials() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-gray-100 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-500">
+            <Card className="rounded-2xl border-gray-100 shadow-sm min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 min-w-0">
+                <CardTitle className="text-sm font-medium text-slate-500 min-w-0">
                   Refunds
                 </CardTitle>
                 <ArrowDownLeft className="h-4 w-4 text-[#1A365D]" />

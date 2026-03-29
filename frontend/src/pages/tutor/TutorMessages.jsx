@@ -100,9 +100,9 @@ function TutorMessages() {
 
   return (
     <div className="profile-page-content">
-      <div className="profile-intro flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1A365D] flex items-center gap-2">
+      <div className="profile-intro flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1A365D] flex items-center gap-2">
             <MessageSquare className="h-7 w-7" />
             Messages
           </h1>
@@ -113,7 +113,7 @@ function TutorMessages() {
         <Button
           variant="outline"
           onClick={() => navigate('/tutor/bookings')}
-          className="rounded-lg"
+          className="rounded-lg w-full sm:w-auto shrink-0"
         >
           Bookings
         </Button>
@@ -134,10 +134,10 @@ function TutorMessages() {
               {bookings.map((b) => (
                 <li
                   key={b.id}
-                  className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 hover:bg-slate-50/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-4 rounded-xl border border-gray-100 hover:bg-slate-50/50 transition-colors min-w-0"
                 >
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#1A365D]">{b.learnerName ?? 'Learner'}</p>
+                    <p className="font-semibold text-[#1A365D] break-words">{b.learnerName ?? 'Learner'}</p>
                     <p className="text-sm text-slate-600 mt-1">
                       <span className="font-medium text-slate-500">Session:</span>{' '}
                       {formatDate(b.date)} · {formatTime(b.startTime, b.endTime)}
@@ -145,7 +145,7 @@ function TutorMessages() {
                   </div>
                   <Button
                     onClick={() => navigate(`/tutor/bookings/${b.id}/chat`)}
-                    className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg shrink-0"
+                    className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg shrink-0 w-full sm:w-auto"
                   >
                     Open chat
                   </Button>

@@ -221,11 +221,11 @@ function AdminUsers() {
           <CardDescription>
               You cannot change your own status.
             </CardDescription>
-            <div className="flex flex-wrap items-end gap-4 pt-2">
-              <div className="space-y-1.5">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-4 pt-2">
+              <div className="space-y-1.5 w-full sm:w-auto">
                 <Label htmlFor="roleFilter" className="text-xs">Role</Label>
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger id="roleFilter" className="w-[180px]">
+                  <SelectTrigger id="roleFilter" className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -237,7 +237,7 @@ function AdminUsers() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full sm:w-auto flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
                 <Label htmlFor="emailFilter" className="text-xs">Email</Label>
                 <Input
                   id="emailFilter"
@@ -245,10 +245,10 @@ function AdminUsers() {
                   placeholder="Filter by email..."
                   value={emailFilter}
                   onChange={(e) => setEmailFilter(e.target.value)}
-                  className="w-[220px]"
+                  className="w-full max-w-full"
                 />
               </div>
-              <div className="self-end">
+              <div className="sm:self-end">
                 <Button
                   variant="outline"
                   onClick={handleExportUsers}

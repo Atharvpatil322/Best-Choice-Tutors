@@ -138,15 +138,15 @@ function BookingChat() {
 
   return (
     <div className="profile-page-content flex flex-col min-h-[calc(100vh-12rem)]">
-      <div className="profile-intro flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1A365D] flex items-center gap-2">
+      <div className="profile-intro flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1A365D] flex items-center gap-2">
             <MessageSquare className="h-7 w-7" />
             Chat
           </h1>
           <p className="text-sm text-slate-500 mt-1">Booking conversation</p>
         </div>
-        <Button variant="outline" onClick={() => navigate(backHref)} className="rounded-lg">
+        <Button variant="outline" onClick={() => navigate(backHref)} className="rounded-lg w-full sm:w-auto shrink-0">
           Back to Bookings
         </Button>
       </div>
@@ -172,7 +172,7 @@ function BookingChat() {
               >
                 <span className="text-xs font-medium text-slate-500">{m.senderRole}</span>
                 <div
-                  className={`rounded-2xl px-4 py-2.5 text-sm ${
+                  className={`rounded-2xl px-4 py-2.5 text-sm break-words ${
                     isOwn ? 'bg-[#1A365D] text-white' : 'bg-slate-100 text-slate-800'
                   }`}
                 >
@@ -186,7 +186,7 @@ function BookingChat() {
         </div>
         <form
           onSubmit={handleSend}
-          className="shrink-0 flex gap-2 p-4 border-t border-slate-100 bg-slate-50/50"
+          className="shrink-0 flex flex-col sm:flex-row gap-2 p-4 border-t border-slate-100 bg-slate-50/50 min-w-0"
         >
           <Input
             value={input}
@@ -194,12 +194,12 @@ function BookingChat() {
             placeholder="Type a message…"
             maxLength={5000}
             disabled={!isConnected || sending}
-            className="flex-1 rounded-lg border-slate-200"
+            className="flex-1 min-w-0 rounded-lg border-slate-200"
           />
           <Button
             type="submit"
             disabled={!input.trim() || !isConnected || sending}
-            className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg"
+            className="bg-[#1A365D] hover:bg-[#1A365D]/90 rounded-lg w-full sm:w-auto shrink-0"
           >
             {sending ? 'Sending…' : 'Send'}
           </Button>

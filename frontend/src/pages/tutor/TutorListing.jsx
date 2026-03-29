@@ -167,11 +167,11 @@ function TutorListing() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="container mx-auto max-w-7xl">
+    <div className="min-h-screen bg-gray-50 px-4 py-8 overflow-x-hidden">
+      <div className="container mx-auto max-w-7xl min-w-0">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Find a Tutor</h1>
+        <div className="mb-6 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Find a Tutor</h1>
           <p className="mt-2 text-muted-foreground">
             Browse our tutors and find the perfect match for your learning needs
           </p>

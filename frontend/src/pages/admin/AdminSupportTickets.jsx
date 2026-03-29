@@ -129,10 +129,10 @@ function AdminSupportTickets() {
             <CardTitle className="text-[#1A365D]">Queue</CardTitle>
             <CardDescription>Filter by status and open a ticket to reply.</CardDescription>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500">Status</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
+            <span className="text-xs text-slate-500 shrink-0">Status</span>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

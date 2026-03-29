@@ -39,7 +39,8 @@ body.landing-page-active {
   height: auto;
   background-color: #ffffff;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
@@ -55,7 +56,9 @@ body.landing-page-active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .header-logo {
@@ -393,6 +396,13 @@ body.landing-page-active {
   transition: opacity 0.2s;
   border: none;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  line-height: 1.2;
 }
 
 .btn-book:hover,
@@ -489,11 +499,21 @@ body.landing-page-active {
 .header-mobile-menu .btn-become-tutor {
   justify-content: center;
   width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  flex-shrink: 0;
 }
 
 .header-mobile-menu .login-link {
   text-align: center;
   margin-left: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
 }
 
 /* Desktop: show nav and actions, hide toggle */
@@ -1855,6 +1875,8 @@ body.landing-page-active {
   color: var(--navy-primary);
   line-height: 1.2;
   margin-bottom: 1rem;
+  text-wrap: balance;
+  max-width: 100%;
 }
 
 .cta-description {
@@ -1863,6 +1885,9 @@ body.landing-page-active {
   opacity: 0.9;
   line-height: 1.6;
   margin-bottom: 1.5rem;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .cta-button-group {

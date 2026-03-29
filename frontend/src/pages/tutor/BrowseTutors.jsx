@@ -92,22 +92,22 @@ function BrowseTutors() {
         ogType="website"
       />
       {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1A365D]">Browse Tutors</h1>
-          <p className="mt-2 text-slate-500">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between min-w-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">Browse Tutors</h1>
+          <p className="mt-2 text-slate-500 text-sm sm:text-base">
             Discover our tutors and find the perfect match for your learning needs
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+        <div className="flex items-stretch sm:items-center gap-3 w-full sm:w-auto shrink-0">
+          <div className="flex flex-1 sm:flex-initial bg-white border border-slate-200 rounded-xl p-1 shadow-sm min-w-0">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('grid')}
-              className="gap-2"
+              className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial px-3"
             >
-              <LayoutGrid size={16} /> Grid
+              <LayoutGrid size={16} className="shrink-0" /> <span className="truncate">Grid</span>
             </Button>
             <Button
               variant={viewMode === 'map' ? 'default' : 'ghost'}
@@ -116,9 +116,9 @@ function BrowseTutors() {
                 if (viewMode !== 'map') requestLocation();
                 setViewMode('map');
               }}
-              className="gap-2"
+              className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial px-3"
             >
-              <MapIcon size={16} /> Map
+              <MapIcon size={16} className="shrink-0" /> <span className="truncate">Map</span>
             </Button>
           </div>
         </div>

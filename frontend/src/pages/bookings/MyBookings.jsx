@@ -410,19 +410,19 @@ function MyBookings() {
 
           return (
             <Card key={b.id} className="booking-premium-card overflow-hidden">
-              <CardContent className="p-6 flex flex-col md:flex-row gap-6">
+              <CardContent className="p-4 sm:p-6 flex flex-col md:flex-row gap-6 min-w-0">
                 
                 {/* Tutor Info & Details */}
-                <div className="flex gap-6 flex-1">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 flex-1 min-w-0">
                   <ProfileAvatar
                     src={b.tutorProfilePhoto}
                     alt=""
-                    className="w-20 h-20 rounded-full object-cover"
+                    className="w-20 h-20 rounded-full object-cover shrink-0 self-start"
                   />
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-bold text-[#1A365D]">{b.tutorName}</h3>
-                      <span className={`px-4 py-1 rounded-full text-xs font-bold ${getBookingStatusBadgeClass(b.status)}`}>
+                  <div className="space-y-2 min-w-0 flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-2 sm:gap-3">
+                      <h3 className="text-lg sm:text-xl font-bold text-[#1A365D] break-words">{b.tutorName}</h3>
+                      <span className={`px-3 sm:px-4 py-1 rounded-full text-xs font-bold shrink-0 w-fit ${getBookingStatusBadgeClass(b.status)}`}>
                         {getBookingStatusLabel(b.status)}
                       </span>
                     </div>
@@ -443,7 +443,7 @@ function MyBookings() {
                 </div>
 
                 {/* Vertical Action Buttons */}
-                <div className="flex flex-col gap-2 min-w-[200px]">
+                <div className="flex flex-col gap-2 w-full md:w-auto md:min-w-[200px] shrink-0">
                   {canJoin && (
                     <Button className="w-full bg-[#1A365D] text-white rounded-lg h-10 font-bold">
                       <Video size={16} className="mr-2" /> Join Session

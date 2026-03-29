@@ -138,17 +138,17 @@ function TutorBookingDetail() {
 
   return (
     <div className="profile-page-content">
-      <div className="profile-intro flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1A365D] flex items-center gap-2">
-            <Calendar className="h-7 w-7" />
+      <div className="profile-intro flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1A365D] flex items-center gap-2">
+            <Calendar className="h-7 w-7 shrink-0" />
             Booking Details
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1 break-words">
             {booking.learnerName || 'Learner'} · {formatDate(booking.date)} · {formatTime(booking.startTime, booking.endTime)}
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/tutor/bookings')} className="rounded-lg">
+        <Button variant="outline" onClick={() => navigate('/tutor/bookings')} className="rounded-lg w-full sm:w-auto shrink-0">
           Back to Bookings
         </Button>
       </div>

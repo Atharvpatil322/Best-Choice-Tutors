@@ -75,7 +75,7 @@ function AdminLayout() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F1F5F9] overflow-x-hidden">
-      <header className="h-14 sm:h-16 lg:h-20 shrink-0 bg-white px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 border-b border-gray-100 sticky top-0 z-30 w-full mt-2 sm:mt-[1em] mx-2 sm:mx-4 lg:mx-auto max-w-[100vw] rounded-2xl sm:rounded-[32px] shadow-sm">
+      <header className="h-14 sm:h-16 lg:h-20 shrink-0 bg-white px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 border-b border-gray-100 sticky top-0 z-[2000] w-full mt-2 sm:mt-[1em] mx-2 sm:mx-4 lg:mx-auto max-w-[min(100%,calc(100vw-1rem))] rounded-2xl sm:rounded-[32px] shadow-sm">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
             type="button"
@@ -107,7 +107,7 @@ function AdminLayout() {
       <div className="flex flex-1 min-h-0">
         <div
           className={cn(
-            'fixed inset-0 bg-black/40 z-30 transition-opacity lg:hidden',
+            'fixed inset-0 bg-black/40 z-[4990] transition-opacity lg:hidden',
             sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           )}
           onClick={() => setSidebarOpen(false)}
@@ -116,7 +116,8 @@ function AdminLayout() {
 
         <aside
           className={cn(
-            'w-[260px] max-w-[85vw] bg-[#1A365D] flex flex-col fixed z-40 shadow-xl overflow-hidden transition-transform duration-200 ease-out',
+            'w-[260px] max-w-[85vw] bg-[#1A365D] flex flex-col fixed shadow-xl overflow-hidden transition-transform duration-200 ease-out',
+            'z-[5000] lg:z-40',
             'left-0 top-14 bottom-0 sm:top-16 lg:left-4 lg:top-24 lg:bottom-4 lg:mt-2 lg:rounded-[24px] rounded-r-[24px]',
             'lg:flex lg:translate-x-0',
             sidebarOpen ? 'flex translate-x-0' : 'hidden -translate-x-full'
@@ -163,7 +164,7 @@ function AdminLayout() {
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0 ml-0 lg:ml-[280px] p-4 sm:p-6 overflow-y-auto overflow-x-hidden h-[calc(100vh-4rem)] sm:h-[calc(100vh-5rem)] lg:h-[calc(100vh-80px)]">
+        <main className="flex-1 min-w-0 min-h-0 ml-0 lg:ml-[280px] p-4 sm:p-6 overflow-y-auto overflow-x-hidden">
           <div className="bg-white rounded-2xl sm:rounded-[32px] min-h-full border border-gray-100 shadow-sm p-4 sm:p-6 lg:p-8">
             <Outlet />
           </div>

@@ -371,19 +371,19 @@ function TutorProfile({ tutorId: propTutorId }) {
         ogDescription={seoDescription}
         ogType="profile"
       />
-      <div className="profile-intro flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1a365d]">Tutor Profile</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{tutor.fullName || 'Tutor'}</p>
+      <div className="profile-intro flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1a365d]">Tutor Profile</h1>
+          <p className="text-sm text-slate-500 mt-0.5 truncate">{tutor.fullName || 'Tutor'}</p>
         </div>
-        <Button variant="outline" size="sm" asChild>
+        <Button variant="outline" size="sm" asChild className="w-full sm:w-auto shrink-0">
           <Link to="/dashboard/browse-tutors">Browse Tutors</Link>
         </Button>
       </div>
 
       {/* Hero banner – same structure as Tutor My Profile */}
       <div className="profile-hero-banner mt-6">
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-center gap-6 min-w-0">
           <div className="flex-shrink-0">
             <ProfileAvatar
               src={tutor.profilePhoto}
@@ -393,9 +393,9 @@ function TutorProfile({ tutorId: propTutorId }) {
               fallbackClassName="border-4 border-white/20 bg-white/10 text-white"
             />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white">{tutor.fullName || 'Tutor'}</h2>
-            <p className="flex items-center gap-1 text-white/80 text-sm mt-1">
+          <div className="min-w-0 text-center sm:text-left w-full sm:w-auto sm:flex-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-white break-words">{tutor.fullName || 'Tutor'}</h2>
+            <p className="flex flex-wrap items-center justify-center sm:justify-start gap-x-1 gap-y-0.5 text-white/80 text-sm mt-1">
               {tutor.mode && <span>{tutor.mode}</span>}
               {locationDisplay && (
                 <>

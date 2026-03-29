@@ -246,9 +246,9 @@ function ManageAvailability() {
               {weeklyRules.map((rule, index) => (
                 <div
                   key={index}
-                  className="flex flex-wrap items-end gap-3 rounded-md border border-input p-3"
+                  className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 rounded-md border border-input p-3 min-w-0"
                 >
-                  <div className="info-block flex-1 min-w-[140px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[120px] min-w-0">
                     <Label>Day</Label>
                     <Select
                       value={rule.dayOfWeek.toString()}
@@ -277,7 +277,7 @@ function ManageAvailability() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="info-block flex-1 min-w-[110px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[100px] min-w-0">
                     <Label>Start</Label>
                     <Input
                       type="time"
@@ -288,7 +288,7 @@ function ManageAvailability() {
                       className="mt-1"
                     />
                   </div>
-                  <div className="info-block flex-1 min-w-[110px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[100px] min-w-0">
                     <Label>End</Label>
                     <Input
                       type="time"
@@ -304,7 +304,7 @@ function ManageAvailability() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRemoveWeeklyRule(index)}
-                    className="text-destructive hover:text-destructive shrink-0"
+                    className="text-destructive hover:text-destructive shrink-0 w-full sm:w-auto"
                   >
                     Remove
                   </Button>
@@ -331,9 +331,9 @@ function ManageAvailability() {
               {exceptions.map((exception, index) => (
                 <div
                   key={index}
-                  className="flex flex-wrap items-end gap-3 rounded-md border border-input p-3"
+                  className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 rounded-md border border-input p-3 min-w-0"
                 >
-                  <div className="info-block flex-1 min-w-[140px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[120px] min-w-0">
                     <Label>Date</Label>
                     <Input
                       type="date"
@@ -344,7 +344,7 @@ function ManageAvailability() {
                       className="mt-1"
                     />
                   </div>
-                  <div className="info-block flex-1 min-w-[110px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[100px] min-w-0">
                     <Label>Start</Label>
                     <Input
                       type="time"
@@ -355,7 +355,7 @@ function ManageAvailability() {
                       className="mt-1"
                     />
                   </div>
-                  <div className="info-block flex-1 min-w-[110px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[100px] min-w-0">
                     <Label>End</Label>
                     <Input
                       type="time"
@@ -366,7 +366,7 @@ function ManageAvailability() {
                       className="mt-1"
                     />
                   </div>
-                  <div className="info-block flex-1 min-w-[130px]">
+                  <div className="info-block w-full sm:flex-1 sm:min-w-[120px] min-w-0">
                     <Label>Type</Label>
                     <Select
                       value={exception.type}
@@ -388,7 +388,7 @@ function ManageAvailability() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRemoveException(index)}
-                    className="text-destructive hover:text-destructive shrink-0"
+                    className="text-destructive hover:text-destructive shrink-0 w-full sm:w-auto"
                   >
                     Remove
                   </Button>

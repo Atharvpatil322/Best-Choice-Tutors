@@ -164,7 +164,7 @@ function TutorCard({ tutor, firstSessionDiscountAvailable = false }) {
               {locationText && (
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
-                  <span className="truncate max-w-[200px]">{locationText}</span>
+                  <span className="truncate min-w-0 max-w-full sm:max-w-[200px]">{locationText}</span>
                 </span>
               )}
               {experienceYears !== null && experienceYears >= 0 && (
@@ -176,7 +176,7 @@ function TutorCard({ tutor, firstSessionDiscountAvailable = false }) {
               {qualSummary && (
                 <span className="flex items-center gap-1.5 min-w-0">
                   <GraduationCap className="h-4 w-4 text-slate-400 shrink-0" />
-                  <span className="truncate max-w-[240px]" title={qualSummary}>{qualSummary}</span>
+                  <span className="truncate min-w-0 max-w-full sm:max-w-[240px]" title={qualSummary}>{qualSummary}</span>
                 </span>
               )}
             </div>
@@ -184,7 +184,7 @@ function TutorCard({ tutor, firstSessionDiscountAvailable = false }) {
         </div>
 
         {/* Right: Action */}
-        <div className="flex flex-col justify-center shrink-0 lg:min-w-[200px]">
+        <div className="flex flex-col justify-center shrink-0 w-full lg:w-auto lg:min-w-[200px]">
           <Button
             onClick={handleViewProfile}
             className="w-full bg-[#1A365D] text-white rounded-xl h-11 font-bold hover:bg-[#1A365D]/90 shadow-sm"
