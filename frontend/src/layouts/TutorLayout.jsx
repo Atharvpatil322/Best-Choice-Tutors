@@ -142,7 +142,7 @@ function TutorLayout() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F1F5F9] overflow-x-hidden">
+    <div className="flex flex-col h-screen bg-[#F1F5F9] overflow-hidden">
       <header className="h-14 sm:h-16 lg:h-20 shrink-0 bg-white px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 border-b border-gray-100 sticky top-0 z-[2000] w-full mt-2 sm:mt-[1em] mx-2 sm:mx-4 lg:mx-auto max-w-[min(100%,calc(100vw-1rem))] rounded-2xl sm:rounded-[32px] shadow-sm">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
@@ -154,7 +154,13 @@ function TutorLayout() {
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <img src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
-          <h2 className="text-base sm:text-lg font-bold text-[#1A365D] truncate">Dashboard</h2>
+          <Link
+            to="/tutor"
+            className="text-base sm:text-lg font-bold text-[#1A365D] truncate hover:text-[#153150] transition-colors"
+            aria-label="Go to tutor dashboard"
+          >
+            Dashboard
+          </Link>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 shrink-0">
           <div className="relative" ref={notificationsRef}>

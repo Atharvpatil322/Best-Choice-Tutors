@@ -22,7 +22,9 @@ router.get('/assets/*', async (req, res) => {
     return res.status(500).json({ message: 'Unable to sign asset' });
   }
 
-  res.set('Cache-Control', 'private, max-age=300');
+  // Cache the stable asset route aggressively in the browser.
+  // If an image is replaced, change its filename/key to bust cache.
+  res.set('Cache-Control', 'public, max-age=2592000, immutable');
   return res.redirect(302, signedUrl);
 });
 
