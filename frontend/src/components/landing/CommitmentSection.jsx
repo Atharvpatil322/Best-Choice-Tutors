@@ -7,7 +7,7 @@ export default function CommitmentSection() {
     <section className="commitment-section">
       <div className="commitment-container">
         <h2 className="commitment-main-title">
-          Our Commitment to Quality <br /> Tutor Verification
+          Our Commitment to Quality <br />
         </h2>
 
         <div className="commitment-flex-row">
