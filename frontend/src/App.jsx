@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
 import LandingPage from '@/components/landing/LandingPage';
@@ -15,6 +15,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import OnBoardingScreen from './pages/auth/OnBoardingScreen';
 import AgeConsent from './pages/auth/AgeConsent';
 import { Loader2 } from 'lucide-react';
+import { isAuthenticated, getCurrentRole, getCurrentUser } from '@/services/authService';
 
 // Lazy-loaded Learner dashboard routes
 const LearnerDashboard = lazy(() => import('@/pages/dashboard/LearnerDashboard'));
@@ -78,19 +79,42 @@ function RouteFallback() {
   );
 }
 
+function getAuthenticatedHomePath() {
+  const roleFromStorage = getCurrentRole();
+  const roleFromToken = getCurrentUser()?.role;
+  const role = (roleFromStorage || roleFromToken)?.toLowerCase?.();
+  if (role === 'admin') return '/admin';
+  if (role === 'tutor') return '/tutor';
+  return '/dashboard';
+}
+
+function PublicOnlyRoute({ children }) {
+  if (isAuthenticated()) {
+    return <Navigate to={getAuthenticatedHomePath()} replace />;
+  }
+  return children;
+}
+
 function App() {
   return (
     <SocketProvider>
       <BrowserRouter>
       <Routes>
         {/* Public Route - Only Landing Page */}
-        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/"
+          element={(
+            <PublicOnlyRoute>
+              <LandingPage />
+            </PublicOnlyRoute>
+          )}
+        />
         
         {/* Auth routes - public so users can authenticate */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register?" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+        <Route path="/register?" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
+        <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
+        <Route path="/reset-password/:token" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/onboarding" element={<OnBoardingScreen />} />
         <Route path="/age-consent?" element={<AgeConsent/>} />

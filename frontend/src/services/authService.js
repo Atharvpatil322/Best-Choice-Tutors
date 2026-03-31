@@ -72,8 +72,11 @@ const decodeToken = (token) => {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     
-    // Decode payload (second part)
-    const payload = JSON.parse(atob(parts[1]));
+    // Decode payload (second part): JWT uses base64url, not plain base64.
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded));
     return payload;
   } catch (error) {
     console.error('Error decoding token:', error);
