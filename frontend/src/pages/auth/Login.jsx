@@ -4,7 +4,15 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { login, googleLogin } from '@/services/authService';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { forgotPassword, login, googleLogin } from '@/services/authService';
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { s3ImageUrl } from '@/utils/s3Assets';
 import '../../styles/Register.css'; 
@@ -22,6 +30,11 @@ function Login() {
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,6 +72,38 @@ function Login() {
       toast.error(err.message || 'Could not sign you in. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotOpenChange = (open) => {
+    setForgotOpen(open);
+    if (!open) {
+      setForgotError('');
+      setForgotSuccess(false);
+      setForgotLoading(false);
+      setForgotEmail('');
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotLoading(true);
+
+    if (!forgotEmail) {
+      setForgotError('Please enter your email address.');
+      setForgotLoading(false);
+      return;
+    }
+
+    try {
+      await forgotPassword(forgotEmail);
+      setForgotSuccess(true);
+    } catch {
+      // Keep this generic for account-enumeration safety.
+      setForgotSuccess(true);
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -101,9 +146,13 @@ function Login() {
               <div className="form-row">
                 <div className="flex justify-between items-center">
                   <Label>Password</Label>
-                  <Link to="/forgot-password" className="auth-link-secondary">
+                  <button
+                    type="button"
+                    className="auth-link-secondary"
+                    onClick={() => handleForgotOpenChange(true)}
+                  >
                     Forgot Password?
-                  </Link>
+                  </button>
                 </div>
                 <div className="minimal-input-group password-input-group">
                   <Lock size={16} className="input-icon-left" />
@@ -159,6 +208,59 @@ function Login() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={forgotOpen} onOpenChange={handleForgotOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Forgot Password</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter your email and we&apos;ll send a reset link.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+            {forgotSuccess ? (
+              <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+                If an account exists with this email, a password reset link has been sent.
+              </div>
+            ) : (
+              <>
+                {forgotError ? (
+                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {forgotError}
+                  </div>
+                ) : null}
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            <AlertDialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleForgotOpenChange(false)}>
+                Close
+              </Button>
+              {!forgotSuccess ? (
+                <Button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="bg-[#1a365d] text-white hover:bg-[#0f172a]"
+                >
+                  {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+              ) : null}
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

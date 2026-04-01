@@ -124,13 +124,8 @@ function LearnerLayout() {
           >
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <img src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
-          <Link
-            to="/dashboard"
-            className="text-base sm:text-lg font-bold text-[#1A365D] truncate hover:text-[#153150] transition-colors"
-            aria-label="Go to dashboard"
-          >
-            Home
+          <Link to="/dashboard" aria-label="Go to dashboard" className="shrink-0">
+            <img src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
           </Link>
         </div>
 
@@ -185,6 +180,19 @@ function LearnerLayout() {
               </div>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate('/');
+            }}
+            className="inline-flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200"
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut size={16} className="rotate-180" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
           <Link
             to="/dashboard/profile"
             className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 hover:opacity-90 transition-opacity min-w-0"
