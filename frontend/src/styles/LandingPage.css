@@ -1573,6 +1573,12 @@ body.landing-page-active {
 }
 
 .btn-explore-location {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
   background: transparent;
   color: var(--navy-primary);
   border: 2px solid var(--navy-primary);

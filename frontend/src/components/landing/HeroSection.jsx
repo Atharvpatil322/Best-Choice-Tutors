@@ -10,6 +10,9 @@ import '../../styles/LandingPage.css';
 
 const heroImage = s3ImageUrl('images/HeroUpdatePic.png');
 
+const HERO_BG_GRADIENT =
+  'linear-gradient(95deg, rgba(10, 24, 46, 0.95) 0%, rgba(12, 28, 52, 0.88) 32%, rgba(12, 28, 52, 0.55) 55%, rgba(12, 28, 52, 0.15) 72%, rgba(12, 28, 52, 0) 100%)';
+
 export default function HeroSection() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -32,6 +35,21 @@ export default function HeroSection() {
   });
   const [hasSearched, setHasSearched] = useState(false);
   const [customSubjectInput, setCustomSubjectInput] = useState('');
+  const [heroMediaReady, setHeroMediaReady] = useState(false);
+
+  useEffect(() => {
+    setHeroMediaReady(false);
+  }, [heroImage]);
+
+  const onHeroImageDecoded = (e) => {
+    const el = e.currentTarget;
+    const done = () => setHeroMediaReady(true);
+    if (typeof el.decode === 'function') {
+      el.decode().then(done).catch(done);
+    } else {
+      done();
+    }
+  };
 
   useEffect(() => {
     if (subjectFromUrl && CANONICAL_SUBJECTS.includes(subjectFromUrl)) {
@@ -137,7 +155,9 @@ export default function HeroSection() {
       <div
         className="hero-container hero-container--image-bg"
         style={{
-          backgroundImage: `linear-gradient(95deg, rgba(10, 24, 46, 0.95) 0%, rgba(12, 28, 52, 0.88) 32%, rgba(12, 28, 52, 0.55) 55%, rgba(12, 28, 52, 0.15) 72%, rgba(12, 28, 52, 0) 100%), url(${heroImage})`,
+          backgroundImage: heroMediaReady
+            ? `${HERO_BG_GRADIENT}, url(${heroImage})`
+            : HERO_BG_GRADIENT,
         }}
       >
         <section className="hero-content">
@@ -226,6 +246,12 @@ export default function HeroSection() {
               <img
                 src={heroImage}
                 alt="Tutor teaching a student"
+                onLoad={onHeroImageDecoded}
+                onError={() => setHeroMediaReady(true)}
+                style={{
+                  opacity: heroMediaReady ? 1 : 0,
+                  transition: 'opacity 0.2s ease-out',
+                }}
               />
             </div>
             <div className="decorative-circle teal-circle"></div>

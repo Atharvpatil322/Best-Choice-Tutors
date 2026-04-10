@@ -22,9 +22,9 @@ router.get('/assets/*', async (req, res) => {
     return res.status(500).json({ message: 'Unable to sign asset' });
   }
 
-  // Cache the stable asset route aggressively in the browser.
-  // If an image is replaced, change its filename/key to bust cache.
-  res.set('Cache-Control', 'public, max-age=2592000, immutable');
+  // Presigned S3 URLs expire quickly; never cache this redirect or browsers
+  // keep following a stale Location header and images appear broken after TTL.
+  res.set('Cache-Control', 'private, no-store');
   return res.redirect(302, signedUrl);
 });
 

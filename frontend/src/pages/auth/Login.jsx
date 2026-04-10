@@ -15,6 +15,7 @@ import {
 import { forgotPassword, login, googleLogin } from '@/services/authService';
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { s3ImageUrl } from '@/utils/s3Assets';
+import { DecodedImage } from '@/components/DecodedImage';
 import '../../styles/Register.css'; 
 
 const logoImage = s3ImageUrl('images/light_logo.png');
@@ -114,7 +115,7 @@ function Login() {
         {/* Left Side: Branding Watermark */}
         <div className="auth-visual-side">
           <div className="watermark-container">
-            <img src={logoImage} alt="BCT" className="subtle-watermark" />
+            <DecodedImage src={logoImage} alt="BCT" className="subtle-watermark" />
           </div>
         </div>
 

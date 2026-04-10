@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Twitter, Linkedin, Facebook, Instagram } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import { s3ImageUrl } from '@/utils/s3Assets';
+import { DecodedImage } from '@/components/DecodedImage';
 
 const logoImage = s3ImageUrl('images/BCT_Logo.png');
 
@@ -16,7 +17,7 @@ export default function FooterSection() {
           {/* Brand Column */}
           <div className="footer-brand">
             <Link to="/" className="footer-logo">
-              <img src={logoImage} alt="Best Choice Tutors Logo" />
+              <DecodedImage src={logoImage} alt="Best Choice Tutors Logo" />
             </Link>
             <p className="footer-about">
               Connecting students with expert tutors for personalised learning experiences. 

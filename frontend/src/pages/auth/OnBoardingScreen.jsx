@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import '../../styles/OnBoarding.css';
 import { s3ImageUrl } from '@/utils/s3Assets';
+import { DecodedImage } from '@/components/DecodedImage';
 
 const man = s3ImageUrl('images/man.png');
 const woman = s3ImageUrl('images/woman.png');
@@ -26,7 +27,7 @@ function OnBoardingScreen() {
           <Card className="onboarding-card">
             <CardContent className="p-0 flex flex-col items-center">
               <div className="card-image-box">
-                <img src={woman} alt="Student illustration" />
+                <DecodedImage src={woman} alt="Student illustration" />
               </div>
               
               <Button 
@@ -54,7 +55,7 @@ function OnBoardingScreen() {
           <Card className="onboarding-card">
             <CardContent className="p-0 flex flex-col items-center">
               <div className="card-image-box">
-                <img src={man} alt="Tutor illustration" />
+                <DecodedImage src={man} alt="Tutor illustration" />
               </div>
               
               <Button 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Quote, Star } from 'lucide-react';
 import '../../styles/LandingPage.css';
+import { DecodedImage } from '@/components/DecodedImage';
 
 /** Two cards side-by-side from this width up; one card below (matches CSS breakpoints). */
 const WIDE_TWO_CARDS_QUERY = '(min-width: 768px)';
@@ -114,7 +115,7 @@ export default function ReviewSection() {
                   <p className="review-text">"{review.text}"</p>
 
                   <div className="reviewer-info">
-                    <img src={review.image} alt={review.name} className="reviewer-img" />
+                    <DecodedImage src={review.image} alt={review.name} className="reviewer-img" />
                     <div className="reviewer-details">
                       <h4 className="reviewer-name">{review.name}</h4>
                       <p className="reviewer-role">{review.role}</p>

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { s3ImageUrl } from '@/utils/s3Assets';
+import { DecodedImage } from '@/components/DecodedImage';
 
 const SIDEBAR_ITEMS = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -85,7 +86,7 @@ function AdminLayout() {
           >
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <img src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
+          <DecodedImage src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
           <Link
             to="/admin"
             className="text-base sm:text-lg font-bold text-[#1A365D] truncate hover:text-[#153150] transition-colors"

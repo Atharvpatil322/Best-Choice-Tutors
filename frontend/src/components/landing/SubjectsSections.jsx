@@ -1,6 +1,7 @@
 import React from 'react';
 import '../../styles/LandingPage.css';
 import { s3ImageUrl } from '@/utils/s3Assets';
+import { DecodedImage } from '@/components/DecodedImage';
 
 const gcse = s3ImageUrl('images/gcse.png');
 const alevels = s3ImageUrl('images/A-Levels.png');
@@ -47,7 +48,7 @@ export default function SubjectsSections() {
           {subjects.map((subject, index) => (
             <div key={index} className="subject-card">
               <div className="subject-image-container">
-                <img src={subject.image} alt={subject.name} />
+                <DecodedImage src={subject.image} alt={subject.name} />
               </div>
               <div className="subject-footer">
                 <span>{subject.name}</span>

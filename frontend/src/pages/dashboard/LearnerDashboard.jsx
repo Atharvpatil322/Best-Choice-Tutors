@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser, getMe, switchToTutor } from '@/services/authService';
 import { s3ImageUrl } from '@/utils/s3Assets';
+import { DecodedImage } from '@/components/DecodedImage';
 import {
   BookOpen,
   FileText,
@@ -98,7 +99,7 @@ function LearnerDashboard() {
           </p>
         </div>
         <div className="absolute right-0 top-0 h-full w-[38%] sm:w-[42%] pointer-events-none hidden sm:block">
-          <img
+          <DecodedImage
             src={welcome}
             alt="Learning"
             className="h-full w-[85%] object-cover object-center"

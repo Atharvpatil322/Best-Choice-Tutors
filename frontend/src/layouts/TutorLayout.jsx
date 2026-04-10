@@ -32,6 +32,7 @@ import {
 import { cn } from '@/lib/utils';
 import { s3ImageUrl } from '@/utils/s3Assets';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { DecodedImage } from '@/components/DecodedImage';
 
 const SIDEBAR_ITEMS = [
   { to: '/tutor', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -154,7 +155,7 @@ function TutorLayout() {
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <Link to="/tutor" aria-label="Go to tutor dashboard" className="shrink-0">
-            <img src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
+            <DecodedImage src={logoImage} alt="BCT Logo" className="h-8 sm:h-10 shrink-0" />
           </Link>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 shrink-0">
