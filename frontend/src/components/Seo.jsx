@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const DEFAULT_TITLE = 'Best Choice Tutors - Expert Tutors. Real Results. Real Futures.';
+const DEFAULT_TITLE = 'Best Choice Tutors - Expert Tutors. Real Results.';
 const DEFAULT_DESCRIPTION =
   'Find expert online and in‑person tutors for GCSE, A‑Levels, university, languages and more. Safe payments, verified tutors, and flexible scheduling.';
 const DEFAULT_KEYWORDS =
