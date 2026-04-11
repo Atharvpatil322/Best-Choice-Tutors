@@ -101,7 +101,10 @@ export const register = async (req, res, next) => {
     let profilePhotoUrl = null;
     if (req.file) {
       try {
-        profilePhotoUrl = await uploadImage(req.file.buffer);
+        profilePhotoUrl = await uploadImage(req.file.buffer, {
+          mimetype: req.file.mimetype,
+          originalName: req.file.originalname,
+        });
       } catch (error) {
         console.error('Error uploading profile photo:', error);
         // Continue registration even if photo upload fails

@@ -138,7 +138,10 @@ export const updateProfile = async (req, res, next) => {
     if (req.file) {
       try {
         if (user.profilePhoto) await deleteProfilePhotoByUrl(user.profilePhoto);
-        const profilePhotoUrl = await uploadImage(req.file.buffer);
+        const profilePhotoUrl = await uploadImage(req.file.buffer, {
+          mimetype: req.file.mimetype,
+          originalName: req.file.originalname,
+        });
         user.profilePhoto = profilePhotoUrl;
       } catch (error) {
         console.error('Error uploading profile photo:', error);

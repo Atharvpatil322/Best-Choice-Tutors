@@ -137,7 +137,10 @@ export const createTutor = async (req, res, next) => {
     let profilePhotoUrl = null;
     if (req.file) {
       try {
-        profilePhotoUrl = await uploadImage(req.file.buffer);
+        profilePhotoUrl = await uploadImage(req.file.buffer, {
+          mimetype: req.file.mimetype,
+          originalName: req.file.originalname,
+        });
       } catch (error) {
         console.error("Error uploading profile photo:", error);
         return res.status(500).json({
@@ -761,7 +764,10 @@ export const updateMyTutorProfile = async (req, res, next) => {
       try {
         if (tutor.profilePhoto)
           await deleteProfilePhotoByUrl(tutor.profilePhoto);
-        const profilePhotoUrl = await uploadImage(req.file.buffer);
+        const profilePhotoUrl = await uploadImage(req.file.buffer, {
+          mimetype: req.file.mimetype,
+          originalName: req.file.originalname,
+        });
         tutor.profilePhoto = profilePhotoUrl;
       } catch (error) {
         console.error("Error uploading tutor profile photo:", error);

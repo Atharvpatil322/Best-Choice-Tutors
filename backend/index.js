@@ -125,7 +125,8 @@ const runDbsExpiryCheckSafe = async () => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-httpServer.listen(PORT, () => {
+const HOST = process.env.HOST || "0.0.0.0";
+httpServer.listen(PORT, HOST, () => {
   console.log(`Server running on port ${PORT}`);
   runCompletionCheck();
   setInterval(runCompletionCheck, COMPLETION_CHECK_INTERVAL_MS);

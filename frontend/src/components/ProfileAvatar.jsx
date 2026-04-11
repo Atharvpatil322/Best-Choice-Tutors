@@ -27,15 +27,24 @@ export function ProfileAvatar({ src, alt = 'Profile', className = '', iconClassN
   const [imgError, setImgError] = useState(false);
   const [decoded, setDecoded] = useState(false);
   const imgRef = useRef(null);
+  const revealTimeoutRef = useRef(null);
+
+  const clearRevealTimeout = useCallback(() => {
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+  }, []);
 
   const revealFromElement = useCallback((el) => {
     const show = () => setDecoded(true);
+    clearRevealTimeout();
     if (typeof el.decode === 'function') {
       el.decode().then(show).catch(show);
     } else {
       show();
     }
-  }, []);
+  }, [clearRevealTimeout]);
 
   useEffect(() => {
     setImgError(false);
@@ -49,6 +58,15 @@ export function ProfileAvatar({ src, alt = 'Profile', className = '', iconClassN
       revealFromElement(el);
     }
   }, [src, imgError, revealFromElement]);
+
+  useEffect(() => {
+    if (!src) return undefined;
+    revealTimeoutRef.current = setTimeout(() => {
+      setDecoded(true);
+      revealTimeoutRef.current = null;
+    }, 1500);
+    return () => clearRevealTimeout();
+  }, [src, clearRevealTimeout]);
 
   const showImage = src && !imgError;
 
@@ -71,7 +89,10 @@ export function ProfileAvatar({ src, alt = 'Profile', className = '', iconClassN
           transition: 'opacity 0.2s ease-out',
         }}
         onLoad={onLoad}
-        onError={() => setImgError(true)}
+        onError={() => {
+          clearRevealTimeout();
+          setImgError(true);
+        }}
       />
     );
   }

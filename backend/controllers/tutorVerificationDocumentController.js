@@ -92,7 +92,9 @@ export async function uploadVerificationDocument(req, res, next) {
     const { fileUrl, storageKey } = await uploadTutorCertificate(
       req.file.buffer,
       tutor._id.toString(),
-      fileType
+      fileType,
+      req.file.mimetype,
+      req.file.originalname
     );
 
     const fileName = (req.file.originalname || 'document').trim() || 'document';

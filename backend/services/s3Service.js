@@ -24,6 +24,34 @@ const S3_PUBLIC_URL_PREFIX = bucket
   ? `https://${bucket}.s3.${region}.amazonaws.com/`
   : '';
 
+const IMAGE_MIME_TO_EXT = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/bmp': 'bmp',
+  'image/tiff': 'tif',
+  'image/svg+xml': 'svg',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+};
+
+function resolveImageMeta(mimetype, originalName) {
+  const type = typeof mimetype === 'string' ? mimetype.toLowerCase() : '';
+  let ext = IMAGE_MIME_TO_EXT[type];
+
+  if (!ext && typeof originalName === 'string') {
+    const match = /\.([a-z0-9]+)$/.exec(originalName.toLowerCase());
+    if (match) ext = match[1];
+  }
+
+  if (!ext) ext = 'jpg';
+
+  const contentType = type && type.startsWith('image/') ? type : 'image/jpeg';
+  return { ext, contentType };
+}
+
 /**
  * Presign a GET URL for a specific S3 object key.
  * Returns null if bucket or key is missing.
@@ -135,10 +163,15 @@ async function uploadToS3(fileBuffer, key, contentType) {
  * @param {string} [folder='profile-photos'] - Logical folder (S3 prefix)
  * @returns {Promise<string>} Public URL of the uploaded file
  */
-export const uploadImage = async (fileBuffer, folder = 'profile-photos') => {
-  const ext = 'jpg';
+export const uploadImage = async (fileBuffer, options = {}) => {
+  const {
+    folder = 'profile-photos',
+    mimetype,
+    originalName,
+  } = options;
+  const { ext, contentType } = resolveImageMeta(mimetype, originalName);
   const key = `${folder}/${randomUUID()}.${ext}`;
-  const url = await uploadToS3(fileBuffer, key, 'image/jpeg');
+  const url = await uploadToS3(fileBuffer, key, contentType);
   return url;
 };
 
@@ -150,10 +183,12 @@ export const uploadImage = async (fileBuffer, folder = 'profile-photos') => {
  * @param {'PDF' | 'IMAGE'} fileType - PDF or IMAGE
  * @returns {Promise<{ fileUrl: string, storageKey: string }>}
  */
-export const uploadTutorCertificate = async (fileBuffer, tutorId, fileType) => {
+export const uploadTutorCertificate = async (fileBuffer, tutorId, fileType, mimetype, originalName) => {
   const folder = 'tutor-certificates';
-  const ext = fileType === 'PDF' ? 'pdf' : 'jpg';
-  const contentType = fileType === 'PDF' ? 'application/pdf' : 'image/jpeg';
+  const { ext, contentType } =
+    fileType === 'PDF'
+      ? { ext: 'pdf', contentType: 'application/pdf' }
+      : resolveImageMeta(mimetype, originalName);
   const key = `${folder}/${randomUUID()}.${ext}`;
   const fileUrl = await uploadToS3(fileBuffer, key, contentType);
   return { fileUrl, storageKey: key };
@@ -167,10 +202,12 @@ export const uploadTutorCertificate = async (fileBuffer, tutorId, fileType) => {
  * @param {'PDF' | 'IMAGE'} fileType - PDF or IMAGE
  * @returns {Promise<{ fileUrl: string, storageKey: string }>}
  */
-export const uploadDbsCertificate = async (fileBuffer, tutorId, fileType) => {
+export const uploadDbsCertificate = async (fileBuffer, tutorId, fileType, mimetype, originalName) => {
   const folder = 'tutor-dbs';
-  const ext = fileType === 'PDF' ? 'pdf' : 'jpg';
-  const contentType = fileType === 'PDF' ? 'application/pdf' : 'image/jpeg';
+  const { ext, contentType } =
+    fileType === 'PDF'
+      ? { ext: 'pdf', contentType: 'application/pdf' }
+      : resolveImageMeta(mimetype, originalName);
   const key = `${folder}/${randomUUID()}.${ext}`;
   const fileUrl = await uploadToS3(fileBuffer, key, contentType);
   return { fileUrl, storageKey: key };

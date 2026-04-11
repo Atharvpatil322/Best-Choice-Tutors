@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Hides the image until it is fully loaded and decoded so progressive JPEGs
@@ -10,15 +10,24 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 export function DecodedImage({ src, alt, className, style, onError, ...rest }) {
   const [visible, setVisible] = useState(false);
   const imgRef = useRef(null);
+  const revealTimeoutRef = useRef(null);
+
+  const clearRevealTimeout = useCallback(() => {
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+  }, []);
 
   const revealFromElement = useCallback((el) => {
     const show = () => setVisible(true);
+    clearRevealTimeout();
     if (typeof el.decode === 'function') {
       el.decode().then(show).catch(show);
     } else {
       show();
     }
-  }, []);
+  }, [clearRevealTimeout]);
 
   useLayoutEffect(() => {
     setVisible(false);
@@ -27,6 +36,15 @@ export function DecodedImage({ src, alt, className, style, onError, ...rest }) {
       revealFromElement(el);
     }
   }, [src, revealFromElement]);
+
+  useEffect(() => {
+    if (!src) return undefined;
+    revealTimeoutRef.current = setTimeout(() => {
+      setVisible(true);
+      revealTimeoutRef.current = null;
+    }, 1500);
+    return () => clearRevealTimeout();
+  }, [src, clearRevealTimeout]);
 
   const handleLoad = useCallback(
     (e) => {
@@ -38,9 +56,10 @@ export function DecodedImage({ src, alt, className, style, onError, ...rest }) {
   const handleError = useCallback(
     (e) => {
       setVisible(true);
+      clearRevealTimeout();
       onError?.(e);
     },
-    [onError],
+    [onError, clearRevealTimeout],
   );
 
   return (

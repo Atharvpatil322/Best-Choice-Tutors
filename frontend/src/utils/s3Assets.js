@@ -28,5 +28,9 @@ export function s3ImageUrl(path) {
     return path;
   }
   const cleanPath = path.replace(/^\/+/, '');
-  return `${ASSET_BASE_URL}/${encodeURI(cleanPath)}`;
+  const encodedPath = cleanPath
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `${ASSET_BASE_URL}/${encodedPath}`;
 }

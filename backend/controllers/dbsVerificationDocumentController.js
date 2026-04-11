@@ -118,7 +118,9 @@ export async function uploadDbsDocument(req, res, next) {
     const { fileUrl, storageKey } = await uploadDbsCertificate(
       req.file.buffer,
       tutor._id.toString(),
-      fileType
+      fileType,
+      req.file.mimetype,
+      req.file.originalname
     );
 
     const fileName = (req.file.originalname || 'document').trim() || 'document';
