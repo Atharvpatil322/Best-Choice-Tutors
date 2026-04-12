@@ -24,6 +24,12 @@ function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const role = searchParams.get('role') || 'learner';
+  const from = searchParams.get('from');
+  const preserveFrom =
+    from === 'explore-location' || from === 'landing-subject-search' ? from : null;
+  const showLocationExplorePrompt = from === 'explore-location';
+  const showLandingSubjectSearchPrompt = from === 'landing-subject-search';
+  const registerHref = `/register?role=${role}${preserveFrom ? `&from=${preserveFrom}` : ''}`;
 
   const [formData, setFormData] = useState({
     email: '',
@@ -122,6 +128,34 @@ function Login() {
         {/* Right Side: Elegant Login Form */}
         <div className="auth-content-side">
           <div className="auth-form-shell">
+            {showLocationExplorePrompt && (
+              <div
+                className="mb-5 rounded-lg border border-primary/25 bg-primary/10 p-4 text-sm text-foreground"
+                role="status"
+              >
+                <p className="m-0 leading-relaxed">
+                  To browse and book tutors by location, sign in below or{' '}
+                  <Link to={registerHref} className="font-medium text-primary underline underline-offset-2">
+                    create an account
+                  </Link>
+                  .
+                </p>
+              </div>
+            )}
+            {showLandingSubjectSearchPrompt && (
+              <div
+                className="mb-5 rounded-lg border border-primary/25 bg-primary/10 p-4 text-sm text-foreground"
+                role="status"
+              >
+                <p className="m-0 leading-relaxed">
+                  To view full tutor profiles and book sessions from your search, sign in below or{' '}
+                  <Link to={registerHref} className="font-medium text-primary underline underline-offset-2">
+                    create an account
+                  </Link>
+                  .
+                </p>
+              </div>
+            )}
             <header className="auth-header-minimal">
               <h1>Sign In</h1>
               <p>Welcome back! Please enter your details.</p>
@@ -203,7 +237,7 @@ function Login() {
               </div>
 
               <footer className="auth-footer-minimal">
-                Don't have an Account? <Link to={`/register?role=${role}`}>Sign Up</Link>
+                Don't have an Account? <Link to={registerHref}>Sign Up</Link>
               </footer>
             </form>
           </div>

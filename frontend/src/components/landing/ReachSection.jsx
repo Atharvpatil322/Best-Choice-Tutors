@@ -1,11 +1,17 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '../../styles/LandingPage.css';
 import { s3ImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 const reach = s3ImageUrl('images/reach.png');
 
 export default function ReachSection() {
+  const navigate = useNavigate();
+
+  const goToSignUpForLocation = () => {
+    navigate('/register?role=learner&from=explore-location');
+  };
+
   return (
     <section className="reach-section">
       <div className="reach-container">
@@ -33,12 +39,13 @@ export default function ReachSection() {
               qualified educators across various countries. Our global network 
               ensures that quality education is accessible no matter where you are.
             </p>
-            <Link
-              to="/register?role=learner&reason=browse-locations"
+            <button
+              type="button"
               className="btn-explore-location"
+              onClick={goToSignUpForLocation}
             >
               Browse Tutors - Explore By Location
-            </Link>
+            </button>
           </div>
         </div>
       </div>

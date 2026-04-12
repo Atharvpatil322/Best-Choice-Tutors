@@ -75,12 +75,11 @@
     overflow-x: hidden;
   }
 
-  /* Do not include svg: max-width/height:auto breaks Lucide and other sized
-     inline icons in some browsers (flex layouts, stroke-only SVGs). */
   img,
   picture,
   video,
-  canvas {
+  canvas,
+  svg {
     max-width: 100%;
     height: auto;
   }

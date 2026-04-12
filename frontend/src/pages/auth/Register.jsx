@@ -21,20 +21,16 @@ import '../../styles/Register.css';
 
 const logoImage = s3ImageUrl('images/light_logo.png');
 
-const SIGNUP_REASON_MESSAGES = {
-  'browse-locations':
-    'Sign up is required to browse tutors and explore by location. Create a learner account below to continue.',
-};
-
 function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const role = searchParams.get('role') || 'learner';
-  const signupReason = searchParams.get('reason');
-  const signupNotice =
-    signupReason && SIGNUP_REASON_MESSAGES[signupReason]
-      ? SIGNUP_REASON_MESSAGES[signupReason]
-      : null;
+  const from = searchParams.get('from');
+  const preserveFrom =
+    from === 'explore-location' || from === 'landing-subject-search' ? from : null;
+  const showLocationExplorePrompt = from === 'explore-location';
+  const showLandingSubjectSearchPrompt = from === 'landing-subject-search';
+  const loginHref = `/login?role=${role}${preserveFrom ? `&from=${preserveFrom}` : ''}`;
 
   const [formData, setFormData] = useState({ name: '', email: '', password: '', profilePhoto: null });
   const [loading, setLoading] = useState(false);
@@ -93,16 +89,38 @@ function Register() {
         {/* Right Side: Elegant Form */}
         <div className="auth-content-side">
           <div className="auth-form-shell">
+            {showLocationExplorePrompt && (
+              <div
+                className="mb-5 rounded-lg border border-primary/25 bg-primary/10 p-4 text-sm text-foreground"
+                role="status"
+              >
+                <p className="m-0 leading-relaxed">
+                  To browse and book tutors by location, sign up below or{' '}
+                  <Link to={loginHref} className="font-medium text-primary underline underline-offset-2">
+                    sign in
+                  </Link>{' '}
+                  if you already have an account.
+                </p>
+              </div>
+            )}
+            {showLandingSubjectSearchPrompt && (
+              <div
+                className="mb-5 rounded-lg border border-primary/25 bg-primary/10 p-4 text-sm text-foreground"
+                role="status"
+              >
+                <p className="m-0 leading-relaxed">
+                  To view full tutor profiles and book sessions from your search, sign up below or{' '}
+                  <Link to={loginHref} className="font-medium text-primary underline underline-offset-2">
+                    sign in
+                  </Link>{' '}
+                  if you already have an account.
+                </p>
+              </div>
+            )}
             <header className="auth-header-minimal">
               <h1>Sign Up</h1>
               <p>Join our community of expert educators and students.</p>
             </header>
-
-            {signupNotice && (
-              <div className="auth-context-notice" role="status">
-                {signupNotice}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="auth-clean-form">
               <div className="form-row">
@@ -201,7 +219,7 @@ function Register() {
               </div>
 
               <footer className="auth-footer-minimal">
-                Already a member? <Link to={`/login?role=${role}`}>Sign In</Link>
+                Already a member? <Link to={loginHref}>Sign In</Link>
               </footer>
             </form>
           </div>

@@ -10,16 +10,19 @@ import { Button } from '@/components/ui/button';
 import { isAuthenticated } from '../../lib/auth';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 
+const GUEST_LANDING_SEARCH_REGISTER =
+  '/register?role=learner&from=landing-subject-search';
+
 function LandingTutorCard({ tutor }) {
   const navigate = useNavigate();
   const primarySubject = tutor.subjects?.[0] || 'Tutor';
   const subjects = Array.isArray(tutor.subjects) ? tutor.subjects : [];
 
-  const handleViewProfile = () => {
+  const goToProfileOrSignUp = () => {
     if (isAuthenticated()) {
       navigate(`/dashboard/tutors/${tutor.id}`);
     } else {
-      navigate('/login');
+      navigate(GUEST_LANDING_SEARCH_REGISTER);
     }
   };
 
@@ -83,15 +86,26 @@ function LandingTutorCard({ tutor }) {
           {/* Spacer to push button to bottom */}
           <div className="flex-1 min-h-2" />
 
-          {/* CTA */}
-          <Button
-            onClick={handleViewProfile}
-            variant="default"
-            className="w-full mt-3 rounded-lg h-9 text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white"
-          >
-            View Profile
-            <ChevronRight size={16} className="ml-1" />
-          </Button>
+          {/* CTAs — guests go to sign-up with context (same pattern as Explore by location) */}
+          <div className="flex flex-col gap-2 mt-3">
+            <Button
+              type="button"
+              onClick={goToProfileOrSignUp}
+              variant="default"
+              className="w-full rounded-lg h-9 text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white"
+            >
+              Book tutor
+            </Button>
+            <Button
+              type="button"
+              onClick={goToProfileOrSignUp}
+              variant="outline"
+              className="w-full rounded-lg h-9 text-sm font-semibold border-slate-300 text-slate-800 hover:bg-slate-50"
+            >
+              View profile
+              <ChevronRight size={16} className="ml-1" />
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
