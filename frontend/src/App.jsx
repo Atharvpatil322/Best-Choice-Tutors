@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
 import LandingPage from '@/components/landing/LandingPage';
@@ -95,6 +95,16 @@ function PublicOnlyRoute({ children }) {
   return children;
 }
 
+/** Some hosts / mis-set FRONTEND_URL send OAuth users to /index.html?token=... — no route matched, so the app was blank. */
+function IndexHtmlOAuthRedirect() {
+  const { search } = useLocation();
+  const token = new URLSearchParams(search).get('token');
+  if (token) {
+    return <Navigate to={`/auth/callback${search}`} replace />;
+  }
+  return <Navigate to="/" replace />;
+}
+
 function App() {
   return (
     <SocketProvider>
@@ -115,6 +125,7 @@ function App() {
         <Route path="/register?" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
         <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
         <Route path="/reset-password/:token" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
+        <Route path="/index.html" element={<IndexHtmlOAuthRedirect />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/onboarding" element={<OnBoardingScreen />} />
         <Route path="/age-consent?" element={<AgeConsent/>} />
