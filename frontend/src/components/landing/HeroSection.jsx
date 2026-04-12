@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { CANONICAL_SUBJECTS, SUBJECT_OTHER } from '@/constants/subjects';
 import { normalizeSubject } from '@/utils/subjectUtils';
 import { getAllTutors } from '../../services/tutorService';
@@ -8,7 +8,7 @@ import { isAuthenticated } from '../../lib/auth';
 import LandingTutorCard from './LandingTutorCard';
 import '../../styles/LandingPage.css';
 
-const heroImage = s3ImageUrl('images/HeroUpdatePic.png');
+const heroImage = localImageUrl('images/HeroUpdatePic.png');
 
 const HERO_BG_GRADIENT =
   'linear-gradient(95deg, rgba(10, 24, 46, 0.95) 0%, rgba(12, 28, 52, 0.88) 32%, rgba(12, 28, 52, 0.55) 55%, rgba(12, 28, 52, 0.15) 72%, rgba(12, 28, 52, 0) 100%)';
@@ -409,3 +409,4 @@ export default function HeroSection() {
     </div>
   );
 }
+

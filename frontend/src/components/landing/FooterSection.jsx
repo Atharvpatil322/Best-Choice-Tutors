@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Twitter, Linkedin, Facebook, Instagram } from 'lucide-react';
 import '../../styles/LandingPage.css';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 
-const logoImage = s3ImageUrl('images/BCT_Logo.png');
+const logoImage = localImageUrl('images/BCT_Logo.png');
 
 export default function FooterSection() {
   const currentYear = new Date().getFullYear();
@@ -59,3 +59,4 @@ export default function FooterSection() {
     </footer>
   );
 }
+

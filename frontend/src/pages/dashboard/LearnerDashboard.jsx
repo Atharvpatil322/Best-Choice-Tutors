@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser, getMe, switchToTutor } from '@/services/authService';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 import {
   BookOpen,
@@ -20,7 +20,7 @@ import {
   Gift,
 } from 'lucide-react';
 
-const welcome = s3ImageUrl('images/welcomeFamily.jpeg');
+const welcome = localImageUrl('images/welcomeFamily.jpeg');
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -282,3 +282,4 @@ function LearnerDashboard() {
 }
 
 export default LearnerDashboard;
+

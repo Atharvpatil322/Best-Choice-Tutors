@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/LandingPage.css';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
-const reach = s3ImageUrl('images/reach.png');
+const reach = localImageUrl('images/reach.png');
 
 export default function ReachSection() {
   const navigate = useNavigate();
@@ -52,3 +52,4 @@ export default function ReachSection() {
     </section>
   );
 }
+

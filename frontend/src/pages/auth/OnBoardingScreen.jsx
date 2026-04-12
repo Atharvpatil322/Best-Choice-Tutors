@@ -2,11 +2,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import '../../styles/OnBoarding.css';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 
-const man = s3ImageUrl('images/man.png');
-const woman = s3ImageUrl('images/woman.png');
+const man = localImageUrl('images/man.png');
+const woman = localImageUrl('images/woman.png');
 
 function OnBoardingScreen() {
   const navigate = useNavigate();
@@ -98,3 +98,4 @@ function OnBoardingScreen() {
 }
 
 export default OnBoardingScreen;
+

@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, Menu, X, ChevronDown, PartyPopper } from "lucide-react";
 import '../../styles/LandingPage.css';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 import { CANONICAL_SUBJECTS } from '@/constants/subjects';
 import { isAuthenticated } from '@/lib/auth';
 
-const logoImage = s3ImageUrl('images/BCT_Logo.png');
+const logoImage = localImageUrl('images/BCT_Logo.png');
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -223,3 +223,4 @@ export default function Header() {
     </header>
   );
 }
+

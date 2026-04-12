@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStoredUser } from '@/services/authService';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 import {
   BookOpen,
@@ -20,7 +20,7 @@ import {
   FileText,
 } from 'lucide-react';
 
-const welcome = s3ImageUrl('images/welcomeFamily.jpeg');
+const welcome = localImageUrl('images/welcomeFamily.jpeg');
 
 function TutorDashboard() {
   const navigate = useNavigate();
@@ -175,3 +175,4 @@ function TutorDashboard() {
 }
 
 export default TutorDashboard;
+

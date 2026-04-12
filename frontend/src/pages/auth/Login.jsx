@@ -14,11 +14,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { forgotPassword, login, googleLogin } from '@/services/authService';
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 import '../../styles/Register.css'; 
 
-const logoImage = s3ImageUrl('images/light_logo.png');
+const logoImage = localImageUrl('images/light_logo.png');
 
 function Login() {
   const navigate = useNavigate();
@@ -301,3 +301,4 @@ function Login() {
 }
 
 export default Login;
+

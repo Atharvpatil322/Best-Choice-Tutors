@@ -34,3 +34,13 @@ export function s3ImageUrl(path) {
     .join('/');
   return `${ASSET_BASE_URL}/${encodedPath}`;
 }
+
+export function localImageUrl(path) {
+  if (!path) return '';
+  const cleanPath = path.replace(/^\/+/, '');
+  const encodedPath = cleanPath
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `/${encodedPath}`;
+}

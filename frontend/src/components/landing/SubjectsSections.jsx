@@ -1,20 +1,20 @@
 import React from 'react';
 import '../../styles/LandingPage.css';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 
-const gcse = s3ImageUrl('images/gcse.png');
-const alevels = s3ImageUrl('images/A-Levels.png');
-const university = s3ImageUrl('images/University.png');
-const languages = s3ImageUrl('images/All Languages.png');
-const biology = s3ImageUrl('images/Biology.png');
-const history = s3ImageUrl('images/History.png');
-const geography = s3ImageUrl('images/Geography.png');
-const computerScience = s3ImageUrl('images/Computer Science.png');
-const mathematics = s3ImageUrl('images/Mathematics.png');
-const englishLiterature = s3ImageUrl('images/English Literature.png');
-const physics = s3ImageUrl('images/Physics.png');
-const chemistry = s3ImageUrl('images/Chemistry.png');
+const gcse = localImageUrl('images/gcse.png');
+const alevels = localImageUrl('images/A-Levels.png');
+const university = localImageUrl('images/University.png');
+const languages = localImageUrl('images/All Languages.png');
+const biology = localImageUrl('images/Biology.png');
+const history = localImageUrl('images/History.png');
+const geography = localImageUrl('images/Geography.png');
+const computerScience = localImageUrl('images/Computer Science.png');
+const mathematics = localImageUrl('images/Mathematics.png');
+const englishLiterature = localImageUrl('images/English Literature.png');
+const physics = localImageUrl('images/Physics.png');
+const chemistry = localImageUrl('images/Chemistry.png');
 
 // Import your subject images here
 // import gcseImg from '../../images/subjects/gcse.jpg'; 
@@ -64,3 +64,4 @@ export default function SubjectsSections() {
     </section>
   );
 }
+

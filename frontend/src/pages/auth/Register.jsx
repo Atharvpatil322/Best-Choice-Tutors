@@ -15,11 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { s3ImageUrl } from '@/utils/s3Assets';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 import '../../styles/Register.css';
 
-const logoImage = s3ImageUrl('images/light_logo.png');
+const logoImage = localImageUrl('images/light_logo.png');
 
 function Register() {
   const navigate = useNavigate();
@@ -272,3 +272,4 @@ function Register() {
 }
 
 export default Register;
+
