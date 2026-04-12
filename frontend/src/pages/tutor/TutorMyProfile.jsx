@@ -575,7 +575,11 @@ setLocation(
         try {
           localStorage.setItem('auth_user', JSON.stringify({
             ...stored,
-            profilePhoto: result.tutor.profilePhoto ?? stored.profilePhoto,
+            // Use API value when present, including explicit null after photo removal (?? would keep stale URL).
+            profilePhoto:
+              result.tutor.profilePhoto !== undefined
+                ? result.tutor.profilePhoto
+                : stored.profilePhoto,
           }));
         } catch (_) { /* ignore */ }
       }

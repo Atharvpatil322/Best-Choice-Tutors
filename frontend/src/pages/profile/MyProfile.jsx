@@ -323,7 +323,10 @@ function MyProfile() {
       toast.success('Your profile has been updated.');
       const stored = getStoredUser();
       if (stored) {
-        const newPhoto = updatedProfile.profilePhoto ?? stored.profilePhoto;
+        const newPhoto =
+          updatedProfile.profilePhoto !== undefined
+            ? updatedProfile.profilePhoto
+            : stored.profilePhoto;
         setUser({ ...stored, profilePhoto: newPhoto });
         window.dispatchEvent(new CustomEvent('profilePhotoUpdated'));
       }

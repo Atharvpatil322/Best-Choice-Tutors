@@ -57,10 +57,7 @@ export function ProfileAvatar({
           transition: 'opacity 0.2s ease-out',
         }}
         onLoad={onLoad}
-        onError={() => {
-          clearRevealTimeout();
-          setImgError(true);
-        }}
+        onError={() => setImgError(true)}
       />
     );
   }
