@@ -62,18 +62,22 @@ body.landing-page-active {
   min-height: 68px;
 }
 
+/* Allow logo to shrink so the promo (PartyPopper) + menu never get pushed off-screen;
+   body.landing-page-active uses overflow-x: hidden, which clips overflow. */
 .header-logo {
   display: flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .logo-img {
   height: 40px;
   width: auto;
   max-width: 100%;
+  object-fit: contain;
 }
 
 .brand-name {
@@ -280,6 +284,8 @@ body.landing-page-active {
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .header-promo-trigger--mobile {
@@ -368,6 +374,7 @@ body.landing-page-active {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .btn-book {
@@ -524,12 +531,22 @@ body.landing-page-active {
     min-height: 72px;
   }
 
+  .header-logo {
+    max-width: min(260px, 34vw);
+  }
+
   .header-nav {
     display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
   }
 
   .header-actions {
     display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    max-width: 100%;
   }
 
   .header-promo-trigger--mobile {
@@ -546,6 +563,34 @@ body.landing-page-active {
 
   .header-mobile-menu {
     display: none !important;
+  }
+}
+
+/* Tight desktop / zoomed viewports: trim padding and CTA copy so promo + buttons stay in view */
+@media (min-width: 1024px) and (max-width: 1180px) {
+  .header-container {
+    gap: 0.5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .header-nav {
+    gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  }
+
+  .header-actions {
+    gap: 0.5rem;
+  }
+
+  .btn-book,
+  .btn-become-tutor {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.8125rem;
+  }
+
+  .login-link {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
   }
 }
 
