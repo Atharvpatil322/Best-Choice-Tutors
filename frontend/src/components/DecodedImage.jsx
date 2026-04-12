@@ -3,10 +3,18 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 /**
  * Hides the image until it is fully loaded and decoded so progressive JPEGs
  * do not paint in visible “chunks”. Same src/bytes as a plain <img>.
+ * Defaults to native lazy-loading; override with loading="eager" for LCP-critical images.
  */
-export function DecodedImage({ src, alt, className, style, onError, ...rest }) {
+export function DecodedImage({
+  src,
+  alt,
+  className,
+  style,
+  onError,
+  loading = 'lazy',
+  ...rest
+}) {
   const [visible, setVisible] = useState(false);
-  const imgRef = useRef(null);
   const revealTimeoutRef = useRef(null);
 
   const clearRevealTimeout = useCallback(() => {
@@ -15,16 +23,6 @@ export function DecodedImage({ src, alt, className, style, onError, ...rest }) {
       revealTimeoutRef.current = null;
     }
   }, []);
-
-  const revealFromElement = useCallback((el) => {
-    const show = () => setVisible(true);
-    clearRevealTimeout();
-    if (typeof el.decode === 'function') {
-      el.decode().then(show).catch(show);
-    } else {
-      show();
-    }
-  }, [clearRevealTimeout]);
 
   useLayoutEffect(() => {
     setVisible(false);
@@ -66,6 +64,7 @@ export function DecodedImage({ src, alt, className, style, onError, ...rest }) {
       src={src}
       alt={alt}
       className={className}
+      loading={loading}
       style={{
         ...style,
         opacity: visible ? 1 : 0,

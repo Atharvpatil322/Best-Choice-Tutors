@@ -2,10 +2,30 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+/** Long-lived cache for files served from `public/images` (dev + preview). Production CDN/reverse-proxy should mirror this. */
+function publicImagesCacheHeaders() {
+  const setHeaders = (_req, res, next) => {
+    const url = _req.url || ''
+    if (url.startsWith('/images/')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    }
+    next()
+  }
+  return {
+    name: 'public-images-cache',
+    configureServer(server) {
+      server.middlewares.use(setHeaders)
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(setHeaders)
+    },
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/',
-  plugins: [react()],
+  plugins: [react(), publicImagesCacheHeaders()],
   server: {
     host: true,
     port: 5173,

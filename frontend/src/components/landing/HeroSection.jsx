@@ -246,6 +246,9 @@ export default function HeroSection() {
               <img
                 src={heroImage}
                 alt="Tutor teaching a student"
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
                 onLoad={onHeroImageDecoded}
                 onError={() => setHeroMediaReady(true)}
                 style={{

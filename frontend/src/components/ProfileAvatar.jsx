@@ -19,7 +19,14 @@ const ProfileIcon = ({ className = 'h-1/2 w-1/2' }) => (
  * @param {string} [props.iconClassName] - Classes for the fallback icon
  * @param {string} [props.fallbackClassName] - Extra classes for fallback container (e.g. bg-white/10)
  */
-export function ProfileAvatar({ src, alt = 'Profile', className = '', iconClassName = 'h-1/2 w-1/2', fallbackClassName = '' }) {
+export function ProfileAvatar({
+  src,
+  alt = 'Profile',
+  className = '',
+  iconClassName = 'h-1/2 w-1/2',
+  fallbackClassName = '',
+  loading = 'lazy',
+}) {
   const [imgError, setImgError] = useState(false);
   const [decoded, setDecoded] = useState(false);
   useEffect(() => {
@@ -44,6 +51,7 @@ export function ProfileAvatar({ src, alt = 'Profile', className = '', iconClassN
         src={src}
         alt={alt}
         className={className}
+        loading={loading}
         style={{
           opacity: decoded ? 1 : 0,
           transition: 'opacity 0.2s ease-out',

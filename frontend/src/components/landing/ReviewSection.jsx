@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Quote, Star } from 'lucide-react';
 import '../../styles/LandingPage.css';
+import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
+
+const avatarWoman = localImageUrl('images/woman.png');
+const avatarMan = localImageUrl('images/man.png');
+const avatarProfile = localImageUrl('images/ProfilePic.png');
 
 /** Two cards side-by-side from this width up; one card below (matches CSS breakpoints). */
 const WIDE_TWO_CARDS_QUERY = '(min-width: 768px)';
@@ -24,7 +29,7 @@ export default function ReviewSection() {
       id: 1,
       name: "Sarah J.",
       role: "Parent of GCSE Student",
-      image: "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150",
+      image: avatarWoman,
       text: "Best Choice Tutors transformed my son's grades! His confidence has soared, and he actually enjoys math now. The matching process was spot-on.",
       rating: 5,
       type: 'dark'
@@ -33,7 +38,7 @@ export default function ReviewSection() {
       id: 2,
       name: "David R.",
       role: "Parent",
-      image: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150",
+      image: avatarMan,
       text: "Finding a reliable tutor for Chemistry used to be a nightmare. Best Choice Tutors made it so easy. Our tutor was fantastic and genuinely cared.",
       rating: 5,
       type: 'light'
@@ -42,7 +47,7 @@ export default function ReviewSection() {
       id: 3,
       name: "Emma L.",
       role: "A-Level Student",
-      image: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150",
+      image: avatarProfile,
       text: "The online platform is so smooth. My Biology tutor helps me break down complex topics into easy steps. Highly recommend for A-Level prep!",
       rating: 5,
       type: 'dark'
@@ -51,7 +56,7 @@ export default function ReviewSection() {
       id: 4,
       name: "Michael T.",
       role: "Parent",
-      image: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150",
+      image: avatarMan,
       text: "Professional, punctual, and very knowledgeable. The verification process gave me peace of mind knowing my daughter was in good hands.",
       rating: 5,
       type: 'light'
@@ -60,7 +65,7 @@ export default function ReviewSection() {
       id: 5,
       name: "Jessica W.",
       role: "University Student",
-      image: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150",
+      image: avatarWoman,
       text: "Helped me enormously with my University level Statistics. I went from failing mocks to an A in my finals. Thank you so much!",
       rating: 5,
       type: 'dark'

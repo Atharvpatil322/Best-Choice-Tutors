@@ -52,7 +52,13 @@ export default function Header() {
     <header className="main-header">
       <div className="header-container">
         <Link to="/" className="header-logo" onClick={() => setMenuOpen(false)}>
-          <DecodedImage src={logoImage} alt="BCT Logo" className="logo-img" />
+          <DecodedImage
+            src={logoImage}
+            alt="BCT Logo"
+            className="logo-img"
+            loading="eager"
+            fetchpriority="high"
+          />
         </Link>
 
         <nav className="header-nav" aria-label="Main navigation">
