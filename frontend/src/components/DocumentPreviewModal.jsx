@@ -29,7 +29,7 @@ export function DocumentPreviewModal({ open, onClose, fileUrl, fileType, fileNam
 
   return (
     <div
-      className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="dialog"
       aria-modal="true"

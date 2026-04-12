@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import '../../styles/LandingPage.css';
 import { s3ImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
@@ -33,12 +32,9 @@ export default function ReachSection() {
               qualified educators across various countries. Our global network 
               ensures that quality education is accessible no matter where you are.
             </p>
-            <Link
-              to="/register?role=learner&reason=browse-locations"
-              className="btn-explore-location"
-            >
+            <button type="button" className="btn-explore-location">
               Browse Tutors - Explore By Location
-            </Link>
+            </button>
           </div>
         </div>
       </div>

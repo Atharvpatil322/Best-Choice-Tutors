@@ -21,20 +21,10 @@ import '../../styles/Register.css';
 
 const logoImage = s3ImageUrl('images/light_logo.png');
 
-const SIGNUP_REASON_MESSAGES = {
-  'browse-locations':
-    'Sign up is required to browse tutors and explore by location. Create a learner account below to continue.',
-};
-
 function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const role = searchParams.get('role') || 'learner';
-  const signupReason = searchParams.get('reason');
-  const signupNotice =
-    signupReason && SIGNUP_REASON_MESSAGES[signupReason]
-      ? SIGNUP_REASON_MESSAGES[signupReason]
-      : null;
 
   const [formData, setFormData] = useState({ name: '', email: '', password: '', profilePhoto: null });
   const [loading, setLoading] = useState(false);
@@ -97,12 +87,6 @@ function Register() {
               <h1>Sign Up</h1>
               <p>Join our community of expert educators and students.</p>
             </header>
-
-            {signupNotice && (
-              <div className="auth-context-notice" role="status">
-                {signupNotice}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="auth-clean-form">
               <div className="form-row">
