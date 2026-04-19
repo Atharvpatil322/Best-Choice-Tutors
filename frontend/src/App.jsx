@@ -96,9 +96,14 @@ function PublicOnlyRoute({ children }) {
 /** Some hosts / mis-set FRONTEND_URL send OAuth users to /index.html?token=... — no route matched, so the app was blank. */
 function IndexHtmlOAuthRedirect() {
   const { search } = useLocation();
-  const token = new URLSearchParams(search).get('token');
+  const params = new URLSearchParams(search);
+  const token = params.get('token');
+  const error = params.get('error');
   if (token) {
     return <Navigate to={`/auth/callback${search}`} replace />;
+  }
+  if (error) {
+    return <Navigate to={`/login?error=${encodeURIComponent(error)}`} replace />;
   }
   return <Navigate to="/" replace />;
 }

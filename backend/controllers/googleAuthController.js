@@ -2,6 +2,14 @@ import User from '../models/User.js';
 import { generateToken } from '../utils/jwt.js';
 import { sendWelcomeEmail } from '../services/emailService.js';
 
+const getFrontendBaseUrl = () =>
+  (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+const buildFrontendIndexRedirect = (query) => {
+  const qs = new URLSearchParams(query).toString();
+  return `${getFrontendBaseUrl()}/index.html${qs ? `?${qs}` : ''}`;
+};
+
 // Google OAuth callback handler
 export const googleCallback = async (req, res, next) => {
   try {
@@ -21,17 +29,13 @@ export const googleCallback = async (req, res, next) => {
       if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
         const message =
           user.status === 'BANNED' ? 'Account is banned' : 'Account is suspended';
-        return res.redirect(
-          `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=${encodeURIComponent(message)}`
-        );
+        return res.redirect(buildFrontendIndexRedirect({ error: message }));
       }
 
       // Generate JWT token
       const token = generateToken(user._id);
 
-      return res.redirect(
-        `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?token=${token}`
-      );
+      return res.redirect(buildFrontendIndexRedirect({ token }));
     } else {
       // User does not exist - create new user
       user = await User.create({
@@ -51,9 +55,7 @@ export const googleCallback = async (req, res, next) => {
       // Generate JWT token
       const token = generateToken(user._id);
 
-      return res.redirect(
-        `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?token=${token}`
-      );
+      return res.redirect(buildFrontendIndexRedirect({ token }));
     }
   } catch (error) {
     next(error);

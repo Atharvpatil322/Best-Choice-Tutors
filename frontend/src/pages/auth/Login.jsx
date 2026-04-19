@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ function Login() {
   const [searchParams] = useSearchParams();
   const role = searchParams.get('role') || 'learner';
   const from = searchParams.get('from');
+  const oauthError = searchParams.get('error');
   const preserveFrom =
     from === 'explore-location' || from === 'landing-subject-search' ? from : null;
   const showLocationExplorePrompt = from === 'explore-location';
@@ -42,6 +43,12 @@ function Login() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
+
+  useEffect(() => {
+    if (oauthError) {
+      toast.error(oauthError);
+    }
+  }, [oauthError]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
