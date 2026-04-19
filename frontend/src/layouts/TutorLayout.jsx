@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getCurrentRole, getStoredUser, logout } from '@/services/authService';
+import { getCurrentRole, getStoredUser, getAuthenticatedHomePath, logout } from '@/services/authService';
 import { getNotifications, markAllNotificationsRead } from '@/services/notificationService';
 import {
   LayoutDashboard,
@@ -121,7 +121,7 @@ function TutorLayout() {
           <CardContent className="p-6">
             <p className="text-center text-destructive font-medium">Access denied. Tutor only.</p>
             <div className="mt-4 flex justify-center">
-              <Button variant="outline" onClick={() => navigate('/')}>
+              <Button variant="outline" onClick={() => navigate(getAuthenticatedHomePath())}>
                 Go back
               </Button>
             </div>
@@ -216,7 +216,7 @@ function TutorLayout() {
             type="button"
             onClick={() => {
               logout();
-              navigate('/');
+              navigate('/', { replace: true });
             }}
             className="inline-flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200"
             aria-label="Log out"
@@ -300,7 +300,7 @@ function TutorLayout() {
                 <p className="text-sm font-semibold text-white truncate">{user?.name || 'Tutor'}</p>
                 <p className="text-[10px] text-white/50 capitalize">{role}</p>
               </div>
-              <button type="button" onClick={() => { logout(); navigate('/'); }} className="text-white/40 hover:text-white transition-transform hover:scale-110 shrink-0" aria-label="Log out">
+              <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }} className="text-white/40 hover:text-white transition-transform hover:scale-110 shrink-0" aria-label="Log out">
                 <LogOut size={16} className="rotate-180" />
               </button>
             </div>

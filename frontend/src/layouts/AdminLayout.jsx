@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getCurrentRole, getStoredUser, logout } from '@/services/authService';
+import { getCurrentRole, getStoredUser, getAuthenticatedHomePath, logout } from '@/services/authService';
 import {
   LayoutDashboard,
   Users,
@@ -64,7 +64,7 @@ function AdminLayout() {
           <CardContent className="p-6">
             <p className="text-center text-destructive font-medium">Access denied. Admin only.</p>
             <div className="mt-4 flex justify-center">
-              <Button variant="outline" onClick={() => navigate('/')} className="rounded-lg">
+              <Button variant="outline" onClick={() => navigate(getAuthenticatedHomePath())} className="rounded-lg">
                 Go back
               </Button>
             </div>
@@ -101,7 +101,7 @@ function AdminLayout() {
               <p className="text-sm font-bold text-[#1A365D] leading-none truncate max-w-[120px] lg:max-w-none">{user?.name || 'Admin'}</p>
             </div>
             <button
-              onClick={() => { logout(); navigate('/'); }}
+              onClick={() => { logout(); navigate('/', { replace: true }); }}
               className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 shrink-0"
               aria-label="Log out"
             >
@@ -164,7 +164,7 @@ function AdminLayout() {
                 <p className="text-sm font-semibold text-white truncate">{user?.name || 'Admin'}</p>
                 <p className="text-[10px] text-white/50">{role}</p>
               </div>
-              <button type="button" onClick={() => { logout(); navigate('/'); }} className="text-white/40 hover:text-white transition-transform hover:scale-110 shrink-0" aria-label="Log out">
+              <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }} className="text-white/40 hover:text-white transition-transform hover:scale-110 shrink-0" aria-label="Log out">
                 <LogOut size={16} className="rotate-180" />
               </button>
             </div>

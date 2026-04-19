@@ -69,11 +69,11 @@ function Login() {
       const normalizedRole = typeof userRole === 'string' ? userRole.toLowerCase() : null;
       
       if (normalizedRole === 'admin') {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else if (normalizedRole === 'tutor') {
-        navigate('/tutor');
+        navigate('/tutor', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       toast.error(err.message || 'Could not sign you in. Please try again.');

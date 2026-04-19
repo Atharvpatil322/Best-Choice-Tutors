@@ -185,7 +185,7 @@ function LearnerLayout() {
             type="button"
             onClick={() => {
               logout();
-              navigate('/');
+              navigate('/', { replace: true });
             }}
             className="inline-flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200"
             aria-label="Log out"
@@ -274,7 +274,7 @@ function LearnerLayout() {
                 type="button"
                 onClick={() => {
                   logout();
-                  navigate('/');
+                  navigate('/', { replace: true });
                 }}
                 className="text-white/40 hover:text-white transition-transform hover:scale-110 shrink-0"
                 aria-label="Log out"

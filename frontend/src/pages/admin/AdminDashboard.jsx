@@ -26,7 +26,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getCurrentRole, getStoredUser } from '@/services/authService';
+import { getCurrentRole, getStoredUser, getAuthenticatedHomePath } from '@/services/authService';
 import { getSummary, getFinancials } from '@/services/adminService';
 import {
   BarChart,
@@ -111,7 +111,7 @@ function AdminDashboard() {
           <CardContent className="p-6">
             <p className="text-center text-destructive font-medium">Access denied. Admin only.</p>
             <div className="mt-4 flex justify-center">
-              <Button variant="outline" onClick={() => navigate('/')} className="rounded-lg">
+              <Button variant="outline" onClick={() => navigate(getAuthenticatedHomePath())} className="rounded-lg">
                 Go back
               </Button>
             </div>

@@ -59,7 +59,7 @@ function Register() {
       const response = await register({ ...formData, role });
       toast.success('Account created. Welcome to Best Choice Tutors.');
       const target = response?.user?.role?.toLowerCase() === 'tutor' ? '/tutor' : '/dashboard';
-      navigate(target);
+      navigate(target, { replace: true });
     } catch (err) {
       toast.error(err.message || 'Could not create account. Please try again.');
     } finally {

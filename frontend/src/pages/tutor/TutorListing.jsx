@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getAllTutors } from '@/services/tutorService';
+import { getAuthenticatedHomePath } from '@/services/authService';
 import TutorCard from '@/components/tutor/TutorCard';
 import { normalizeSubject } from '@/utils/subjectUtils';
 
@@ -155,7 +156,7 @@ function TutorListing() {
             <CardContent className="p-6">
               <p className="text-center text-red-600">Error: {error}</p>
               <div className="mt-4 flex justify-center">
-                <Button variant="outline" onClick={() => navigate('/')}>
+                <Button variant="outline" onClick={() => navigate(getAuthenticatedHomePath())}>
                   Go Home
                 </Button>
               </div>

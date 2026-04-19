@@ -310,6 +310,18 @@ export const getCurrentRole = () => {
 };
 
 /**
+ * Default app home for the signed-in user (learner dashboard, tutor, or admin).
+ */
+export const getAuthenticatedHomePath = () => {
+  const roleFromStorage = getCurrentRole();
+  const roleFromToken = getCurrentUser()?.role;
+  const role = (roleFromStorage || roleFromToken)?.toLowerCase?.();
+  if (role === 'admin') return '/admin';
+  if (role === 'tutor') return '/tutor';
+  return '/dashboard';
+};
+
+/**
  * Check if user is authenticated
  * @returns {boolean}
  */
