@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Twitter, Linkedin, Facebook, Instagram } from 'lucide-react';
+import { Linkedin, Facebook, Instagram } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
@@ -43,10 +43,33 @@ export default function FooterSection() {
 
           {/* Social Icons */}
           <div className="footer-socials">
-            {/* <a href="https://twitter.com" className="social-icon twitter"><Twitter size={20} /></a> */}
-            <a href="https://linkedin.com" className="social-icon linkedin"><Linkedin size={20} /></a>
-            <a href="https://facebook.com" className="social-icon facebook"><Facebook size={20} /></a>
-            <a href="https://instagram.com" className="social-icon instagram"><Instagram size={20} /></a>
+            <a
+              href="https://www.facebook.com/share/1FNTqVLKEd/?mibextid=wwXIfr"
+              className="social-icon facebook"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Best Choice Tutors on Facebook"
+            >
+              <Facebook size={20} />
+            </a>
+            <a
+              href="https://www.linkedin.com/in/best-choice-tutors-119a203b9?utm_source=share_via&utm_content=profile&utm_medium=member_ios"
+              className="social-icon linkedin"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Best Choice Tutors on LinkedIn"
+            >
+              <Linkedin size={20} />
+            </a>
+            <a
+              href="https://www.instagram.com/best.choice.tutors?igsh=MWpxa3lobmZ5YW1vYQ%3D%3D&utm_source=qr"
+              className="social-icon instagram"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Best Choice Tutors on Instagram"
+            >
+              <Instagram size={20} />
+            </a>
           </div>
         </div>
 
