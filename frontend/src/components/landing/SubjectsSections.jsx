@@ -23,7 +23,7 @@ export default function SubjectsSections() {
         {/* <h2 className="section-title">Mathematics Tutors</h2>
         <h2 className="section-title">Physics Tutors</h2>
         <h2 className="section-title">English Tutors</h2> */}
-        <h2 className="section-title">Popular Subjects & Education Levels</h2>
+        <h2 className="section-title">Education Levels</h2>
 
         <div className="subjects-flex-grid">
           {subjects.map((subject, index) => (
