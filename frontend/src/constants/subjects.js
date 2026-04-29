@@ -20,6 +20,7 @@ export const CANONICAL_SUBJECTS = [
   'Computer Science',
   'Economics',
   'Business Studies',
+  'Accounting',
   'Psychology',
   'Art',
   'Music',

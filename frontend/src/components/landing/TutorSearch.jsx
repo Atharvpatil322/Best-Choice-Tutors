@@ -165,6 +165,7 @@ export default function TutorSearch() {
                     <SelectItem value="chemistry">Chemistry</SelectItem>
                     <SelectItem value="biology">Biology</SelectItem>
                     <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="accounting">Accounting</SelectItem>
                     <SelectItem value="computerscience">Computer Science</SelectItem>
                   </SelectContent>
                 </Select>
