@@ -33,7 +33,7 @@ export default function PrivacyPolicy() {
               <section>
                 <h3 className="font-semibold text-slate-900 mb-2">Eligibility & account</h3>
                 <p>
-                  You must be at least 13 years of age to register for a learner account, or have parental/guardian consent if under 13. You must provide accurate information when signing up and keep your account secure.
+                  You must be at least <strong>13 years of age</strong> to register for a learner account, or have parental/guardian consent if under 13. You must provide accurate information when signing up and keep your account secure.
                 </p>
               </section>
               <section>

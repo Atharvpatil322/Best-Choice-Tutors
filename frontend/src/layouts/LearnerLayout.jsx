@@ -146,7 +146,7 @@ function LearnerLayout() {
               )}
             </button>
             {notificationsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-2rem))] sm:w-96 bg-white rounded-xl border border-gray-200 shadow-lg z-[2100] max-h-[70vh] overflow-hidden flex flex-col">
+              <div className="fixed z-[2100] left-3 right-3 top-[calc(env(safe-area-inset-top,0px)+4.5rem)] flex max-h-[min(70vh,calc(100dvh-5.5rem))] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[70vh] sm:w-96">
                 <div className="p-3 border-b border-gray-100">
                   <h3 className="text-sm font-semibold text-[#1A365D]">Notifications</h3>
                 </div>
