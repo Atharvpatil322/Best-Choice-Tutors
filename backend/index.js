@@ -75,11 +75,24 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
 });
 
-// 1. Serve static files from the frontend 'dist' folder
-// This assumes your frontend build command creates a 'dist' folder
-app.use(express.static(path.join(__dirname, "../frontend/dist")));
+const frontendDist = path.join(__dirname, "../frontend/dist");
 
-// 404 handler
+// Production: serve built SPA. Order matters — never register a JSON 404 *before* the SPA fallback
+// or full-page reloads on /dashboard, /tutor, etc. will not receive index.html (blank / non-HTML body).
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(frontendDist));
+  app.get("*", (req, res, next) => {
+    if (
+      req.path.startsWith("/api") ||
+      req.path.startsWith("/socket.io")
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
+
+// Unmatched routes (unknown API paths, etc.)
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
@@ -90,15 +103,6 @@ app.use(errorHandler);
 // Attach Socket.IO for chat (booking-scoped, auth required)
 const corsOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
 attachSocketServer(httpServer, corsOrigin);
-
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
-  app.get("*", (req, res) => {
-    if (!req.path.startsWith("/api")) {
-      res.sendFile(path.join(__dirname, "../frontend/dist", "index.html"));
-    }
-  });
-}
 
 // Booking completion: PAID → COMPLETED after session end + buffer (simple time-based check)
 const COMPLETION_CHECK_INTERVAL_MS = 10 * 1000; // 10 seconds (use 5 * 60 * 1000 for production)

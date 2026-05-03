@@ -6,10 +6,10 @@
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Link, Navigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getCurrentRole, getStoredUser, logout } from '@/services/authService';
+import { getAuthenticatedHomePath, getCurrentRole, getStoredUser, logout } from '@/services/authService';
 import { getNotifications, markAllNotificationsRead } from '@/services/notificationService';
 import {
   LayoutDashboard,
@@ -111,7 +111,12 @@ function LearnerLayout() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [notificationsOpen]);
 
-  if (!user || !isLearner) return null;
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  if (!isLearner) {
+    return <Navigate to={getAuthenticatedHomePath()} replace />;
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#F1F5F9] overflow-hidden">

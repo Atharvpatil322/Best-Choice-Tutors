@@ -5,6 +5,8 @@ import {
   Navigate,
   useLocation,
   Outlet,
+  useRouteError,
+  Link,
 } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
@@ -117,9 +119,30 @@ function AppRootLayout() {
   );
 }
 
+/** Catches route/lazy-load failures so production never shows an empty white screen with no UI. */
+function AppRouterError() {
+  const error = useRouteError();
+  console.error('[App]', error);
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 px-6 py-12 text-center">
+      <h1 className="text-lg font-semibold text-slate-900">This page could not be loaded</h1>
+      <p className="max-w-md text-sm text-slate-600">
+        Something went wrong while loading this screen. Try a hard refresh. If you just deployed, wait a moment and reload so the latest files can download.
+      </p>
+      <Link
+        to="/"
+        className="text-sm font-medium text-[#4FD1C5] underline underline-offset-2 hover:text-[#38B2AC]"
+      >
+        Go to home
+      </Link>
+    </div>
+  );
+}
+
 const router = createBrowserRouter([
   {
     element: <AppRootLayout />,
+    errorElement: <AppRouterError />,
     children: [
       {
         path: '/',

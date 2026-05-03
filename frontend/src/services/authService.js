@@ -315,10 +315,13 @@ export const getCurrentRole = () => {
 export const getAuthenticatedHomePath = () => {
   const roleFromStorage = getCurrentRole();
   const roleFromToken = getCurrentUser()?.role;
-  const role = (roleFromStorage || roleFromToken)?.toLowerCase?.();
+  const raw = roleFromStorage || roleFromToken;
+  const role = typeof raw === 'string' ? raw.toLowerCase() : '';
   if (role === 'admin') return '/admin';
   if (role === 'tutor') return '/tutor';
-  return '/dashboard';
+  if (role === 'learner') return '/dashboard';
+  // Missing/unknown role: avoid sending everyone to /dashboard (wrong-role layouts used to return null).
+  return '/';
 };
 
 /**

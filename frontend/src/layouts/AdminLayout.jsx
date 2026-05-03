@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Link, Navigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser, getAuthenticatedHomePath, logout } from '@/services/authService';
@@ -50,11 +50,11 @@ function AdminLayout() {
   const navigate = useNavigate();
   const user = getStoredUser();
   const role = getCurrentRole();
-  const isAdmin = typeof role === 'string' && role === 'Admin';
+  const isAdmin = typeof role === 'string' && role.toLowerCase() === 'admin';
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!user) {
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   if (!isAdmin) {

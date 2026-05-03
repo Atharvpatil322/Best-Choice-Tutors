@@ -13,11 +13,7 @@ function ProtectedRoute({ children }) {
   const authenticated = isAuthenticated();
   const [hydrating, setHydrating] = useState(authenticated && !getStoredUser());
 
-  if (!authenticated) {
-    // Redirect to landing page if not authenticated
-    return <Navigate to="/" replace />;
-  }
-
+  // Hooks must run unconditionally (same order every render). Never return before useEffect.
   useEffect(() => {
     let active = true;
 
@@ -46,6 +42,10 @@ function ProtectedRoute({ children }) {
       active = false;
     };
   }, [authenticated]);
+
+  if (!authenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   if (hydrating) {
     return (

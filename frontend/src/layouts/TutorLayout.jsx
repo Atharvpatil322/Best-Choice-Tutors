@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser, getAuthenticatedHomePath, logout } from '@/services/authService';
@@ -111,7 +111,7 @@ function TutorLayout() {
   const allowed = isTutor || (isLearner && isCreatePath);
 
   if (!user) {
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   if (!allowed) {
