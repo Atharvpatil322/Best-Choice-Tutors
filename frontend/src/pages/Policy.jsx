@@ -28,7 +28,7 @@ function Policy() {
           <section>
             <h3 className="font-semibold text-slate-900 mb-2">Eligibility & account</h3>
             <p>
-              You must be at least 13 years of age to register, or have parental/guardian consent if under 13. You must provide accurate information when signing up and keep your account secure.
+              You must be at least 13 years of age to register for a learner account, or have parental/guardian consent if under 13. You must provide accurate information when signing up and keep your account secure.
             </p>
           </section>
           <section>
@@ -67,6 +67,12 @@ function Policy() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 sm:p-8 space-y-4 text-sm text-slate-700">
+          <section>
+            <h3 className="font-semibold text-slate-900 mb-2">Eligibility & account</h3>
+            <p>
+              You must be at least <strong>18 years of age</strong> to become a tutor, create a tutor profile, or offer tutoring through Best Choice Tutors. You must provide accurate information and keep your account secure.
+            </p>
+          </section>
           <section>
             <h3 className="font-semibold text-slate-900 mb-2">Verification & profile</h3>
             <p>

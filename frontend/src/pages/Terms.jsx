@@ -24,8 +24,11 @@ export default function Terms() {
 
           <section>
             <h2 className="font-semibold text-slate-900 mb-2">1. Eligibility</h2>
+            <p className="mb-3">
+              You must be at least 13 years of age to register for a learner account, or have the consent of a parent or legal guardian if under 13. You must provide accurate and complete information when signing up.
+            </p>
             <p>
-              You must be at least 13 years of age to register, or have the consent of a parent or legal guardian if under 13. You must provide accurate and complete information when signing up.
+              To become a tutor, create a tutor profile, or offer tutoring on Best Choice Tutors, you must be at least <strong>18 years of age</strong>.
             </p>
           </section>
 

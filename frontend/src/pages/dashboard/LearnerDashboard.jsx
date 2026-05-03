@@ -238,6 +238,9 @@ function LearnerDashboard() {
             <AlertDialogTitle>Become a Tutor</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-left text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  To become a tutor, you must be at least 18 years old.
+                </p>
                 <p>
                   Switching to tutor will <strong>change your role</strong> from learner to tutor on Best Choice Tutors.
                 </p>
@@ -248,7 +251,7 @@ function LearnerDashboard() {
                   By becoming a tutor you agree to our tutor terms of service, including providing accurate qualifications and availability, and conducting sessions professionally.
                 </p>
                 <p>
-                  By checking the box below, you confirm that you understand this role change and accept the terms and conditions for tutors.
+                  By checking the box below, you confirm that you are at least 18 years old, that you understand this role change, and that you accept the terms and conditions for tutors.
                 </p>
                 <label className="flex items-start gap-3 cursor-pointer mt-4 p-3 rounded-lg border border-input bg-muted/30 hover:bg-muted/50 transition-colors">
                   <input
@@ -259,7 +262,7 @@ function LearnerDashboard() {
                     aria-describedby="become-tutor-consent-label"
                   />
                   <span id="become-tutor-consent-label" className="text-sm text-foreground">
-                    I understand that my role will change from learner to tutor and I accept the terms and conditions for tutors.
+                    I confirm that I am at least 18 years old, I understand that my role will change from learner to tutor, and I accept the terms and conditions for tutors.
                   </span>
                 </label>
               </div>

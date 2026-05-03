@@ -18,6 +18,10 @@ import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
 import { presignDocumentUrl } from "../services/s3Service.js";
 import { listPayoutsForAccount } from "../services/stripeService.js";
+import {
+  sendIdentityVerificationApprovedEmail,
+  sendDbsVerificationApprovedEmail,
+} from "../services/emailService.js";
 import * as ExcelJSImport from "exceljs";
 
 const ExcelJS = ExcelJSImport.default ?? ExcelJSImport;
@@ -753,6 +757,17 @@ export async function approveTutor(req, res, next) {
     }
 
     const tutorId = req.params.tutorId;
+    const existing = await Tutor.findById(tutorId)
+      .select("userId fullName isVerified")
+      .populate("userId", "name email")
+      .lean();
+
+    if (!existing) {
+      return res.status(404).json({ message: "Tutor not found" });
+    }
+
+    const wasAlreadyIdentityVerified = existing.isVerified === true;
+
     const tutor = await Tutor.findByIdAndUpdate(
       tutorId,
       { isVerified: true },
@@ -772,6 +787,17 @@ export async function approveTutor(req, res, next) {
       entityId: tutor._id,
       metadata: { fullName: tutor.fullName, userId: tutor.userId?.toString() },
     });
+
+    const recipientEmail = existing.userId?.email;
+    const recipientName = existing.userId?.name ?? existing.fullName;
+    if (!wasAlreadyIdentityVerified && recipientEmail) {
+      sendIdentityVerificationApprovedEmail({
+        name: recipientName,
+        email: recipientEmail,
+      }).catch((err) =>
+        console.error("Identity verification email failed:", err?.message),
+      );
+    }
 
     return res.status(200).json({
       message: "Tutor approved successfully",
@@ -1045,6 +1071,13 @@ export async function approveDbsDocument(req, res, next) {
       return res.status(404).json({ message: "DBS document not found" });
     }
 
+    const tutorBefore = await Tutor.findById(doc.tutorId)
+      .select("isDbsVerified userId fullName")
+      .populate("userId", "name email")
+      .lean();
+
+    const wasAlreadyDbsVerified = tutorBefore?.isDbsVerified === true;
+
     const now = new Date();
     const pendingExpiry = doc.expiryDatePending ?? null;
     if (!pendingExpiry || Number.isNaN(new Date(pendingExpiry).getTime())) {
@@ -1079,6 +1112,17 @@ export async function approveDbsDocument(req, res, next) {
       entityId: doc._id,
       metadata: { fileName: doc.fileName ?? "" },
     });
+
+    const dbsEmail = tutorBefore?.userId?.email;
+    const dbsName = tutorBefore?.userId?.name ?? tutorBefore?.fullName;
+    if (!wasAlreadyDbsVerified && dbsEmail) {
+      sendDbsVerificationApprovedEmail({
+        name: dbsName,
+        email: dbsEmail,
+      }).catch((err) =>
+        console.error("DBS verification email failed:", err?.message),
+      );
+    }
 
     return res.status(200).json({
       message: "DBS document approved. Tutor is now DBS verified.",

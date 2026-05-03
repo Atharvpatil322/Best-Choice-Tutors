@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 /**
- * Reusable email service for transactional emails (welcome, tutor upgrade, etc.).
+ * Reusable email service for transactional emails (welcome, tutor upgrade, verification approvals, etc.).
  * Uses EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM. Sends asynchronously; failures are logged only.
  */
 
@@ -239,5 +239,140 @@ We're pumped to have you. Go make an impact!
     await transporter.sendMail(mailOptions);
   } catch (err) {
     console.error('emailService.sendTutorUpgradeEmail failed:', err?.message || err);
+  }
+}
+
+/**
+ * Notify tutor that admin has approved their identity (profile) verification.
+ * Does not throw; logs errors.
+ *
+ * @param {{ name?: string, email: string }} user
+ * @returns {Promise<void>}
+ */
+export async function sendIdentityVerificationApprovedEmail(user) {
+  if (!user || !user.email) {
+    console.warn('emailService.sendIdentityVerificationApprovedEmail: missing user or email');
+    return;
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn(
+      `emailService: skipping identity verification email (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
+    );
+    return;
+  }
+
+  const firstName = getFirstName(user);
+  const dashboardUrl = `${getPlatformUrl()}/tutor/dashboard`;
+  const from = getConfig().from;
+
+  const mailOptions = {
+    from,
+    to: user.email,
+    subject: "Your identity verification is complete — Best Choice Tutors",
+    text: `Hey ${firstName}!
+
+Great news — we've reviewed and approved your identity verification on Best Choice Tutors.
+
+You're now shown to learners as an identity-verified tutor. That helps build trust and can improve how you appear in search and on your profile.
+
+Next steps:
+• Keep your profile and availability up to date
+• Respond promptly to booking requests
+• Complete any remaining checks (such as DBS) if you haven't already
+
+Open your tutor dashboard:
+${dashboardUrl}
+
+Thanks for working with us.
+
+— The Best Choice Tutors Team`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto;">
+        <p style="font-size: 18px; color: #1a1a1a;">Hey ${firstName}!</p>
+        <p style="font-size: 18px; color: #1a1a1a; line-height: 1.5;"><strong>Great news</strong> — we've reviewed and approved your <strong>identity verification</strong> on Best Choice Tutors.</p>
+        <p style="font-size: 16px; color: #444; line-height: 1.6;">You're now shown to learners as an identity-verified tutor. That helps build trust and can improve how you appear in search and on your profile.</p>
+        <p style="font-size: 16px; color: #1a1a1a;"><strong>Next steps:</strong></p>
+        <ul style="font-size: 15px; color: #444; line-height: 1.8;">
+          <li>Keep your profile and availability up to date</li>
+          <li>Respond promptly to booking requests</li>
+          <li>Complete any remaining checks (such as DBS) if you haven't already</li>
+        </ul>
+        <p style="margin: 24px 0 16px;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);">Open my dashboard →</a>
+        </p>
+        <p style="font-size: 15px; color: #666;">Thanks for working with us.</p>
+        <p style="font-size: 14px; color: #888; margin-top: 32px;">— The Best Choice Tutors Team</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (err) {
+    console.error('emailService.sendIdentityVerificationApprovedEmail failed:', err?.message || err);
+  }
+}
+
+/**
+ * Notify tutor that admin has approved their DBS verification.
+ * Does not throw; logs errors.
+ *
+ * @param {{ name?: string, email: string }} user
+ * @returns {Promise<void>}
+ */
+export async function sendDbsVerificationApprovedEmail(user) {
+  if (!user || !user.email) {
+    console.warn('emailService.sendDbsVerificationApprovedEmail: missing user or email');
+    return;
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn(
+      `emailService: skipping DBS verification email (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
+    );
+    return;
+  }
+
+  const firstName = getFirstName(user);
+  const dashboardUrl = `${getPlatformUrl()}/tutor/dashboard`;
+  const from = getConfig().from;
+
+  const mailOptions = {
+    from,
+    to: user.email,
+    subject: "Your DBS verification is complete — Best Choice Tutors",
+    text: `Hey ${firstName}!
+
+We've approved your DBS (Disclosure and Barring Service) submission on Best Choice Tutors.
+
+Your profile now reflects DBS verification, which helps families and learners see that you've completed this important safeguard.
+
+You can review your profile and bookings anytime:
+${dashboardUrl}
+
+Thank you for keeping our community safe and trusted.
+
+— The Best Choice Tutors Team`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto;">
+        <p style="font-size: 18px; color: #1a1a1a;">Hey ${firstName}!</p>
+        <p style="font-size: 18px; color: #1a1a1a; line-height: 1.5;">We've approved your <strong>DBS (Disclosure and Barring Service)</strong> submission on Best Choice Tutors.</p>
+        <p style="font-size: 16px; color: #444; line-height: 1.6;">Your profile now reflects DBS verification, which helps families and learners see that you've completed this important safeguard.</p>
+        <p style="margin: 24px 0 16px;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);">Open my dashboard →</a>
+        </p>
+        <p style="font-size: 15px; color: #666;">Thank you for keeping our community safe and trusted.</p>
+        <p style="font-size: 14px; color: #888; margin-top: 32px;">— The Best Choice Tutors Team</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (err) {
+    console.error('emailService.sendDbsVerificationApprovedEmail failed:', err?.message || err);
   }
 }

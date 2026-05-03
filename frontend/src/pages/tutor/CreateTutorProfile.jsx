@@ -190,11 +190,10 @@ function CreateTutorProfile() {
         tutorData.profilePhoto = formData.profilePhoto;
       }
 
-      const result = await createTutorProfile(tutorData);
+      await createTutorProfile(tutorData);
 
-      setSuccessMessage('Tutor profile created successfully!');
-      toast.success('Tutor profile created. Add your availability to start receiving bookings.', {
-        description: 'Go to Manage Availability to set your weekly schedule.',
+      toast.success('Successfully created your tutor profile', {
+        description: 'Please set your availability so learners can book you.',
       });
 
       // Role sync (frontend): mark user as Tutor for role-based UI gating
@@ -207,11 +206,8 @@ function CreateTutorProfile() {
       } catch {
         // ignore
       }
-      
-      // Redirect to tutor dashboard after a short delay
-      setTimeout(() => {
-        navigate('/tutor');
-      }, 2000);
+
+      navigate('/tutor/availability', { replace: true });
     } catch (err) {
       if (err.errors) {
         // Validation errors from backend

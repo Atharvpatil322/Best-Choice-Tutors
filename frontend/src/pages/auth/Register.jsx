@@ -237,8 +237,11 @@ function Register() {
                   Welcome to Best Choice Tutors. By creating an account, you agree to the following terms and conditions.
                 </p>
                 <p className="font-medium text-foreground">1. Eligibility</p>
+                <p className="mb-2">
+                  You must be at least 13 years of age to register for a learner account, or have the consent of a parent or legal guardian if under 13. You must provide accurate and complete information when signing up.
+                </p>
                 <p>
-                  You must be at least 13 years of age to register, or have the consent of a parent or legal guardian if under 13. You must provide accurate and complete information when signing up.
+                  To become a tutor, create a tutor profile, or offer tutoring on Best Choice Tutors, you must be at least <strong>18 years of age</strong>.
                 </p>
                 <p className="font-medium text-foreground">2. Account and conduct</p>
                 <p>
