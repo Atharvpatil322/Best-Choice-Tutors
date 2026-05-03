@@ -4,11 +4,12 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Star, ChevronRight, MapPin, GraduationCap, Briefcase, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Star, ChevronRight, MapPin, GraduationCap, Briefcase } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isAuthenticated } from '../../lib/auth';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 
 function TutorCard({ tutor, firstSessionDiscountAvailable = false }) {
   const navigate = useNavigate();
@@ -59,18 +60,7 @@ function TutorCard({ tutor, firstSessionDiscountAvailable = false }) {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-xl font-bold text-[#1A365D]">{tutor.fullName || 'Tutor'}</h3>
-                  {tutor.isVerified && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700" title="Document verified">
-                      <CheckCircle size={14} className="shrink-0" />
-                      Verified
-                    </span>
-                  )}
-                  {tutor.isDbsVerified && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700" title="DBS verified">
-                      <ShieldCheck size={14} className="shrink-0" />
-                      DBS
-                    </span>
-                  )}
+                  <TutorVerificationBadges isVerified={tutor.isVerified} isDbsVerified={tutor.isDbsVerified} />
                 </div>
                 <p className="text-[#1A365D] font-medium text-sm mt-0.5">{primarySubject}</p>
               </div>

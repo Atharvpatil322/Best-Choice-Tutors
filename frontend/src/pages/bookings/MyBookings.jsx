@@ -34,6 +34,7 @@ import { getSessionStatus, getSessionStatusLabel } from '@/utils/sessionStatus';
 import { getBookingStatusLabel, getBookingStatusBadgeClass } from '@/utils/bookingStatus';
 import "../../styles/Bookings.css";
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 
 const MAX_REVIEW_TEXT_LENGTH = 2000;
 
@@ -421,7 +422,13 @@ function MyBookings() {
                   />
                   <div className="space-y-2 min-w-0 flex-1">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-2 sm:gap-3">
-                      <h3 className="text-lg sm:text-xl font-bold text-[#1A365D] break-words">{b.tutorName}</h3>
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-bold text-[#1A365D] break-words">{b.tutorName}</h3>
+                        <TutorVerificationBadges
+                          isVerified={b.tutorIsVerified}
+                          isDbsVerified={b.tutorIsDbsVerified}
+                        />
+                      </div>
                       <span className={`px-3 sm:px-4 py-1 rounded-full text-xs font-bold shrink-0 w-fit ${getBookingStatusBadgeClass(b.status)}`}>
                         {getBookingStatusLabel(b.status)}
                       </span>

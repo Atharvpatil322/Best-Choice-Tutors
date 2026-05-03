@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Info, Star, MapPin } from 'lucide-react';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -394,7 +395,15 @@ function TutorProfile({ tutorId: propTutorId }) {
             />
           </div>
           <div className="min-w-0 text-center sm:text-left w-full sm:w-auto sm:flex-1">
-            <h2 className="text-xl sm:text-2xl font-bold text-white break-words">{tutor.fullName || 'Tutor'}</h2>
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <h2 className="text-xl sm:text-2xl font-bold text-white break-words">{tutor.fullName || 'Tutor'}</h2>
+              <TutorVerificationBadges
+                isVerified={tutor.isVerified}
+                isDbsVerified={tutor.isDbsVerified}
+                onDarkBackground
+                className="justify-center sm:justify-start"
+              />
+            </div>
             <p className="flex flex-wrap items-center justify-center sm:justify-start gap-x-1 gap-y-0.5 text-white/80 text-sm mt-1">
               {tutor.mode && <span>{tutor.mode}</span>}
               {locationDisplay && (
@@ -434,6 +443,17 @@ function TutorProfile({ tutorId: propTutorId }) {
           <h3>Profile Information</h3>
         </div>
         <div className="section-grid">
+          {(tutor.isVerified || tutor.isDbsVerified) && (
+            <div className="info-block col-span-full">
+              <label>Verification</label>
+              <div className="mt-1">
+                <TutorVerificationBadges
+                  isVerified={tutor.isVerified}
+                  isDbsVerified={tutor.isDbsVerified}
+                />
+              </div>
+            </div>
+          )}
           {tutor.bio && (
             <div className="info-block col-span-full">
               <label>About</label>

@@ -3,14 +3,19 @@
   padding: 1rem;
   border-radius: 16px;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   gap: 1rem;
 }
 
 @media (min-width: 640px) {
   .profile-hero-banner {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     padding: 1.5rem 24px;
   }
 }
@@ -61,6 +66,21 @@
   grid-template-columns: 1fr;
   gap: 20px;
   min-width: 0;
+}
+
+/* Below sm, .section-grid is a single column. Tailwind col-span-2/3 would span 2+ tracks and
+   create implicit columns — horizontal scroll / broken layout on mobile. */
+@media (max-width: 639px) {
+  .section-grid > .col-span-2,
+  .section-grid > .col-span-3 {
+    grid-column: span 1 / span 1;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .section-grid > .col-span-3 {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 640px) {

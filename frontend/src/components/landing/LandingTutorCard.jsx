@@ -4,11 +4,12 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, CheckCircle, ShieldCheck } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isAuthenticated } from '../../lib/auth';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 
 const GUEST_LANDING_SEARCH_REGISTER =
   '/register?role=learner&from=landing-subject-search';
@@ -45,16 +46,11 @@ function LandingTutorCard({ tutor }) {
             <h3 className="text-base font-semibold text-slate-800 truncate" title={tutor.fullName || 'Tutor'}>
               {tutor.fullName || 'Tutor'}
             </h3>
-            {tutor.isVerified && (
-              <span className="inline-flex items-center rounded-full bg-emerald-100 p-0.5" title="Document verified">
-                <CheckCircle size={14} className="text-emerald-600 shrink-0" />
-              </span>
-            )}
-            {tutor.isDbsVerified && (
-              <span className="inline-flex items-center rounded-full bg-blue-100 p-0.5" title="DBS verified">
-                <ShieldCheck size={14} className="text-blue-600 shrink-0" />
-              </span>
-            )}
+            <TutorVerificationBadges
+              isVerified={tutor.isVerified}
+              isDbsVerified={tutor.isDbsVerified}
+              variant="icons"
+            />
           </div>
           <p className="text-sm text-slate-500 mt-0.5 truncate">{primarySubject}</p>
 

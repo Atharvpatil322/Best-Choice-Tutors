@@ -19,6 +19,32 @@ const isConfigured = () => {
   return !!(host && user && pass);
 };
 
+/** Missing SMTP env keys (for logs only; never log secrets). */
+export function getMissingSmtpEnvKeys() {
+  const { host, user, pass } = getConfig();
+  const missing = [];
+  if (!host || !String(host).trim()) missing.push("EMAIL_HOST");
+  if (!user || !String(user).trim()) missing.push("EMAIL_USER");
+  if (!pass || !String(pass).trim()) missing.push("EMAIL_PASS");
+  return missing;
+}
+
+/** Log once at startup so missing welcome/onboarding email config is obvious. */
+export function logTransactionalEmailStatus() {
+  const { host, port, from, user } = getConfig();
+  if (isConfigured()) {
+    console.log(
+      `[email] Transactional SMTP ready (host=${host}, port=${port}, user=${user}, from=${from || user})`,
+    );
+    return;
+  }
+  const missing = getMissingSmtpEnvKeys();
+  console.warn(
+    `[email] Welcome & tutor emails are disabled — add to backend/.env: ${missing.join(", ")}. ` +
+      `See backend/.env.example.`,
+  );
+}
+
 const createTransporter = () => {
   if (!isConfigured()) {
     return null;
@@ -67,7 +93,9 @@ export async function sendWelcomeEmail(user) {
 
   const transporter = createTransporter();
   if (!transporter) {
-    console.warn('emailService: SMTP not configured; skipping welcome email');
+    console.warn(
+      `emailService: skipping welcome email (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
+    );
     return;
   }
 
@@ -143,7 +171,9 @@ export async function sendTutorUpgradeEmail(user) {
 
   const transporter = createTransporter();
   if (!transporter) {
-    console.warn('emailService: SMTP not configured; skipping tutor upgrade email');
+    console.warn(
+      `emailService: skipping tutor upgrade email (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
+    );
     return;
   }
 

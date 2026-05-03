@@ -36,7 +36,7 @@ export const getBookings = async (req, res, next) => {
 
     console.time('1-bookings-query');
     const bookings = await Booking.find({ learnerId })
-      .populate('tutorId', 'fullName profilePhoto')
+      .populate('tutorId', 'fullName profilePhoto isVerified isDbsVerified')
       .sort({ date: 1, startTime: 1 })
       .lean();
     console.timeEnd('1-bookings-query');
@@ -71,6 +71,8 @@ export const getBookings = async (req, res, next) => {
           id: b._id.toString(),
           tutorId: b.tutorId?._id?.toString(),
           tutorName: b.tutorId?.fullName ?? 'Tutor',
+          tutorIsVerified: !!b.tutorId?.isVerified,
+          tutorIsDbsVerified: !!b.tutorId?.isDbsVerified,
           tutorProfilePhoto: tutorProfilePhoto ?? undefined,
           date: b.date,
           startTime: b.startTime,

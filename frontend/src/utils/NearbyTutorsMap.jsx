@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Clock, ChevronRight, MapPin, Globe, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Clock, ChevronRight, MapPin, Globe } from 'lucide-react';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 
 const DEFAULT_CENTER = [19.076, 72.877];
 
@@ -102,24 +103,11 @@ const NearbyTutorsMap = ({ tutorsData, userLocation = null, firstSessionDiscount
                         <h4 className="font-semibold text-slate-900 text-base leading-snug">
                           {tutor.fullName}
                         </h4>
-                        {tutor.isVerified && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
-                            title="Document verified"
-                          >
-                            <CheckCircle size={12} className="shrink-0" />
-                            Verified
-                          </span>
-                        )}
-                        {tutor.isDbsVerified && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700"
-                            title="DBS verified"
-                          >
-                            <ShieldCheck size={12} className="shrink-0" />
-                            DBS
-                          </span>
-                        )}
+                        <TutorVerificationBadges
+                          isVerified={tutor.isVerified}
+                          isDbsVerified={tutor.isDbsVerified}
+                          className="[&_span]:text-[11px] [&_span]:py-px [&_svg]:h-3 [&_svg]:w-3"
+                        />
                       </div>
                       <div className="flex items-center gap-2 text-xs mt-1 text-slate-500">
                         <span className="flex items-center gap-1 text-amber-500">

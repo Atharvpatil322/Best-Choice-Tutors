@@ -43,6 +43,7 @@ import { forgotPassword } from '@/services/authService';
 import { toast } from 'sonner';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SubjectSelector } from '@/components/SubjectSelector';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 
 function TutorMyProfile() {
   const navigate = useNavigate();
@@ -704,7 +705,7 @@ setLocation(
 
       {/* Hero Profile Card – responsive: stacks on mobile, profile picture section contained */}
       <div className="profile-hero-banner mt-6">
-        <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6 w-full min-w-0 sm:flex-1">
           <div className="relative shrink-0 w-24 h-24 flex items-center justify-center">
             <ProfileAvatar
               src={!removeProfilePhoto ? (profilePhotoPreview || tutorProfile?.profilePhoto || storedUser?.profilePhoto) : null}
@@ -745,27 +746,35 @@ setLocation(
             )}
           </div>
           <div className="hero-text text-center sm:text-left flex-1 min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-white truncate sm:whitespace-normal">{tutorProfile?.fullName || storedUser?.name || 'Tutor'}</h2>
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <h2 className="text-xl sm:text-2xl font-bold text-white truncate sm:whitespace-normal">{tutorProfile?.fullName || storedUser?.name || 'Tutor'}</h2>
+              <TutorVerificationBadges
+                isVerified={tutorProfile?.isVerified}
+                isDbsVerified={tutorProfile?.isDbsVerified}
+                onDarkBackground
+                className="justify-center sm:justify-start"
+              />
+            </div>
             <p className="flex items-center justify-center sm:justify-start gap-1 text-white/80 text-sm mt-1 min-w-0">
               <MapPin size={14} className="shrink-0" /> <span className="truncate">{typeof location === 'object' ? (location?.address || '') : (location || '') || 'Location not set'}</span>
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 w-full min-w-0">
-          <Button variant="ghost" className="text-white hover:bg-white/10 shrink-0" onClick={handleResetPasswordClick}>
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center sm:justify-end gap-2 w-full min-w-0">
+          <Button variant="ghost" className="text-white hover:bg-white/10 w-full sm:w-auto shrink-0" onClick={handleResetPasswordClick}>
             Reset Password
           </Button>
           {isEditing ? (
             <>
-              <Button onClick={handleCancel} disabled={saving} variant="ghost" className="text-white hover:bg-white/10 shrink-0">
+              <Button onClick={handleCancel} disabled={saving} variant="ghost" className="text-white hover:bg-white/10 w-full sm:w-auto shrink-0">
                 <X size={14} className="mr-2" /> Cancel
               </Button>
-              <Button onClick={handleSave} disabled={isSaveDisabled} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold px-4 sm:px-6 rounded-lg shrink-0">
+              <Button onClick={handleSave} disabled={isSaveDisabled} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold px-4 sm:px-6 rounded-lg w-full sm:w-auto shrink-0">
                 <Save size={14} className="mr-2" /> {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </>
           ) : (
-            <Button onClick={handleEdit} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold px-4 sm:px-6 rounded-lg shrink-0">
+            <Button onClick={handleEdit} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold px-4 sm:px-6 rounded-lg w-full sm:w-auto shrink-0">
               <Pencil size={14} className="mr-2" /> Edit Profile
             </Button>
           )}
@@ -801,6 +810,17 @@ setLocation(
             <h3>Profile Information</h3>
           </div>
           <div className="section-grid">
+            {(tutorProfile?.isVerified || tutorProfile?.isDbsVerified) && (
+              <div className="info-block col-span-full">
+                <Label>Verification</Label>
+                <div className="mt-1">
+                  <TutorVerificationBadges
+                    isVerified={tutorProfile?.isVerified}
+                    isDbsVerified={tutorProfile?.isDbsVerified}
+                  />
+                </div>
+              </div>
+            )}
             <div className="info-block">
               <Label>Full Name</Label>
               <p>{tutorProfile?.fullName || storedUser?.name || 'Not provided'}</p>
@@ -827,9 +847,15 @@ setLocation(
             <div className="info-block">
               <Label>Phone Number</Label>
               {isEditing ? (
-                <div className="flex flex-wrap gap-2 mt-1 min-w-0">
-                  <CountryCodePicker value={countryCode} onChange={handleCountryCodeChange} placeholder="Code" />
-                  <Input type="tel" value={phoneNumber} onChange={(e) => handlePhoneChange(e.target.value)} placeholder="Phone number" className="flex-1 min-w-[120px]" />
+                <div className="flex flex-col gap-2 mt-1 min-w-0 sm:flex-row sm:items-stretch">
+                  <CountryCodePicker
+                    value={countryCode}
+                    onChange={handleCountryCodeChange}
+                    placeholder="Code"
+                    className="w-full shrink-0 sm:w-auto"
+                    triggerClassName="w-full min-w-0 max-w-none sm:min-w-[160px] sm:max-w-[220px]"
+                  />
+                  <Input type="tel" value={phoneNumber} onChange={(e) => handlePhoneChange(e.target.value)} placeholder="Phone number" className="flex-1 min-w-0 sm:min-w-[120px]" />
                 </div>
               ) : (
                 <p>{[countryCode, phoneNumber].filter(Boolean).join(' ') || 'Not set'}</p>

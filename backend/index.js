@@ -21,14 +21,17 @@ import { errorHandler } from "./middlewares/errorHandler.js";
 import { attachSocketServer } from "./services/socketService.js";
 import { completeEligibleBookings } from "./services/bookingService.js";
 import { runDbsExpiryCheck } from "./services/dbsExpiryService.js";
+import { logTransactionalEmailStatus } from "./services/emailService.js";
 import path from "path";
 
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Load environment variables
-dotenv.config();
+// Load environment variables from this package directory (not process.cwd()),
+// so email/DB secrets work when the app is started from the monorepo root.
+dotenv.config({ path: path.join(__dirname, ".env") });
+logTransactionalEmailStatus();
 
 // Initialize Express app
 const app = express();

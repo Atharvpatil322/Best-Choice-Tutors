@@ -409,7 +409,7 @@ function MyProfile() {
   }
 
 return (
-  <div className="profile-page-content">
+  <div className="profile-page-content min-w-0 overflow-x-hidden">
     <div className="profile-intro">
       <h1 className="text-2xl font-bold text-[#1a365d]">
         {isEditing ? 'Edit Your Student Profile' : 'Create Your Student Profile'}
@@ -419,7 +419,7 @@ return (
 
     {/* Hero Profile Card */}
     <div className="profile-hero-banner mt-6">
-      <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6">
+      <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6 w-full min-w-0 sm:flex-1">
         <div className="relative shrink-0 w-32 h-32 sm:w-28 sm:h-28 md:w-24 md:h-24 flex items-center justify-center">
           <ProfileAvatar
             src={!removeProfilePhoto && (formData.profilePhotoPreview || profile?.profilePhoto) ? (formData.profilePhotoPreview || profile?.profilePhoto) : null}
@@ -457,16 +457,16 @@ return (
         </div>
       </div>
       {isEditing ? (
-        <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-          <Button onClick={handleSubmit} disabled={saving} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold px-4 sm:px-6 rounded-lg">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center justify-center sm:justify-end w-full min-w-0 sm:w-auto">
+          <Button onClick={handleSubmit} disabled={saving} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold px-4 sm:px-6 rounded-lg w-full sm:w-auto">
             <Save size={14} className="mr-2" /> {saving ? 'Saving...' : 'Save Changes'}
           </Button>
-          <Button onClick={handleCancel} variant="ghost" className="text-white hover:bg-white/10">
+          <Button onClick={handleCancel} variant="ghost" className="text-white hover:bg-white/10 w-full sm:w-auto">
             <X size={14} className="mr-2" /> Cancel
           </Button>
         </div>
       ) : (
-        <Button onClick={handleEdit} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold p-2.5 sm:px-6 sm:py-2 rounded-lg" aria-label="Edit profile">
+        <Button onClick={handleEdit} className="bg-white text-[#1a365d] hover:bg-slate-100 font-semibold p-2.5 sm:px-6 sm:py-2 rounded-lg w-full sm:w-auto shrink-0" aria-label="Edit profile">
           <Pencil size={18} className="sm:mr-2 sm:w-[14px] sm:h-[14px]" />
           <span className="hidden sm:inline">Edit Profile</span>
         </Button>
@@ -518,13 +518,15 @@ return (
           <div className="info-block">
             <Label>Phone Number</Label>
             {isEditing ? (
-               <div className="flex gap-2 mt-1">
+               <div className="flex flex-col gap-2 mt-1 sm:flex-row sm:items-stretch min-w-0">
                   <CountryCodePicker
                     value={formData.phone.countryCode || ''}
                     onChange={handlePhoneCountryCodeChange}
                     placeholder="—"
+                    className="w-full shrink-0 sm:w-auto"
+                    triggerClassName="w-full min-w-0 max-w-none sm:min-w-[160px] sm:max-w-[220px]"
                   />
-                  <Input name="phoneNumber" value={formData.phone.number} onChange={handleInputChange} className="flex-1" />
+                  <Input name="phoneNumber" value={formData.phone.number} onChange={handleInputChange} className="flex-1 min-w-0" />
                </div>
             ) : (
               <p>

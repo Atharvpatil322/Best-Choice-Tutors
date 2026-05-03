@@ -11,8 +11,6 @@ import { getAuthToken } from "./authService.js";
 import {
   getCache,
   setCache,
-  getTutorListCacheKey,
-  getTutorProfileCacheKey,
   getTutorAvailabilityCacheKey,
   getTutorSlotsCacheKey,
 } from "@/utils/cache.js";
@@ -104,13 +102,7 @@ export const createTutorProfile = async (tutorData) => {
  * @returns {Promise<Object>} Tutor profile data
  */
 export const getTutorById = async (tutorId) => {
-  // Check cache first
-  const cacheKey = getTutorProfileCacheKey(tutorId);
-  const cached = getCache(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
+  // No response caching: verification flags and profile fields must stay fresh after admin review.
   const response = await fetch(`${API_BASE_URL}/tutors/${tutorId}`, {
     method: "GET",
     headers: {
@@ -123,9 +115,6 @@ export const getTutorById = async (tutorId) => {
   if (!response.ok) {
     throw new Error(data.message || "Failed to fetch tutor profile");
   }
-
-  // Cache the response
-  setCache(cacheKey, data);
 
   return data;
 };
