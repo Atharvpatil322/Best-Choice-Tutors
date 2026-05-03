@@ -16,7 +16,6 @@ const GUEST_LANDING_SEARCH_REGISTER =
 
 function LandingTutorCard({ tutor }) {
   const navigate = useNavigate();
-  const primarySubject = tutor.subjects?.[0] || 'Tutor';
   const subjects = Array.isArray(tutor.subjects) ? tutor.subjects : [];
 
   const goToProfileOrSignUp = () => {
@@ -52,7 +51,6 @@ function LandingTutorCard({ tutor }) {
               variant="icons"
             />
           </div>
-          <p className="text-sm text-slate-500 mt-0.5 truncate">{primarySubject}</p>
 
           {/* Rate */}
           {tutor.hourlyRate !== undefined && tutor.hourlyRate !== null && (
