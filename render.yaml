@@ -54,7 +54,7 @@ services:
         sync: false
 
   - type: web
-    name: best-choice-tutors-web
+    name: Best-Choice-Tutors-FE
     runtime: static
     rootDir: frontend
     autoDeploy: true

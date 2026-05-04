@@ -22,6 +22,7 @@ import { attachSocketServer } from "./services/socketService.js";
 import { completeEligibleBookings } from "./services/bookingService.js";
 import { runDbsExpiryCheck } from "./services/dbsExpiryService.js";
 import { logTransactionalEmailStatus } from "./services/emailService.js";
+import fs from "node:fs";
 import path from "path";
 
 import { fileURLToPath } from "node:url";
@@ -76,10 +77,12 @@ app.get("/health", (req, res) => {
 });
 
 const frontendDist = path.join(__dirname, "../frontend/dist");
+const frontendIndexHtml = path.join(frontendDist, "index.html");
+const hasFrontendBuild = fs.existsSync(frontendIndexHtml);
 
-// Production: serve built SPA. Order matters — never register a JSON 404 *before* the SPA fallback
-// or full-page reloads on /dashboard, /tutor, etc. will not receive index.html (blank / non-HTML body).
-if (process.env.NODE_ENV === "production") {
+// Serve built SPA when available. Order matters: this must run before 404 handlers so
+// hard reloads on client routes (/dashboard, /tutor, etc.) receive index.html.
+if (hasFrontendBuild) {
   app.use(express.static(frontendDist));
   app.get("*", (req, res, next) => {
     if (
