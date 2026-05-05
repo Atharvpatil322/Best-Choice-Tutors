@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle } from 'lucide-react';
@@ -11,17 +12,18 @@ function AgeConsent() {
   const [searchParams] = useSearchParams();
   const role = searchParams.get('role') || 'learner';
   const isSignUp = searchParams.get('signup') === '1';
-  const [isOver18, setIsOver18] = useState(true);
+  const minimumAge = role === 'tutor' ? 18 : 13;
+  const [meetsAgeRequirement, setMeetsAgeRequirement] = useState(true);
 
   const handleContinue = () => {
-    if (isOver18) {
+    if (meetsAgeRequirement) {
       if (isSignUp) {
         navigate(`/register?role=${role}`);
       } else {
         navigate(`/login?role=${role}`);
       }
     } else {
-      alert("You must be 13 or over to create an account.");
+      toast.error(`You must be ${minimumAge} or over to create an account.`);
     }
   };
 
@@ -33,34 +35,32 @@ function AgeConsent() {
             <h1 className="age-title">Age Confirmation</h1>
             <p className="age-subtitle">
               To create an Account on Best Choice Tutors, <br />
-              <span className="font-bold">"You must be 13 years or over"</span>
+              <span className="font-bold">{`"You must be ${minimumAge} years or over"`}</span>
             </p>
 
             <div className="age-options-container">
-              {/* Option: Over 18 */}
               <div 
-                className={`age-option ${isOver18 ? 'selected' : ''}`}
-                onClick={() => setIsOver18(true)}
+                className={`age-option ${meetsAgeRequirement ? 'selected' : ''}`}
+                onClick={() => setMeetsAgeRequirement(true)}
               >
-                {isOver18 ? (
+                {meetsAgeRequirement ? (
                   <CheckCircle2 className="text-green-500" size={24} />
                 ) : (
                   <Circle className="text-gray-300" size={24} />
                 )}
-                <span>I am 13 or over</span>
+                <span>{`I am ${minimumAge} or over`}</span>
               </div>
 
-              {/* Option: Under 18 */}
               <div 
-                className={`age-option ${!isOver18 ? 'selected' : ''}`}
-                onClick={() => setIsOver18(false)}
+                className={`age-option ${!meetsAgeRequirement ? 'selected' : ''}`}
+                onClick={() => setMeetsAgeRequirement(false)}
               >
-                {!isOver18 ? (
+                {!meetsAgeRequirement ? (
                   <CheckCircle2 className="text-green-500" size={24} />
                 ) : (
                   <Circle className="text-gray-300" size={24} />
                 )}
-                <span>I am under 13</span>
+                <span>{`I am under ${minimumAge}`}</span>
               </div>
             </div>
 
