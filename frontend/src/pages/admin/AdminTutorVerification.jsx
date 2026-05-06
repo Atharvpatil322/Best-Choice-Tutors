@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, UserCheck, UserX, Download, Eye } from 'lucide-react';
+import { GraduationCap, UserCheck, UserX, Download, Eye, Trash2 } from 'lucide-react';
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { getCurrentRole, getStoredUser } from '@/services/authService';
 import {
   getTutorVerificationTutors,
   getTutorDocuments,
+  deleteTutorDocument as apiDeleteTutorDocument,
   approveTutor as apiApproveTutor,
   rejectTutor as apiRejectTutor,
 } from '@/services/adminService';
@@ -49,7 +50,7 @@ function verificationStatusBadge(tutor) {
   );
 }
 
-function TutorDocumentsList({ documents, onPreview }) {
+function TutorDocumentsList({ documents, onPreview, onDelete, isDeleting }) {
   if (!documents?.length) {
     return <p className="text-sm text-muted-foreground">No documents uploaded.</p>;
   }
@@ -77,6 +78,18 @@ function TutorDocumentsList({ documents, onPreview }) {
                   Preview
                 </Button>
               )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-red-600 hover:text-red-700"
+                disabled={isDeleting}
+                onClick={() => onDelete(doc)}
+                title="Delete this document"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
             </div>
           </div>
           {doc.fileType === 'IMAGE' && doc.fileUrl && (
@@ -127,6 +140,7 @@ function AdminTutorVerification() {
   const [tutors, setTutors] = useState([]);
   const [documentsByTutorId, setDocumentsByTutorId] = useState({});
   const [actingId, setActingId] = useState(null);
+  const [deletingDocId, setDeletingDocId] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
 
   const fetchTutors = async () => {
@@ -214,6 +228,24 @@ function AdminTutorVerification() {
       setError(err.message || 'Failed to reject tutor');
     } finally {
       setActingId(null);
+    }
+  };
+
+  const handleDeleteDocument = async (tutorId, doc) => {
+    const confirmed = window.confirm(
+      `Delete "${doc.fileName || 'this document'}"? This will remove it from AWS and mark the tutor as rejected.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingDocId(doc.id);
+    setError(null);
+    try {
+      await apiDeleteTutorDocument(tutorId, doc.id);
+      await refetchTutorsSilent();
+    } catch (err) {
+      setError(err.message || 'Failed to delete tutor document');
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -345,7 +377,9 @@ function AdminTutorVerification() {
                         <p className="text-sm font-medium text-muted-foreground">Certificates</p>
                         <TutorDocumentsList
                           documents={documents}
+                          isDeleting={deletingDocId != null}
                           onPreview={(doc) => setPreviewDoc({ fileUrl: doc.fileUrl, fileType: doc.fileType, fileName: doc.fileName })}
+                          onDelete={(doc) => handleDeleteDocument(t.id, doc)}
                         />
                       </div>
                     </li>

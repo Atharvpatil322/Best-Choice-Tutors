@@ -356,6 +356,32 @@ export const getTutorDocuments = async (tutorId) => {
 };
 
 /**
+ * Delete a tutor verification document (admin only)
+ * DELETE /api/admin/tutors/:tutorId/documents/:documentId
+ * @param {string} tutorId
+ * @param {string} documentId
+ */
+export const deleteTutorDocument = async (tutorId, documentId) => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/documents/${encodeURIComponent(documentId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to delete tutor document");
+  }
+  return data;
+};
+
+/**
  * Approve tutor (admin only)
  * PATCH /api/admin/tutors/:tutorId/approve
  */

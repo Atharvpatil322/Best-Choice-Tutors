@@ -16,7 +16,10 @@ import PlatformConfig from "../models/PlatformConfig.js";
 import SupportTicket from "../models/SupportTicket.js";
 import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
-import { presignDocumentUrl } from "../services/s3Service.js";
+import {
+  deleteDocumentByStorageKey,
+  presignDocumentUrl,
+} from "../services/s3Service.js";
 import { listPayoutsForAccount } from "../services/stripeService.js";
 import {
   sendIdentityVerificationApprovedEmail,
@@ -1016,6 +1019,70 @@ export async function getTutorVerificationDocuments(req, res, next) {
       err.message,
       err.stack,
     );
+    next(err);
+  }
+}
+
+/**
+ * DELETE /api/admin/tutors/:tutorId/documents/:documentId
+ * Admin only. Deletes a tutor verification document from S3 + DB.
+ * Does not delete the tutor profile. Marks tutor as rejected.
+ */
+export async function deleteTutorVerificationDocument(req, res, next) {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        message: "Access denied: Admin role required",
+      });
+    }
+
+    const { tutorId, documentId } = req.params;
+    if (
+      !mongoose.Types.ObjectId.isValid(tutorId) ||
+      !mongoose.Types.ObjectId.isValid(documentId)
+    ) {
+      return res.status(400).json({ message: "Invalid tutor/document ID" });
+    }
+
+    const doc = await TutorVerificationDocument.findOne({
+      _id: documentId,
+      tutorId,
+    }).lean();
+    if (!doc) {
+      return res.status(404).json({ message: "Document not found for tutor" });
+    }
+
+    await deleteDocumentByStorageKey(doc.storageKey);
+
+    await TutorVerificationDocument.collection.deleteOne({ _id: doc._id });
+
+    const rejectedAt = new Date();
+    await Tutor.findByIdAndUpdate(
+      tutorId,
+      { $set: { isVerified: false, verificationRejectedAt: rejectedAt } },
+      { runValidators: true },
+    );
+
+    await AdminAuditLog.create({
+      adminId: req.user._id,
+      tutorId,
+      documentId: doc._id,
+      action: "TUTOR_VERIFICATION_DOCUMENT_DELETED",
+      entityType: "TutorVerificationDocument",
+      entityId: doc._id,
+      metadata: {
+        fileName: doc.fileName ?? "",
+        storageKey: doc.storageKey ?? "",
+      },
+    });
+
+    return res.status(200).json({
+      message: "Tutor verification document deleted and tutor marked rejected.",
+      deletedDocumentId: doc._id.toString(),
+      tutorId: tutorId.toString(),
+      verificationRejectedAt: rejectedAt,
+    });
+  } catch (err) {
     next(err);
   }
 }

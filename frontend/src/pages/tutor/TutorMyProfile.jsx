@@ -1027,7 +1027,7 @@ setLocation(
             )}
             {payoutStatus === 'PENDING' && (
               <p className="col-span-2 text-sm text-muted-foreground">
-                Stripe is reviewing your account. In test mode, your connected account may stay &quot;Restricted&quot; until the platform completes &quot;Verify your business&quot; in the Stripe Dashboard. Refresh this page after a few minutes to see if status has updated.
+                Stripe is reviewing your account. Refresh this page after a few minutes to see if status has updated.
               </p>
             )}
 

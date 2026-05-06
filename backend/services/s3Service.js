@@ -139,6 +139,21 @@ export async function deleteProfilePhotoByUrl(url) {
 }
 
 /**
+ * Delete a stored verification/DBS document by S3 key.
+ * No-op if key is missing.
+ * @param {string | null | undefined} key
+ * @returns {Promise<void>}
+ */
+export async function deleteDocumentByStorageKey(key) {
+  if (!key || typeof key !== 'string') return;
+  try {
+    await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch (err) {
+    console.error('S3 delete document failed (key=%s):', key, err.message);
+  }
+}
+
+/**
  * Upload a buffer to S3 with a unique key and return the public URL.
  * @param {Buffer} fileBuffer
  * @param {string} key - S3 object key (e.g. folder/filename)
