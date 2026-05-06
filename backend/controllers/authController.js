@@ -178,7 +178,9 @@ export const login = async (req, res, next) => {
 
     if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
       const message =
-        user.status === 'BANNED' ? 'Account is banned' : 'Account is suspended';
+        user.status === 'BANNED'
+          ? 'Account is banned. Please contact support.'
+          : 'Account suspended, contact support.';
       return res.status(403).json({ message });
     }
 

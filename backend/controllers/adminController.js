@@ -414,34 +414,44 @@ export async function getUsers(req, res, next) {
       .map((u) => u._id);
     const tutors = tutorUserIds.length
       ? await Tutor.find({ userId: { $in: tutorUserIds } })
-          .select("_id userId")
+          .select("_id userId isVerified isDbsVerified")
           .lean()
       : [];
-    const tutorIdByUserId = new Map(
-      tutors.map((t) => [t.userId.toString(), t._id.toString()]),
+    const tutorMetaByUserId = new Map(
+      tutors.map((t) => [
+        t.userId.toString(),
+        {
+          tutorId: t._id.toString(),
+          isVerified: t.isVerified === true,
+          isDbsVerified: t.isDbsVerified === true,
+        },
+      ]),
     );
 
-    const items = users.map((u) => ({
-      id: u._id.toString(),
-      name: u.name ?? "",
-      email: u.email ?? "",
-      role: u.role ?? "Learner",
-      tutorId:
-        u.role === "Tutor"
-          ? tutorIdByUserId.get(u._id.toString()) || null
+    const items = users.map((u) => {
+      const tutorMeta = tutorMetaByUserId.get(u._id.toString());
+      return {
+        id: u._id.toString(),
+        name: u.name ?? "",
+        email: u.email ?? "",
+        role: u.role ?? "Learner",
+        tutorId: u.role === "Tutor" ? tutorMeta?.tutorId ?? null : null,
+        isTutorVerified: u.role === "Tutor" ? tutorMeta?.isVerified === true : null,
+        isDbsVerified:
+          u.role === "Tutor" ? tutorMeta?.isDbsVerified === true : null,
+        profilePhoto: u.profilePhoto ?? null,
+        authProvider: u.authProvider ?? null,
+        phone: u.phone
+          ? {
+              countryCode: u.phone.countryCode ?? null,
+              number: u.phone.number ?? null,
+            }
           : null,
-      profilePhoto: u.profilePhoto ?? null,
-      authProvider: u.authProvider ?? null,
-      phone: u.phone
-        ? {
-            countryCode: u.phone.countryCode ?? null,
-            number: u.phone.number ?? null,
-          }
-        : null,
-      gender: u.gender ?? null,
-      createdAt: u.createdAt,
-      status: u.status ?? "ACTIVE",
-    }));
+        gender: u.gender ?? null,
+        createdAt: u.createdAt,
+        status: u.status ?? "ACTIVE",
+      };
+    });
 
     return res.status(200).json({
       count: items.length,

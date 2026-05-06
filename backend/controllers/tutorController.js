@@ -270,10 +270,12 @@ export const listTutors = async (req, res, next) => {
       { $unwind: "$user" },
     ];
 
-    const afterLookupMatch =
-      Object.keys(userQuery).length > 0
-        ? [{ $match: { "user.gender": userQuery.gender } }]
-        : [];
+    const userMatchQuery = { "user.status": "ACTIVE" };
+    if (userQuery.gender) {
+      userMatchQuery["user.gender"] = userQuery.gender;
+    }
+
+    const afterLookupMatch = [{ $match: userMatchQuery }];
 
     let totalCount;
     let tutors;
@@ -391,9 +393,13 @@ export const getTutorById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const tutor = await Tutor.findById(id).populate("userId", "name email");
+    const tutor = await Tutor.findById(id).populate("userId", "name email status");
 
     if (!tutor) {
+      return res.status(404).json({ message: "Tutor not found" });
+    }
+
+    if (!tutor.userId || tutor.userId.status !== "ACTIVE") {
       return res.status(404).json({ message: "Tutor not found" });
     }
 

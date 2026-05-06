@@ -28,7 +28,9 @@ export const googleCallback = async (req, res, next) => {
       // User exists - log them in (block if suspended or banned)
       if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
         const message =
-          user.status === 'BANNED' ? 'Account is banned' : 'Account is suspended';
+          user.status === 'BANNED'
+            ? 'Account is banned. Please contact support.'
+            : 'Account suspended, contact support.';
         return res.redirect(buildFrontendIndexRedirect({ error: message }));
       }
 

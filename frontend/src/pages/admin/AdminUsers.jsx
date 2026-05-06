@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserX, UserCheck, Ban, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { Users, UserX, UserCheck, Ban, RefreshCw, FileSpreadsheet, Check, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -205,6 +205,14 @@ function AdminUsers() {
     }
   };
 
+  const renderVerificationCell = (isTutor, isVerified) => {
+    if (!isTutor) return <span className="text-muted-foreground">—</span>;
+    if (isVerified) {
+      return <Check className="h-4 w-4 text-green-600" aria-label="Verified" />;
+    }
+    return <X className="h-4 w-4 text-red-600" aria-label="Not verified" />;
+  };
+
   return (
     <div className="profile-page-content">
       <div className="profile-intro">
@@ -277,7 +285,8 @@ function AdminUsers() {
                       <th className="px-4 py-3 font-medium">Name</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Role</th>
-                      <th className="px-4 py-3 font-medium">Gender</th>
+                      <th className="px-4 py-3 font-medium text-center">Tutor Verified</th>
+                      <th className="px-4 py-3 font-medium text-center">DBS Verified</th>
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
@@ -297,7 +306,12 @@ function AdminUsers() {
                           <td className="px-4 py-3 font-medium">{u.name || '—'}</td>
                           <td className="px-4 py-3 text-muted-foreground">{u.email || '—'}</td>
                           <td className="px-4 py-3">{u.role || '—'}</td>
-                          <td className="px-4 py-3">{u.gender === 'MALE' ? 'Male' : u.gender === 'FEMALE' ? 'Female' : '—'}</td>
+                          <td className="px-4 py-3 text-center">
+                            {renderVerificationCell(u.role === 'Tutor', u.isTutorVerified === true)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {renderVerificationCell(u.role === 'Tutor', u.isDbsVerified === true)}
+                          </td>
                           <td className="px-4 py-3">
                             <span
                               className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusBadgeClass(status)}`}
