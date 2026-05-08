@@ -15,6 +15,7 @@ import {
   findCheckoutSessionByPaymentIntentId,
 } from './stripeService.js';
 import { logFinancialAudit } from './financialAuditService.js';
+import { sendBookingPaidEmails } from './emailService.js';
 
 /** Statuses that reserve a slot; only these block rebooking for the same slot */
 const ACTIVE_SLOT_STATUSES = ['PENDING', 'PAID'];
@@ -417,6 +418,40 @@ export async function handleBookingPaid(booking, options = {}) {
       { _id: booking.tuitionRequestId },
       { $set: { status: 'CLOSED' } }
     );
+  }
+
+  // Send confirmation emails once when payment is first marked successful.
+  // Keep this non-blocking and resilient to email provider failures.
+  try {
+    const [learner, tutorProfile] = await Promise.all([
+      User.findById(booking.learnerId).select('name email').lean(),
+      Tutor.findById(booking.tutorId).select('userId fullName').lean(),
+    ]);
+
+    if (learner?.email && tutorProfile?.userId) {
+      const tutorUser = await User.findById(tutorProfile.userId).select('name email').lean();
+      const tutorName = tutorProfile.fullName || tutorUser?.name || 'Your tutor';
+
+      if (tutorUser?.email) {
+        void sendBookingPaidEmails({
+          learner: {
+            name: learner.name,
+            email: learner.email,
+          },
+          tutor: {
+            name: tutorName,
+            email: tutorUser.email,
+          },
+          session: {
+            date: booking.date,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+          },
+        });
+      }
+    }
+  } catch (emailErr) {
+    console.error('Failed to queue booking paid emails:', emailErr?.message);
   }
 
   return booking;

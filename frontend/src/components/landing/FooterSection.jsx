@@ -21,7 +21,7 @@ export default function FooterSection() {
             </Link>
             <p className="footer-about">
               Connecting students with expert tutors for personalised learning experiences. 
-              Transform your education journey with quality tutoring.
+              Transform your educational journey with quality tutoring.
             </p>
           </div>
 

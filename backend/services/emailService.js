@@ -376,3 +376,126 @@ Thank you for keeping our community safe and trusted.
     console.error('emailService.sendDbsVerificationApprovedEmail failed:', err?.message || err);
   }
 }
+
+/**
+ * Send booking success emails:
+ * 1) Learner confirmation after successful payment
+ * 2) Tutor notification about a newly booked session
+ *
+ * Does not throw; logs errors only.
+ *
+ * @param {Object} params
+ * @param {{ name?: string, email: string }} params.learner
+ * @param {{ name?: string, email: string }} params.tutor
+ * @param {{ date: string, startTime: string, endTime: string }} params.session
+ * @returns {Promise<void>}
+ */
+export async function sendBookingPaidEmails({ learner, tutor, session }) {
+  if (!learner?.email || !tutor?.email || !session?.date || !session?.startTime || !session?.endTime) {
+    console.warn('emailService.sendBookingPaidEmails: missing required data');
+    return;
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn(
+      `emailService: skipping booking paid emails (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
+    );
+    return;
+  }
+
+  const from = getConfig().from;
+  const learnerFirstName = getFirstName(learner);
+  const tutorFirstName = getFirstName(tutor);
+  const tutorName = String(tutor?.name || 'your tutor').trim();
+  const learnerName = String(learner?.name || 'A learner').trim();
+  const sessionDate = session.date;
+  const sessionTime = `${session.startTime} - ${session.endTime}`;
+  const bookingsUrl = `${getPlatformUrl()}/dashboard/bookings`;
+  const tutorDashboardUrl = `${getPlatformUrl()}/tutor/dashboard`;
+
+  const learnerMailOptions = {
+    from,
+    to: learner.email,
+    subject: 'Booking confirmed! Your session is successfully scheduled 🎉',
+    text: `Hey ${learnerFirstName},
+
+Awesome news - your payment was successful and your tutoring session is now confirmed.
+
+Here are your appointment details:
+- Tutor: ${tutorName}
+- Date: ${sessionDate}
+- Time: ${sessionTime}
+
+You can view your bookings anytime here:
+${bookingsUrl}
+
+We're excited for your learning session. Keep showing up - progress is on the way!
+
+- The Best Choice Tutors Team`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto;">
+        <p style="font-size: 18px; color: #1a1a1a;">Hey ${learnerFirstName},</p>
+        <p style="font-size: 18px; color: #1a1a1a; line-height: 1.5;"><strong>Awesome news</strong> - your payment was successful and your tutoring session is now confirmed. 🎉</p>
+        <p style="font-size: 16px; color: #1a1a1a;"><strong>Your appointment details:</strong></p>
+        <ul style="font-size: 15px; color: #444; line-height: 1.8;">
+          <li><strong>Tutor:</strong> ${tutorName}</li>
+          <li><strong>Date:</strong> ${sessionDate}</li>
+          <li><strong>Time:</strong> ${sessionTime}</li>
+        </ul>
+        <p style="margin: 24px 0 16px;">
+          <a href="${bookingsUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">View my bookings →</a>
+        </p>
+        <p style="font-size: 15px; color: #666;">We're excited for your learning session. Keep showing up - progress is on the way!</p>
+        <p style="font-size: 14px; color: #888; margin-top: 32px;">- The Best Choice Tutors Team</p>
+      </div>
+    `,
+  };
+
+  const tutorMailOptions = {
+    from,
+    to: tutor.email,
+    subject: 'New booking received! A learner has scheduled a session ✅',
+    text: `Hey ${tutorFirstName},
+
+Great news - you've received a new booking, and the learner's payment has been completed successfully.
+
+Here are the session details:
+- Learner: ${learnerName}
+- Date: ${sessionDate}
+- Time: ${sessionTime}
+
+Head to your dashboard to review and prepare:
+${tutorDashboardUrl}
+
+Thanks for being part of Best Choice Tutors and helping learners move forward.
+
+- The Best Choice Tutors Team`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto;">
+        <p style="font-size: 18px; color: #1a1a1a;">Hey ${tutorFirstName},</p>
+        <p style="font-size: 18px; color: #1a1a1a; line-height: 1.5;"><strong>Great news</strong> - you've received a new booking, and the learner's payment has been completed successfully. ✅</p>
+        <p style="font-size: 16px; color: #1a1a1a;"><strong>Session details:</strong></p>
+        <ul style="font-size: 15px; color: #444; line-height: 1.8;">
+          <li><strong>Learner:</strong> ${learnerName}</li>
+          <li><strong>Date:</strong> ${sessionDate}</li>
+          <li><strong>Time:</strong> ${sessionTime}</li>
+        </ul>
+        <p style="margin: 24px 0 16px;">
+          <a href="${tutorDashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);">Open my dashboard →</a>
+        </p>
+        <p style="font-size: 15px; color: #666;">Thanks for being part of Best Choice Tutors and helping learners move forward.</p>
+        <p style="font-size: 14px; color: #888; margin-top: 32px;">- The Best Choice Tutors Team</p>
+      </div>
+    `,
+  };
+
+  try {
+    await Promise.all([
+      transporter.sendMail(learnerMailOptions),
+      transporter.sendMail(tutorMailOptions),
+    ]);
+  } catch (err) {
+    console.error('emailService.sendBookingPaidEmails failed:', err?.message || err);
+  }
+}
