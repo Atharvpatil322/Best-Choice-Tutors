@@ -17,6 +17,7 @@ import {
   getTutorVerificationDocuments,
   deleteTutorVerificationDocument,
   getTutorDbsDocuments,
+  deleteDbsVerificationDocument,
   approveDbsDocument,
   rejectDbsDocument,
   getConversations,
@@ -80,6 +81,12 @@ router.get(
   "/tutors/:tutorId/dbs-documents",
   authenticate,
   getTutorDbsDocuments,
+);
+// DELETE /api/admin/tutors/:tutorId/dbs-documents/:documentId - Delete a tutor DBS document (admin only)
+router.delete(
+  "/tutors/:tutorId/dbs-documents/:documentId",
+  authenticate,
+  deleteDbsVerificationDocument,
 );
 
 // GET /api/admin/dbs/pending - List tutors who submitted DBS documents (admin only)

@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Download, UserCheck, UserX, Eye } from 'lucide-react';
+import { ShieldCheck, Download, UserCheck, UserX, Eye, Trash2 } from 'lucide-react';
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import {
   getTutorDbsDocuments,
   approveDbsDocument,
   rejectDbsDocument,
+  deleteDbsDocument as apiDeleteDbsDocument,
 } from '@/services/adminService';
 import { toast } from 'sonner';
 import '../../styles/Profile.css';
@@ -49,8 +50,9 @@ function statusBadge(status) {
   );
 }
 
-function DbsDocumentCard({ doc, onApprove, onReject, onPreview, actingId }) {
+function DbsDocumentCard({ doc, onApprove, onReject, onDelete, onPreview, actingId, deletingDocId }) {
   const busy = actingId === doc.id;
+  const controlsDisabled = busy || deletingDocId != null;
   const canAct = doc.status === 'PENDING';
 
   return (
@@ -71,11 +73,11 @@ function DbsDocumentCard({ doc, onApprove, onReject, onPreview, actingId }) {
           </p>
         </div>
         {canAct && (
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
             <Button
               size="sm"
               variant="default"
-              disabled={busy}
+              disabled={controlsDisabled}
               onClick={() => onApprove(doc.id)}
               className="gap-1"
             >
@@ -85,12 +87,38 @@ function DbsDocumentCard({ doc, onApprove, onReject, onPreview, actingId }) {
             <Button
               size="sm"
               variant="outline"
-              disabled={busy}
+              disabled={controlsDisabled}
               onClick={() => onReject(doc.id)}
               className="gap-1 text-red-600 hover:text-red-700"
             >
               <UserX className="h-3.5 w-3.5" />
               Reject
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={controlsDisabled}
+              onClick={() => onDelete(doc)}
+              className="gap-1 text-red-600 hover:text-red-700"
+              title="Delete this document from storage"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
+        )}
+        {!canAct && (
+          <div className="flex shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy || deletingDocId != null}
+              onClick={() => onDelete(doc)}
+              className="gap-1 text-red-600 hover:text-red-700"
+              title="Delete this document from storage"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
             </Button>
           </div>
         )}
@@ -145,6 +173,7 @@ function AdminDbsVerification() {
   const [documents, setDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [actingDocId, setActingDocId] = useState(null);
+  const [deletingDocId, setDeletingDocId] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
 
   const fetchTutors = async () => {
@@ -153,11 +182,14 @@ function AdminDbsVerification() {
       setLoading(true);
       setError(null);
       const data = await getDbsPendingTutors();
-      setTutors(data.tutors || []);
-      if (!selectedTutor && (data.tutors || []).length > 0) {
-        setSelectedTutor(data.tutors[0]);
-      }
-      return data.tutors || [];
+      const list = data.tutors || [];
+      setTutors(list);
+      setSelectedTutor((prev) => {
+        if (!list.length) return null;
+        if (prev && list.some((t) => t.id === prev.id)) return prev;
+        return list[0];
+      });
+      return list;
     } catch (err) {
       setError(err.message || 'Failed to load tutors with DBS submissions');
       setTutors([]);
@@ -230,6 +262,26 @@ function AdminDbsVerification() {
       toast.error(err.message || 'Could not reject document.');
     } finally {
       setActingDocId(null);
+    }
+  };
+
+  const handleDeleteDocument = async (doc) => {
+    const confirmed = window.confirm(
+      `Delete "${doc.fileName || 'this DBS document'}"? This removes the file from storage. If it was the only approved DBS document, the tutor will no longer show as DBS verified.`,
+    );
+    if (!confirmed || !selectedTutor?.id) return;
+
+    setDeletingDocId(doc.id);
+    try {
+      await apiDeleteDbsDocument(selectedTutor.id, doc.id);
+      toast.success('DBS document deleted.');
+      const data = await getTutorDbsDocuments(selectedTutor.id);
+      setDocuments(data.documents ?? []);
+      await fetchTutors();
+    } catch (err) {
+      toast.error(err.message || 'Could not delete document.');
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -332,8 +384,10 @@ function AdminDbsVerification() {
                     doc={doc}
                     onApprove={handleApprove}
                     onReject={handleReject}
+                    onDelete={handleDeleteDocument}
                     onPreview={(d) => setPreviewDoc({ fileUrl: d.fileUrl, fileType: d.fileType, fileName: d.fileName })}
                     actingId={actingDocId}
+                    deletingDocId={deletingDocId}
                   />
                 ))}
               </ul>

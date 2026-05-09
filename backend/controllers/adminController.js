@@ -1131,6 +1131,80 @@ export async function getTutorDbsDocuments(req, res, next) {
 }
 
 /**
+ * DELETE /api/admin/tutors/:tutorId/dbs-documents/:documentId
+ * Admin only. Deletes a DBS document from S3 + DB (bypasses model immutability hook).
+ * If no approved DBS documents remain for the tutor, sets Tutor.isDbsVerified = false.
+ */
+export async function deleteDbsVerificationDocument(req, res, next) {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        message: "Access denied: Admin role required",
+      });
+    }
+
+    const { tutorId, documentId } = req.params;
+    if (
+      !mongoose.Types.ObjectId.isValid(tutorId) ||
+      !mongoose.Types.ObjectId.isValid(documentId)
+    ) {
+      return res.status(400).json({ message: "Invalid tutor/document ID" });
+    }
+
+    const doc = await DBSVerificationDocument.findOne({
+      _id: documentId,
+      tutorId,
+    }).lean();
+    if (!doc) {
+      return res.status(404).json({ message: "Document not found for tutor" });
+    }
+
+    await deleteDocumentByStorageKey(doc.storageKey);
+
+    await DBSVerificationDocument.collection.deleteOne({ _id: doc._id });
+
+    const hasApprovedRemaining = await DBSVerificationDocument.exists({
+      tutorId,
+      status: "APPROVED",
+    });
+
+    let isDbsVerified = null;
+    if (!hasApprovedRemaining) {
+      await Tutor.findByIdAndUpdate(
+        tutorId,
+        { $set: { isDbsVerified: false } },
+        { runValidators: true },
+      );
+      isDbsVerified = false;
+    }
+
+    await AdminAuditLog.create({
+      adminId: req.user._id,
+      tutorId,
+      documentId: doc._id,
+      action: "DBS_VERIFICATION_DOCUMENT_DELETED",
+      entityType: "DBSVerificationDocument",
+      entityId: doc._id,
+      metadata: {
+        fileName: doc.fileName ?? "",
+        storageKey: doc.storageKey ?? "",
+        priorStatus: doc.status ?? "",
+      },
+    });
+
+    return res.status(200).json({
+      message:
+        "DBS verification document deleted. If no approved documents remain, the tutor is no longer DBS verified.",
+      deletedDocumentId: doc._id.toString(),
+      tutorId: tutorId.toString(),
+      ...(isDbsVerified !== null ? { tutorIsDbsVerified: isDbsVerified } : {}),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * PATCH /api/admin/dbs/:documentId/approve
  * Admin only. Sets document status = APPROVED, Tutor.isDbsVerified = true, logs action.
  */

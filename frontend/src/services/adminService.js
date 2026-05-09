@@ -499,6 +499,32 @@ export const getTutorDbsDocuments = async (tutorId) => {
 };
 
 /**
+ * Delete a tutor DBS document (admin only)
+ * DELETE /api/admin/tutors/:tutorId/dbs-documents/:documentId
+ * @param {string} tutorId
+ * @param {string} documentId
+ */
+export const deleteDbsDocument = async (tutorId, documentId) => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(
+    `${API_BASE_URL}/admin/tutors/${encodeURIComponent(tutorId)}/dbs-documents/${encodeURIComponent(documentId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to delete DBS document");
+  }
+  return data;
+};
+
+/**
  * Approve DBS document (admin only)
  * PATCH /api/admin/dbs/:documentId/approve
  * @param {string} documentId
