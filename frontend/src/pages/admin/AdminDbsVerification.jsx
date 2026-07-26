@@ -50,10 +50,29 @@ function statusBadge(status) {
   );
 }
 
+function isExpiredDate(iso) {
+  if (!iso) return false;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  const expiryDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return expiryDay < todayStart;
+}
+
+function expiredBadge() {
+  return (
+    <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+      Expired
+    </span>
+  );
+}
+
 function DbsDocumentCard({ doc, onApprove, onReject, onDelete, onPreview, actingId, deletingDocId }) {
   const busy = actingId === doc.id;
   const controlsDisabled = busy || deletingDocId != null;
   const canAct = doc.status === 'PENDING';
+  const isExpired = isExpiredDate(doc.expiryDate);
 
   return (
     <li className="rounded-lg border border-input bg-card p-4">
@@ -64,6 +83,7 @@ function DbsDocumentCard({ doc, onApprove, onReject, onDelete, onPreview, acting
               {doc.fileName || '—'}
             </span>
             {statusBadge(doc.status)}
+            {isExpired && expiredBadge()}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {doc.fileType ?? '—'} · {formatDocDate(doc.uploadedAt)}
