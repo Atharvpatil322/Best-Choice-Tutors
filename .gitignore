@@ -79,4 +79,5 @@ public/uploads/
 *.key
 
 *.md
-*.env
+production.env
+qa-fe.env
