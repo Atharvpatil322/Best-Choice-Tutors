@@ -84,6 +84,7 @@ const AdminSupportTickets = lazy(() => import('@/pages/admin/AdminSupportTickets
 const AdminSupportTicketDetail = lazy(() => import('@/pages/admin/AdminSupportTicketDetail'));
 const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'));
 const AdminBlogManager = lazy(() => import('@/pages/admin/AdminBlogManager'));
+const AdminFaqManager = lazy(() => import('@/pages/admin/AdminFaqManager'));
 
 function RouteFallback() {
   return (
@@ -252,6 +253,7 @@ const router = createBrowserRouter([
           { path: 'notifications', element: <Suspense fallback={<RouteFallback />}><AdminNotifications /></Suspense> },
           { path: 'reported-reviews', element: <Suspense fallback={<RouteFallback />}><AdminReportedReviews /></Suspense> },
           { path: 'blog', element: <Suspense fallback={<RouteFallback />}><AdminBlogManager /></Suspense> },
+          { path: 'faq', element: <Suspense fallback={<RouteFallback />}><AdminFaqManager /></Suspense> },
           { path: 'support', element: <Suspense fallback={<RouteFallback />}><AdminSupportTickets /></Suspense> },
           { path: 'support/:ticketId', element: <Suspense fallback={<RouteFallback />}><AdminSupportTicketDetail /></Suspense> },
         ],

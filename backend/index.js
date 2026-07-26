@@ -18,6 +18,7 @@ import userProfileRoutes from "./routes/userProfileRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import blogRoutes from "./routes/blogRoutes.js";
 import publicAssetsRoutes from "./routes/publicAssetsRoutes.js";
+import faqRoutes from "./routes/faqRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { attachSocketServer } from "./services/socketService.js";
 import { completeEligibleBookings } from "./services/bookingService.js";
@@ -72,6 +73,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/public", publicAssetsRoutes);
 app.use("/api/blog", blogRoutes);
+app.use("/api/faq", faqRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

@@ -8,6 +8,13 @@ import {
   deleteBlog,
 } from "../controllers/adminBlogController.js";
 import {
+  createFaq,
+  getAllFaqs,
+  getFaqById,
+  updateFaq,
+  deleteFaq,
+} from "../controllers/adminFaqController.js";
+import {
   getSummary,
   getFinancials,
   getUsers,
@@ -153,5 +160,17 @@ router.get("/blog/:id", authenticate, getBlogById);
 router.put("/blog/:id", authenticate, updateBlog);
 // DELETE /api/admin/blog/:id - Delete a blog
 router.delete("/blog/:id", authenticate, deleteBlog);
+
+// FAQ management routes (admin only)
+// POST /api/admin/faq - Create a new FAQ
+router.post("/faq", authenticate, createFaq);
+// GET /api/admin/faq - List all FAQs (including inactive)
+router.get("/faq", authenticate, getAllFaqs);
+// GET /api/admin/faq/:id - Get a single FAQ by ID
+router.get("/faq/:id", authenticate, getFaqById);
+// PUT /api/admin/faq/:id - Update a FAQ
+router.put("/faq/:id", authenticate, updateFaq);
+// DELETE /api/admin/faq/:id - Delete a FAQ
+router.delete("/faq/:id", authenticate, deleteFaq);
 
 export default router;
