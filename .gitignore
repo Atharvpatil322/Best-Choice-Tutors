@@ -77,3 +77,6 @@ public/uploads/
 # Security (keys, certs)
 *.pem
 *.key
+
+*.md
+*.env
