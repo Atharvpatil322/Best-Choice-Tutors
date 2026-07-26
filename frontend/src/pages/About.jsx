@@ -5,6 +5,8 @@
 import { Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
+import Seo from '@/components/Seo';
+import { BreadcrumbSchema } from '@/components/seo/index';
 import {
   BadgeCheck,
   BookOpen,
@@ -21,6 +23,13 @@ import '@/styles/LandingPage.css';
 export default function About() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
+      <Seo
+        title="About Us | Best Choice Tutors"
+        description="Learn about Best Choice Tutors - a trusted tutoring marketplace connecting learners with verified tutors for GCSE, A-Levels, 11+, SATs, and university pathways."
+        ogTitle="About Best Choice Tutors"
+        ogDescription="A trusted tutoring marketplace connecting learners with verified tutors across multiple subjects and educational levels."
+      />
+      <BreadcrumbSchema />
       <Header />
       <main className="flex-1">
         <section className="relative overflow-hidden bg-gradient-to-br from-[#0F2442] via-[#112D4E] to-[#1A365D] text-white">

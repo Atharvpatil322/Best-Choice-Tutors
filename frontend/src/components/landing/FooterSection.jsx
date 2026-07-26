@@ -34,6 +34,7 @@ export default function FooterSection() {
             <div className="link-column">
               <Link to="/about">About Us</Link>
               <Link to="/contact">Contact</Link>
+              <Link to="/blog">Blog</Link>
             </div>
             <div className="link-column">
               <Link to="/privacy">Privacy Policy</Link>

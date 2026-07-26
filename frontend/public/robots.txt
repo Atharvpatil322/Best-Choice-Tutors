@@ -1,5 +1,46 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://bestchoicetutors.com/sitemap.xml
+User-agent: PerplexityBot
+Allow: /
 
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Pinterest
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://bestchoicetutors.com/sitemap.xml

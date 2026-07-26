@@ -10,6 +10,7 @@ import {
 } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
+import { BreadcrumbSchema } from '@/components/seo/index';
 import LandingPage from '@/components/landing/LandingPage';
 import Login from '@/pages/auth/Login';
 import Register from '@/pages/auth/Register';
@@ -66,6 +67,9 @@ const Contact = lazy(() => import('@/pages/Contact'));
 const Terms = lazy(() => import('@/pages/Terms'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 
+const BlogList = lazy(() => import('@/pages/blog/BlogList'));
+const BlogDetail = lazy(() => import('@/pages/blog/BlogDetail'));
+
 // Lazy-loaded Admin routes (for consistency; user asked learner + tutor only, but admin uses same layout pattern)
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
@@ -79,6 +83,7 @@ const AdminReportedReviews = lazy(() => import('@/pages/admin/AdminReportedRevie
 const AdminSupportTickets = lazy(() => import('@/pages/admin/AdminSupportTickets'));
 const AdminSupportTicketDetail = lazy(() => import('@/pages/admin/AdminSupportTicketDetail'));
 const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'));
+const AdminBlogManager = lazy(() => import('@/pages/admin/AdminBlogManager'));
 
 function RouteFallback() {
   return (
@@ -114,6 +119,7 @@ function AppRootLayout() {
   return (
     <>
       <AuthenticatedNavigationGuard />
+      <BreadcrumbSchema />
       <Outlet />
     </>
   );
@@ -245,9 +251,21 @@ const router = createBrowserRouter([
           { path: 'config', element: <Suspense fallback={<RouteFallback />}><AdminConfig /></Suspense> },
           { path: 'notifications', element: <Suspense fallback={<RouteFallback />}><AdminNotifications /></Suspense> },
           { path: 'reported-reviews', element: <Suspense fallback={<RouteFallback />}><AdminReportedReviews /></Suspense> },
+          { path: 'blog', element: <Suspense fallback={<RouteFallback />}><AdminBlogManager /></Suspense> },
           { path: 'support', element: <Suspense fallback={<RouteFallback />}><AdminSupportTickets /></Suspense> },
           { path: 'support/:ticketId', element: <Suspense fallback={<RouteFallback />}><AdminSupportTicketDetail /></Suspense> },
         ],
+      },
+      // Blog routes as top-level public pages (outside AppRootLayout to avoid AuthNavigationGuard conflicts)
+      {
+        path: '/blog',
+        element: <Suspense fallback={<RouteFallback />}><BlogList /></Suspense>,
+        errorElement: <AppRouterError />,
+      },
+      {
+        path: '/blog/:slug',
+        element: <Suspense fallback={<RouteFallback />}><BlogDetail /></Suspense>,
+        errorElement: <AppRouterError />,
       },
     ],
   },

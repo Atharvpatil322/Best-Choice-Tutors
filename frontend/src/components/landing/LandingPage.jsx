@@ -11,7 +11,10 @@ import ReviewSection from "./ReviewSection";
 import BookSection from "./BookSection";
 import FaqSection from "./FaqSection";
 import FooterSection from "./FooterSection";
+import PopularSearches from "./PopularSearches";
+import WhyChooseUs from "./WhyChooseUs";
 import Seo from "../Seo";
+import { LocalBusinessSchema, ServiceSchema, BreadcrumbSchema } from "../seo/index";
 
 function LandingPage() {
   return (
@@ -24,11 +27,17 @@ function LandingPage() {
         ogDescription="Connect with expert tutors for Mathematics, Physics, English and Languages. Learn online or in-person with a trusted UK tutoring platform."
         ogType="website"
       />
+      {/* Schema injection for homepage */}
+      <LocalBusinessSchema />
+      <ServiceSchema />
+      <BreadcrumbSchema />
       <Header />
       <main className="w-full overflow-x-hidden">
         <HeroSection />
         {/* <TutorSearch /> */}
+        <PopularSearches />
         <WelcomeSection />
+        <WhyChooseUs />
         <SubjectsSections />
         <CommitmentSection />
         <ReachSection />

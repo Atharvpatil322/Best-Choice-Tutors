@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+const SITE_URL = 'https://bestchoicetutors.com';
 const DEFAULT_TITLE = 'Best Choice Tutors - Expert Tutors. Real Results.';
 const DEFAULT_DESCRIPTION =
   'Find expert online and in‑person tutors for GCSE, A‑Levels, university, languages and more. Safe payments, verified tutors, and flexible scheduling.';
@@ -17,6 +18,20 @@ function setMetaTag(selector, attributes) {
     document.head.appendChild(tag);
   } else if (attributes.content != null) {
     tag.setAttribute('content', attributes.content);
+  }
+}
+
+function setLinkTag(selector, attributes) {
+  if (typeof document === 'undefined') return;
+  let tag = document.head.querySelector(selector);
+  if (!tag) {
+    tag = document.createElement('link');
+    Object.entries(attributes).forEach(([key, value]) => {
+      if (value != null) tag.setAttribute(key, value);
+    });
+    document.head.appendChild(tag);
+  } else if (attributes.href != null) {
+    tag.setAttribute('href', attributes.href);
   }
 }
 
@@ -54,6 +69,7 @@ export function Seo({
   ogUrl,
   ogType = 'website',
   structuredData,
+  canonicalUrl,
 }) {
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -105,6 +121,17 @@ export function Seo({
       content: ogType,
     });
 
+    // Canonical tag - dynamically generated from current URL
+    const finalCanonical =
+      canonicalUrl ||
+      (typeof window !== 'undefined'
+        ? `${SITE_URL}${window.location.pathname}`
+        : SITE_URL);
+    setLinkTag('link[rel="canonical"]', {
+      rel: 'canonical',
+      href: finalCanonical,
+    });
+
     // Optional structured data (JSON-LD)
     setStructuredData(structuredData);
   }, [
@@ -117,6 +144,7 @@ export function Seo({
     ogUrl,
     ogType,
     structuredData,
+    canonicalUrl,
   ]);
 
   return null;

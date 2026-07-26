@@ -1,0 +1,56 @@
+# Best Choice Tutors - LLMs.txt
+> Best Choice Tutors connects students with expert tutors for personalised learning experiences.
+> Website: https://bestchoicetutors.com
+
+## Important public pages
+
+### Home
+- **URL:** https://bestchoicetutors.com/
+- **Description:** Landing page with tutor search, subject browsing, and featured sections.
+
+### About Us
+- **URL:** https://bestchoicetutors.com/about
+- **Description:** Learn about Best Choice Tutors - a trusted tutoring marketplace connecting learners with verified tutors.
+
+### How It Works
+- **URL:** https://bestchoicetutors.com/how-it-works
+- **Description:** Step-by-step guide on how to find, compare, and book expert tutors.
+
+### Contact
+- **URL:** https://bestchoicetutors.com/contact
+- **Description:** Contact the support team for help with bookings and inquiries.
+
+### Terms and Conditions
+- **URL:** https://bestchoicetutors.com/terms
+- **Description:** Terms and conditions for using the Best Choice Tutors platform.
+
+### Privacy Policy
+- **URL:** https://bestchoicetutors.com/privacy
+- **Description:** Privacy policy detailing how user data is collected and protected.
+
+### Browse Tutors
+- **URL:** https://bestchoicetutors.com/dashboard/browse-tutors
+- **Description:** Browse and search for verified tutors by subject and level.
+
+### Tutor Listing
+- **URL:** https://bestchoicetutors.com/tutors
+- **Description:** Public listing of all available tutors.
+
+## Booking & Registration
+
+### Book a Tutor
+- **URL:** https://bestchoicetutors.com/onboarding
+- **Description:** Start the process of booking a tutoring session.
+
+### Login
+- **URL:** https://bestchoicetutors.com/login
+- **Description:** Sign in to your account.
+
+### Register
+- **URL:** https://bestchoicetutors.com/register
+- **Description:** Create a new account as a learner or tutor.
+
+## Additional Resources
+
+- **Robot.txt:** https://bestchoicetutors.com/robots.txt
+- **Sitemap:** https://bestchoicetutors.com/sitemap.xml

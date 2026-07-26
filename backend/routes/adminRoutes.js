@@ -1,6 +1,13 @@
 import express from "express";
 import { authenticate } from "../middlewares/auth.js";
 import {
+  createBlog,
+  getAllBlogs,
+  getBlogById,
+  updateBlog,
+  deleteBlog,
+} from "../controllers/adminBlogController.js";
+import {
   getSummary,
   getFinancials,
   getUsers,
@@ -134,5 +141,17 @@ router.post("/notifications/broadcast", authenticate, broadcastNotification);
 
 // POST /api/admin/tutors/:tutorId/payout-sync - Force sync payouts for a tutor
 router.post("/tutors/:tutorId/payout-sync", authenticate, syncTutorPayouts);
+
+// Blog management routes (admin only)
+// POST /api/admin/blog - Create a new blog
+router.post("/blog", authenticate, createBlog);
+// GET /api/admin/blog - List all blogs (including drafts)
+router.get("/blog", authenticate, getAllBlogs);
+// GET /api/admin/blog/:id - Get a single blog by ID
+router.get("/blog/:id", authenticate, getBlogById);
+// PUT /api/admin/blog/:id - Update a blog
+router.put("/blog/:id", authenticate, updateBlog);
+// DELETE /api/admin/blog/:id - Delete a blog
+router.delete("/blog/:id", authenticate, deleteBlog);
 
 export default router;

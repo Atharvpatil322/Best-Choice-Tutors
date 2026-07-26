@@ -5,12 +5,21 @@
 import { Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
+import Seo from '@/components/Seo';
+import { BreadcrumbSchema } from '@/components/seo/index';
 import { Mail, MessageCircle } from 'lucide-react';
 import '@/styles/LandingPage.css';
 
 export default function Contact() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
+      <Seo
+        title="Contact Us | Best Choice Tutors"
+        description="Get in touch with Best Choice Tutors. Email our support team for help with bookings, tutor matching, or any questions about our tutoring platform."
+        ogTitle="Contact Best Choice Tutors"
+        ogDescription="Reach out to our support team for assistance with bookings and inquiries."
+      />
+      <BreadcrumbSchema />
       <Header />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto text-center">

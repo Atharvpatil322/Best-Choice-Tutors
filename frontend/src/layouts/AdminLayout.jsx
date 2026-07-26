@@ -26,6 +26,7 @@ import {
   X,
   LifeBuoy,
   Megaphone,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { localImageUrl } from '@/utils/s3Assets';
@@ -42,6 +43,7 @@ const SIDEBAR_ITEMS = [
   { to: '/admin/audit-log', end: true, label: 'Audit Logs', icon: ClipboardList },
   { to: '/admin/config', end: true, label: 'Platform Configuration', icon: Settings },
   { to: '/admin/notifications', end: true, label: 'Broadcast notification', icon: Megaphone },
+  { to: '/admin/blog', end: true, label: 'Blog Manager', icon: FileText },
   { to: '/admin/support', end: false, label: 'Support Tickets', icon: LifeBuoy },
 ];
 const logoImage = localImageUrl('images/BCT_Logo.png');

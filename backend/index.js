@@ -16,6 +16,7 @@ import tutorTuitionRequestRoutes from "./routes/tutorTuitionRequestRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import userProfileRoutes from "./routes/userProfileRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import blogRoutes from "./routes/blogRoutes.js";
 import publicAssetsRoutes from "./routes/publicAssetsRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { attachSocketServer } from "./services/socketService.js";
@@ -70,6 +71,7 @@ app.use("/api/user", userProfileRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/public", publicAssetsRoutes);
+app.use("/api/blog", blogRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
