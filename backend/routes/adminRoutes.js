@@ -1,11 +1,13 @@
 import express from "express";
 import { authenticate } from "../middlewares/auth.js";
+import { upload } from "../middlewares/upload.js";
 import {
   createBlog,
   getAllBlogs,
   getBlogById,
   updateBlog,
   deleteBlog,
+  uploadBlogImage,
 } from "../controllers/adminBlogController.js";
 import {
   createFaq,
@@ -164,6 +166,8 @@ router.post("/notifications/broadcast", authenticate, broadcastNotification);
 router.post("/tutors/:tutorId/payout-sync", authenticate, syncTutorPayouts);
 
 // Blog management routes (admin only)
+// POST /api/admin/blog/upload-image - Upload a blog image
+router.post("/blog/upload-image", authenticate, upload.single("image"), uploadBlogImage);
 // POST /api/admin/blog - Create a new blog
 router.post("/blog", authenticate, createBlog);
 // GET /api/admin/blog - List all blogs (including drafts)

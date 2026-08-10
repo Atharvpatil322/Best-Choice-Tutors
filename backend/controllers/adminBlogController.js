@@ -6,6 +6,7 @@
 import Blog from '../models/Blog.js';
 import AdminAuditLog from '../models/AdminAuditLog.js';
 import mongoose from 'mongoose';
+import { uploadImage } from '../services/s3Service.js';
 
 /**
  * Helper to create a URL-friendly slug from a title.
@@ -16,6 +17,33 @@ function createSlug(title) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
     .substring(0, 200);
+}
+
+/**
+ * POST /api/admin/blog/upload-image
+ * Admin only. Upload a blog image to S3 and return its URL.
+ * Multipart field: image
+ */
+export async function uploadBlogImage(req, res, next) {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied: Admin role required' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image uploaded. Send a single file with field name: image.' });
+    }
+
+    const imageUrl = await uploadImage(req.file.buffer, {
+      folder: 'blog-images',
+      mimetype: req.file.mimetype,
+      originalName: req.file.originalname,
+    });
+
+    return res.status(201).json({ message: 'Blog image uploaded successfully', imageUrl });
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**

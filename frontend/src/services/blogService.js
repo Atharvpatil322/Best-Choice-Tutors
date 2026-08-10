@@ -120,6 +120,31 @@ export const createBlogAdmin = async (blogData) => {
 };
 
 /**
+ * Upload a blog image (admin only)
+ * POST /api/admin/blog/upload-image
+ * @param {File} image
+ * @returns {Promise<{ message: string, imageUrl: string }>}
+ */
+export const uploadBlogImageAdmin = async (image) => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+
+  const formData = new FormData();
+  formData.append("image", image);
+
+  const response = await fetch(`${API_BASE_URL}/admin/blog/upload-image`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Failed to upload blog image");
+  return data;
+};
+
+/**
  * Update a blog (admin only)
  * PUT /api/admin/blog/:id
  * @param {string} id

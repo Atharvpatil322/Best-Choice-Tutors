@@ -17,6 +17,7 @@ import {
   createBlogAdmin,
   updateBlogAdmin,
   deleteBlogAdmin,
+  uploadBlogImageAdmin,
 } from '@/services/blogService';
 import { toast } from 'sonner';
 import '../../styles/Profile.css';
@@ -58,6 +59,7 @@ function AdminBlogManager() {
   });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
 
   const fetchBlogs = async (page = 1) => {
     if (!isAdmin) return;
@@ -95,6 +97,7 @@ function AdminBlogManager() {
       imageUrl: '',
       status: 'DRAFT',
     });
+    setImageFile(null);
     setEditingId(null);
     setShowForm(false);
   };
@@ -109,6 +112,7 @@ function AdminBlogManager() {
       imageUrl: blog.imageUrl || '',
       status: blog.status || 'DRAFT',
     });
+    setImageFile(null);
     setEditingId(blog._id);
     setShowForm(true);
   };
@@ -122,11 +126,18 @@ function AdminBlogManager() {
 
     setSaving(true);
     try {
+      let imageUrl = formData.imageUrl;
+      if (imageFile) {
+        const uploaded = await uploadBlogImageAdmin(imageFile);
+        imageUrl = uploaded.imageUrl;
+      }
+      const payload = { ...formData, imageUrl };
+
       if (editingId) {
-        const data = await updateBlogAdmin(editingId, formData);
+        const data = await updateBlogAdmin(editingId, payload);
         toast.success(data.message || 'Blog updated');
       } else {
-        const data = await createBlogAdmin(formData);
+        const data = await createBlogAdmin(payload);
         toast.success(data.message || 'Blog created');
       }
       resetForm();
@@ -306,15 +317,43 @@ function AdminBlogManager() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Image URL (optional)
+                  Featured Image
                 </label>
                 <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
-                  placeholder="https://example.com/image.jpg"
                 />
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {imageFile && (
+                    <span className="text-xs font-medium text-slate-600">
+                      Selected: {imageFile.name}
+                    </span>
+                  )}
+                  {formData.imageUrl && !imageFile && (
+                    <a
+                      href={formData.imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-[#1A365D] underline underline-offset-2"
+                    >
+                      View current image
+                    </a>
+                  )}
+                  {formData.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, imageUrl: '' });
+                        setImageFile(null);
+                      }}
+                      className="text-xs font-medium text-red-600 hover:text-red-700"
+                    >
+                      Remove image
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>

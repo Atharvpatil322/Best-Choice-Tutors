@@ -78,4 +78,11 @@ describe("Phase 13: Landing content routes", () => {
       assert.notStrictEqual(result.body.message, "Route not found");
     }
   });
+
+  it("registers admin blog image upload route before blog id routes", async () => {
+    const result = await get("/api/admin/blog/upload-image");
+    assert.strictEqual(result.status, 401);
+    assert.notStrictEqual(result.body.message, "Route not found");
+    assert.notStrictEqual(result.body.message, "Invalid blog ID");
+  });
 });
