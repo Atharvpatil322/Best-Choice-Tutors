@@ -85,6 +85,8 @@ const AdminSupportTicketDetail = lazy(() => import('@/pages/admin/AdminSupportTi
 const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'));
 const AdminBlogManager = lazy(() => import('@/pages/admin/AdminBlogManager'));
 const AdminFaqManager = lazy(() => import('@/pages/admin/AdminFaqManager'));
+const AdminBenefitManager = lazy(() => import('@/pages/admin/AdminBenefitManager'));
+const AdminPopularSearchManager = lazy(() => import('@/pages/admin/AdminPopularSearchManager'));
 
 function RouteFallback() {
   return (
@@ -253,6 +255,10 @@ const router = createBrowserRouter([
           { path: 'notifications', element: <Suspense fallback={<RouteFallback />}><AdminNotifications /></Suspense> },
           { path: 'reported-reviews', element: <Suspense fallback={<RouteFallback />}><AdminReportedReviews /></Suspense> },
           { path: 'blog', element: <Suspense fallback={<RouteFallback />}><AdminBlogManager /></Suspense> },
+          { path: 'benefits', element: <Suspense fallback={<RouteFallback />}><AdminBenefitManager /></Suspense> },
+          { path: 'why-choose-us', element: <Suspense fallback={<RouteFallback />}><AdminBenefitManager /></Suspense> },
+          { path: 'popular-searches', element: <Suspense fallback={<RouteFallback />}><AdminPopularSearchManager /></Suspense> },
+          { path: 'popular-search', element: <Suspense fallback={<RouteFallback />}><AdminPopularSearchManager /></Suspense> },
           { path: 'faq', element: <Suspense fallback={<RouteFallback />}><AdminFaqManager /></Suspense> },
           { path: 'support', element: <Suspense fallback={<RouteFallback />}><AdminSupportTickets /></Suspense> },
           { path: 'support/:ticketId', element: <Suspense fallback={<RouteFallback />}><AdminSupportTicketDetail /></Suspense> },

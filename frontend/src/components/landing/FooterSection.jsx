@@ -1,14 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Linkedin, Facebook, Instagram } from 'lucide-react';
+import { Linkedin, Facebook, Instagram, Search } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
+import { getActivePopularSearches } from '@/services/popularSearchService';
 
 const logoImage = localImageUrl('images/BCT_Logo.png');
 
 export default function FooterSection() {
   const currentYear = new Date().getFullYear();
+  const [popularSearches, setPopularSearches] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPopularSearches = async () => {
+      try {
+        const data = await getActivePopularSearches();
+        if (!cancelled && data.popularSearches && data.popularSearches.length > 0) {
+          setPopularSearches(data.popularSearches);
+        }
+      } catch {
+        // Silent fallback — footer renders without popular searches if API fails
+      }
+    };
+    fetchPopularSearches();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <footer className="footer-section">
@@ -24,6 +42,23 @@ export default function FooterSection() {
               Transform your educational journey with quality tutoring.
             </p>
           </div>
+
+          {/* Popular Searches Column */}
+          {popularSearches.length > 0 && (
+            <div className="link-column">
+              <span className="footer-column-title">Popular Searches</span>
+              {popularSearches.map((item) => (
+                <Link
+                  key={item._id || item.query}
+                  to={`/?subject=${encodeURIComponent(item.query)}`}
+                  className="footer-popular-search"
+                >
+                  <Search size={13} aria-hidden />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* Links Columns */}
           <div className="footer-links-grid">
@@ -83,4 +118,3 @@ export default function FooterSection() {
     </footer>
   );
 }
-

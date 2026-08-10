@@ -11,7 +11,6 @@ import ReviewSection from "./ReviewSection";
 import BookSection from "./BookSection";
 import FaqSection from "./FaqSection";
 import FooterSection from "./FooterSection";
-import PopularSearches from "./PopularSearches";
 import WhyChooseUs from "./WhyChooseUs";
 import Seo from "../Seo";
 import { LocalBusinessSchema, ServiceSchema, BreadcrumbSchema } from "../seo/index";
@@ -33,9 +32,8 @@ function LandingPage() {
       <BreadcrumbSchema />
       <Header />
       <main className="w-full overflow-x-hidden">
-        <HeroSection />
+<HeroSection />
         {/* <TutorSearch /> */}
-        <PopularSearches />
         <WelcomeSection />
         <WhyChooseUs />
         <SubjectsSections />

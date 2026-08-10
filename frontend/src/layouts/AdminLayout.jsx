@@ -26,8 +26,10 @@ import {
   X,
   LifeBuoy,
   Megaphone,
-  FileText,
+FileText,
   HelpCircle,
+  BadgeCheck,
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { localImageUrl } from '@/utils/s3Assets';
@@ -44,7 +46,9 @@ const SIDEBAR_ITEMS = [
   { to: '/admin/audit-log', end: true, label: 'Audit Logs', icon: ClipboardList },
   { to: '/admin/config', end: true, label: 'Platform Configuration', icon: Settings },
   { to: '/admin/notifications', end: true, label: 'Broadcast notification', icon: Megaphone },
-  { to: '/admin/blog', end: true, label: 'Blog Manager', icon: FileText },
+{ to: '/admin/blog', end: true, label: 'Blog Manager', icon: FileText },
+  { to: '/admin/benefits', end: true, label: 'Why Choose Us', icon: BadgeCheck },
+  { to: '/admin/popular-searches', end: true, label: 'Popular Searches', icon: Search },
   { to: '/admin/faq', end: true, label: 'FAQ Manager', icon: HelpCircle },
   { to: '/admin/support', end: false, label: 'Support Tickets', icon: LifeBuoy },
 ];

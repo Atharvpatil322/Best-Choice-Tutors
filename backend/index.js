@@ -19,6 +19,8 @@ import adminRoutes from "./routes/adminRoutes.js";
 import blogRoutes from "./routes/blogRoutes.js";
 import publicAssetsRoutes from "./routes/publicAssetsRoutes.js";
 import faqRoutes from "./routes/faqRoutes.js";
+import benefitRoutes from "./routes/benefitRoutes.js";
+import popularSearchRoutes from "./routes/popularSearchRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { attachSocketServer } from "./services/socketService.js";
 import { completeEligibleBookings } from "./services/bookingService.js";
@@ -74,6 +76,11 @@ app.use("/api/support", supportRoutes);
 app.use("/api/public", publicAssetsRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/faq", faqRoutes);
+app.use("/api/benefits", benefitRoutes);
+app.use("/api/why-choose-us", benefitRoutes);
+app.use("/api/benefit", benefitRoutes);
+app.use("/api/popular-searches", popularSearchRoutes);
+app.use("/api/popular-search", popularSearchRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

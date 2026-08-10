@@ -15,6 +15,20 @@ import {
   deleteFaq,
 } from "../controllers/adminFaqController.js";
 import {
+  createBenefit,
+  getAllBenefits,
+  getBenefitById,
+  updateBenefit,
+  deleteBenefit,
+} from "../controllers/adminBenefitController.js";
+import {
+  createPopularSearch,
+  getAllPopularSearches,
+  getPopularSearchById,
+  updatePopularSearch,
+  deletePopularSearch,
+} from "../controllers/adminPopularSearchController.js";
+import {
   getSummary,
   getFinancials,
   getUsers,
@@ -172,5 +186,44 @@ router.get("/faq/:id", authenticate, getFaqById);
 router.put("/faq/:id", authenticate, updateFaq);
 // DELETE /api/admin/faq/:id - Delete a FAQ
 router.delete("/faq/:id", authenticate, deleteFaq);
+
+// Benefit management routes (admin only)
+// POST /api/admin/benefits - Create a new benefit
+router.post("/benefits", authenticate, createBenefit);
+router.post("/why-choose-us", authenticate, createBenefit);
+router.post("/benefit", authenticate, createBenefit);
+// GET /api/admin/benefits - List all benefits (including inactive)
+router.get("/benefits", authenticate, getAllBenefits);
+router.get("/why-choose-us", authenticate, getAllBenefits);
+router.get("/benefit", authenticate, getAllBenefits);
+// GET /api/admin/benefits/:id - Get a single benefit by ID
+router.get("/benefits/:id", authenticate, getBenefitById);
+router.get("/why-choose-us/:id", authenticate, getBenefitById);
+router.get("/benefit/:id", authenticate, getBenefitById);
+// PUT /api/admin/benefits/:id - Update a benefit
+router.put("/benefits/:id", authenticate, updateBenefit);
+router.put("/why-choose-us/:id", authenticate, updateBenefit);
+router.put("/benefit/:id", authenticate, updateBenefit);
+// DELETE /api/admin/benefits/:id - Delete a benefit
+router.delete("/benefits/:id", authenticate, deleteBenefit);
+router.delete("/why-choose-us/:id", authenticate, deleteBenefit);
+router.delete("/benefit/:id", authenticate, deleteBenefit);
+
+// Popular search management routes (admin only)
+// POST /api/admin/popular-searches - Create a new popular search
+router.post("/popular-searches", authenticate, createPopularSearch);
+router.post("/popular-search", authenticate, createPopularSearch);
+// GET /api/admin/popular-searches - List all popular searches (including inactive)
+router.get("/popular-searches", authenticate, getAllPopularSearches);
+router.get("/popular-search", authenticate, getAllPopularSearches);
+// GET /api/admin/popular-searches/:id - Get a single popular search by ID
+router.get("/popular-searches/:id", authenticate, getPopularSearchById);
+router.get("/popular-search/:id", authenticate, getPopularSearchById);
+// PUT /api/admin/popular-searches/:id - Update a popular search
+router.put("/popular-searches/:id", authenticate, updatePopularSearch);
+router.put("/popular-search/:id", authenticate, updatePopularSearch);
+// DELETE /api/admin/popular-searches/:id - Delete a popular search
+router.delete("/popular-searches/:id", authenticate, deletePopularSearch);
+router.delete("/popular-search/:id", authenticate, deletePopularSearch);
 
 export default router;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Loader2 } from 'lucide-react';
+import { Plus, X, Loader2, ExternalLink } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import FAQ_ITEMS from '../../utils/faqData';
 import { FAQSchema } from '../seo/index';
@@ -52,8 +52,23 @@ export default function FaqSection() {
                   key={faq._id || index}
                   className={`faq-item ${isOpen ? 'faq-open' : 'faq-closed'}`}
                 >
-                  <div className="faq-header" onClick={() => toggleFaq(index)}>
-                    <h3 className="faq-question">{faq.question}</h3>
+<div className="faq-header" onClick={() => toggleFaq(index)}>
+                    <div className="faq-question-wrapper">
+                      <h3 className="faq-question">{faq.question}</h3>
+                      {faq.link && (
+                        <a
+                          href={faq.link}
+                          onClick={(e) => e.stopPropagation()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="faq-link-icon"
+                          aria-label={`Learn more about: ${faq.question}`}
+                          title="Learn more"
+                        >
+                          <ExternalLink size={16} />
+                        </a>
+                      )}
+                    </div>
                     <div className="faq-icon-wrapper">
                       {isOpen ? <X size={24} /> : <Plus size={24} />}
                     </div>

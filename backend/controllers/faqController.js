@@ -12,7 +12,7 @@ import FAQ from "../models/FAQ.js";
 export async function getActiveFaqs(req, res, next) {
   try {
     const faqs = await FAQ.find({ isActive: true })
-      .select("question answer order")
+      .select("question answer link order")
       .sort({ order: 1, createdAt: -1 })
       .lean();
 

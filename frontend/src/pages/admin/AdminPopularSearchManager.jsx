@@ -1,20 +1,19 @@
 /**
- * Admin FAQ Manager
- * CRUD interface for managing frequently asked questions.
- * SEO team can add, edit, delete, and reorder FAQs from here.
+ * Admin Popular Search Manager
+ * CRUD interface for managing popular search keywords shown in the footer.
+ * SEO team can add, edit, delete, and reorder popular searches from here.
  */
 
 import { useEffect, useState } from "react";
 import {
-  getAllFaqsAdmin,
-  createFaqAdmin,
-  updateFaqAdmin,
-  deleteFaqAdmin,
-} from "@/services/faqService";
+  getAllPopularSearchesAdmin,
+  createPopularSearchAdmin,
+  updatePopularSearchAdmin,
+  deletePopularSearchAdmin,
+} from "@/services/popularSearchService";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus,
@@ -27,81 +26,62 @@ import {
   X,
   AlertCircle,
   Loader2,
-  HelpCircle,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 
-function FaqForm({ faq, onSave, onCancel, saving }) {
-  const [question, setQuestion] = useState(faq?.question || "");
-  const [answer, setAnswer] = useState(faq?.answer || "");
-  const [link, setLink] = useState(faq?.link || "");
-  const [order, setOrder] = useState(faq?.order ?? 0);
-  const [isActive, setIsActive] = useState(faq?.isActive ?? true);
+function SearchForm({ searchItem, onSave, onCancel, saving }) {
+  const [label, setLabel] = useState(searchItem?.label || "");
+  const [query, setQuery] = useState(searchItem?.query || "");
+  const [order, setOrder] = useState(searchItem?.order ?? 0);
+  const [isActive, setIsActive] = useState(searchItem?.isActive ?? true);
   const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    if (!question.trim()) {
-      setError("Question is required");
+    if (!label.trim()) {
+      setError("Label is required");
       return;
     }
-    if (!answer.trim()) {
-      setError("Answer is required");
-      return;
-    }
-    if (answer.trim().length < 10) {
-      setError("Answer must be at least 10 characters");
+    if (!query.trim()) {
+      setError("Query is required");
       return;
     }
 
     try {
-      await onSave({ question: question.trim(), answer: answer.trim(), link: link.trim() || null, order, isActive });
+      await onSave({ label: label.trim(), query: query.trim(), order, isActive });
     } catch (err) {
-      setError(err.message || "Failed to save FAQ");
+      setError(err.message || "Failed to save popular search");
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Question</label>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Label</label>
         <Input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="e.g. How do I book a tutor?"
-          maxLength={500}
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="e.g. Maths Tutor"
+          maxLength={120}
           required
         />
+        <p className="text-xs text-slate-400 mt-1">The text shown to users.</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Answer</label>
-        <Textarea
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Provide a clear, helpful answer..."
-          rows={4}
-          maxLength={2000}
-          required
-        />
-<p className="text-xs text-slate-400 mt-1">{answer.length}/2000 characters</p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">
-          Link (optional)
-        </label>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Query</label>
         <Input
-          type="url"
-          value={link}
-          onChange={(e) => setLink(e.target.value)}
-          placeholder="https://bestchoicetutors.com/subjects"
-          maxLength={500}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="e.g. Mathematics"
+          maxLength={120}
+          required
         />
         <p className="text-xs text-slate-400 mt-1">
-          Set a hyperlink to show a link icon next to this FAQ. Leave blank for no link.
+          The subject keyword used for filtering (links to /?subject=QUERY).
         </p>
       </div>
 
@@ -165,7 +145,7 @@ function FaqForm({ faq, onSave, onCancel, saving }) {
           {saving ? (
             <><Loader2 size={16} className="animate-spin mr-1" /> Saving...</>
           ) : (
-            <><Save size={16} className="mr-1" /> {faq ? "Update" : "Create"} FAQ</>
+            <><Save size={16} className="mr-1" /> {searchItem ? "Update" : "Create"} Search</>
           )}
         </Button>
       </div>
@@ -173,37 +153,37 @@ function FaqForm({ faq, onSave, onCancel, saving }) {
   );
 }
 
-export default function AdminFaqManager() {
-  const [faqs, setFaqs] = useState([]);
+export default function AdminPopularSearchManager() {
+  const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingFaq, setEditingFaq] = useState(null);
+  const [editingSearch, setEditingSearch] = useState(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const fetchFaqs = async () => {
+  const fetchSearches = async () => {
     try {
       setLoading(true);
-      const data = await getAllFaqsAdmin({ limit: 100 });
-      setFaqs(data.faqs || []);
+      const data = await getAllPopularSearchesAdmin({ limit: 100 });
+      setSearches(data.popularSearches || []);
     } catch (err) {
-      toast.error(err.message || "Failed to load FAQs");
+      toast.error(err.message || "Failed to load popular searches");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFaqs();
+    fetchSearches();
   }, []);
 
-  const handleCreate = async (faqData) => {
+  const handleCreate = async (searchData) => {
     setSaving(true);
     try {
-      await createFaqAdmin(faqData);
-      toast.success("FAQ created successfully");
+      await createPopularSearchAdmin(searchData);
+      toast.success("Popular search created successfully");
       setCreating(false);
-      await fetchFaqs();
+      await fetchSearches();
     } catch (err) {
       throw err;
     } finally {
@@ -211,14 +191,14 @@ export default function AdminFaqManager() {
     }
   };
 
-  const handleUpdate = async (faqData) => {
-    if (!editingFaq) return;
+  const handleUpdate = async (searchData) => {
+    if (!editingSearch) return;
     setSaving(true);
     try {
-      await updateFaqAdmin(editingFaq._id, faqData);
-      toast.success("FAQ updated successfully");
-      setEditingFaq(null);
-      await fetchFaqs();
+      await updatePopularSearchAdmin(editingSearch._id, searchData);
+      toast.success("Popular search updated successfully");
+      setEditingSearch(null);
+      await fetchSearches();
     } catch (err) {
       throw err;
     } finally {
@@ -227,35 +207,35 @@ export default function AdminFaqManager() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this FAQ entry? This action cannot be undone.")) return;
+    if (!window.confirm("Delete this popular search? This action cannot be undone.")) return;
     setDeletingId(id);
     try {
-      await deleteFaqAdmin(id);
-      toast.success("FAQ deleted successfully");
-      await fetchFaqs();
+      await deletePopularSearchAdmin(id);
+      toast.success("Popular search deleted successfully");
+      await fetchSearches();
     } catch (err) {
-      toast.error(err.message || "Failed to delete FAQ");
+      toast.error(err.message || "Failed to delete popular search");
     } finally {
       setDeletingId(null);
     }
   };
 
-  const handleToggleActive = async (faq) => {
+  const handleToggleActive = async (searchItem) => {
     try {
-      await updateFaqAdmin(faq._id, { isActive: !faq.isActive });
-      toast.success(`FAQ ${faq.isActive ? "deactivated" : "activated"} successfully`);
-      await fetchFaqs();
+      await updatePopularSearchAdmin(searchItem._id, { isActive: !searchItem.isActive });
+      toast.success(`Popular search ${searchItem.isActive ? "deactivated" : "activated"} successfully`);
+      await fetchSearches();
     } catch (err) {
-      toast.error(err.message || "Failed to update FAQ status");
+      toast.error(err.message || "Failed to update popular search status");
     }
   };
 
   const handleReorder = async (id, newOrder) => {
     try {
-      await updateFaqAdmin(id, { order: newOrder });
-      await fetchFaqs();
+      await updatePopularSearchAdmin(id, { order: newOrder });
+      await fetchSearches();
     } catch (err) {
-      toast.error(err.message || "Failed to reorder FAQ");
+      toast.error(err.message || "Failed to reorder popular search");
     }
   };
 
@@ -264,20 +244,20 @@ export default function AdminFaqManager() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#1A365D] flex items-center gap-2">
-            <HelpCircle className="h-7 w-7" />
-            FAQ Manager
+            <Search className="h-7 w-7" />
+            Popular Searches Manager
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Manage frequently asked questions for the public FAQ section. Changes reflect immediately on the website.
+            Manage popular search keywords shown in the footer. Changes reflect immediately on the website.
           </p>
         </div>
         <Button
-          onClick={() => { setCreating(true); setEditingFaq(null); }}
+          onClick={() => { setCreating(true); setEditingSearch(null); }}
           disabled={creating}
           className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white"
         >
           <Plus size={18} className="mr-1" />
-          Add FAQ
+          Add Search
         </Button>
       </div>
 
@@ -285,41 +265,41 @@ export default function AdminFaqManager() {
       {creating && (
         <Card className="border-emerald-200 bg-emerald-50/30 rounded-2xl">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base text-[#1A365D]">New FAQ Entry</CardTitle>
-            <CardDescription>Add a new question and answer for the FAQ section.</CardDescription>
+            <CardTitle className="text-base text-[#1A365D]">New Popular Search</CardTitle>
+            <CardDescription>Add a new popular search keyword for the footer section.</CardDescription>
           </CardHeader>
           <CardContent>
-            <FaqForm onSave={handleCreate} onCancel={() => setCreating(false)} saving={saving} />
+            <SearchForm onSave={handleCreate} onCancel={() => setCreating(false)} saving={saving} />
           </CardContent>
         </Card>
       )}
 
       {/* Edit Form */}
-      {editingFaq && (
+      {editingSearch && (
         <Card className="border-amber-200 bg-amber-50/30 rounded-2xl">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base text-[#1A365D]">Edit FAQ Entry</CardTitle>
-            <CardDescription>Update the question or answer below.</CardDescription>
+            <CardTitle className="text-base text-[#1A365D]">Edit Popular Search</CardTitle>
+            <CardDescription>Update the popular search details below.</CardDescription>
           </CardHeader>
           <CardContent>
-            <FaqForm
-              faq={editingFaq}
+            <SearchForm
+              searchItem={editingSearch}
               onSave={handleUpdate}
-              onCancel={() => setEditingFaq(null)}
+              onCancel={() => setEditingSearch(null)}
               saving={saving}
             />
           </CardContent>
         </Card>
       )}
 
-      {/* FAQ List */}
+      {/* Search List */}
       <Card className="rounded-2xl border-gray-100 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-[#1A365D]">
-            All FAQs ({faqs.length})
+            All Popular Searches ({searches.length})
           </CardTitle>
           <CardDescription>
-            Drag to reorder. Toggle visibility to show/hide on the website.
+            Drag to reorder. Toggle visibility to show/hide in the footer.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -327,19 +307,19 @@ export default function AdminFaqManager() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-[#4FD1C5]" />
             </div>
-          ) : faqs.length === 0 ? (
+          ) : searches.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
-              <HelpCircle size={48} className="mx-auto mb-3 text-slate-300" />
-              <p className="font-medium">No FAQs yet</p>
-              <p className="text-sm mt-1">Click "Add FAQ" to create your first one.</p>
+              <Search size={48} className="mx-auto mb-3 text-slate-300" />
+              <p className="font-medium">No popular searches yet</p>
+              <p className="text-sm mt-1">Click "Add Search" to create your first one.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {faqs.map((faq, index) => (
+              {searches.map((searchItem, index) => (
                 <div
-                  key={faq._id}
+                  key={searchItem._id}
                   className={`rounded-xl border p-4 transition-colors ${
-                    faq.isActive
+                    searchItem.isActive
                       ? "border-slate-200 bg-white"
                       : "border-slate-200 bg-slate-50 opacity-70"
                   }`}
@@ -353,36 +333,38 @@ export default function AdminFaqManager() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <h3 className="font-medium text-slate-900 truncate">{faq.question}</h3>
-                          <p className="text-sm text-slate-500 mt-1 line-clamp-2">{faq.answer}</p>
+                          <h3 className="font-medium text-slate-900 truncate">{searchItem.label}</h3>
+                          <p className="text-sm text-slate-500 mt-1">
+                            Query: <span className="font-mono text-xs">{searchItem.query}</span>
+                          </p>
                         </div>
                         <Badge
-                          variant={faq.isActive ? "default" : "secondary"}
+                          variant={searchItem.isActive ? "default" : "secondary"}
                           className={`shrink-0 mt-0.5 ${
-                            faq.isActive
+                            searchItem.isActive
                               ? "bg-green-100 text-green-700 hover:bg-green-100"
                               : "bg-slate-200 text-slate-500 hover:bg-slate-200"
                           }`}
                         >
-                          {faq.isActive ? "Active" : "Inactive"}
+                          {searchItem.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </div>
 
                       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
                         <button
                           type="button"
-                          onClick={() => handleToggleActive(faq)}
+                          onClick={() => handleToggleActive(searchItem)}
                           className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
-                          title={faq.isActive ? "Deactivate" : "Activate"}
+                          title={searchItem.isActive ? "Deactivate" : "Activate"}
                         >
-                          {faq.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
-                          {faq.isActive ? "Hide" : "Show"}
+                          {searchItem.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
+                          {searchItem.isActive ? "Hide" : "Show"}
                         </button>
 
                         <button
                           type="button"
                           onClick={() => {
-                            setEditingFaq(faq);
+                            setEditingSearch(searchItem);
                             setCreating(false);
                           }}
                           className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -395,17 +377,17 @@ export default function AdminFaqManager() {
                           {index > 0 && (
                             <button
                               type="button"
-                              onClick={() => handleReorder(faq._id, faq.order - 1)}
+                              onClick={() => handleReorder(searchItem._id, searchItem.order - 1)}
                               className="text-xs text-slate-400 hover:text-slate-600"
                               title="Move up"
                             >
                               ↑
                             </button>
                           )}
-                          {index < faqs.length - 1 && (
+                          {index < searches.length - 1 && (
                             <button
                               type="button"
-                              onClick={() => handleReorder(faq._id, faq.order + 1)}
+                              onClick={() => handleReorder(searchItem._id, searchItem.order + 1)}
                               className="text-xs text-slate-400 hover:text-slate-600"
                               title="Move down"
                             >
@@ -416,11 +398,11 @@ export default function AdminFaqManager() {
 
                         <button
                           type="button"
-                          onClick={() => handleDelete(faq._id)}
-                          disabled={deletingId === faq._id}
+                          onClick={() => handleDelete(searchItem._id)}
+                          disabled={deletingId === searchItem._id}
                           className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                         >
-                          {deletingId === faq._id ? (
+                          {deletingId === searchItem._id ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
                             <Trash2 size={14} />
@@ -439,4 +421,3 @@ export default function AdminFaqManager() {
     </div>
   );
 }
-

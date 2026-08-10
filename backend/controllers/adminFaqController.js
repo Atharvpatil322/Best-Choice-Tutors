@@ -10,7 +10,7 @@ import mongoose from "mongoose";
 /**
  * POST /api/admin/faq
  * Admin only. Create a new FAQ entry.
- * Body: { question, answer, order?, isActive? }
+ * Body: { question, answer, link?, order?, isActive? }
  */
 export async function createFaq(req, res, next) {
   try {
@@ -18,7 +18,7 @@ export async function createFaq(req, res, next) {
       return res.status(403).json({ message: "Access denied: Admin role required" });
     }
 
-    const { question, answer, order, isActive } = req.body;
+    const { question, answer, link, order, isActive } = req.body;
 
     if (!question || !answer) {
       return res.status(400).json({ message: "Question and answer are required" });
@@ -27,6 +27,7 @@ export async function createFaq(req, res, next) {
     const faqData = {
       question: question.trim(),
       answer: answer.trim(),
+      link: link ? link.trim() : null,
       order: typeof order === "number" ? order : 0,
       isActive: typeof isActive === "boolean" ? isActive : true,
       createdBy: req.user._id,
@@ -69,7 +70,7 @@ export async function getAllFaqs(req, res, next) {
 
     const [faqs, totalCount] = await Promise.all([
       FAQ.find(filter)
-        .select("question answer order isActive createdAt updatedAt")
+        .select("question answer link order isActive createdAt updatedAt")
         .sort({ order: 1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -134,11 +135,12 @@ export async function updateFaq(req, res, next) {
       return res.status(404).json({ message: "FAQ not found" });
     }
 
-    const { question, answer, order, isActive } = req.body;
+    const { question, answer, link, order, isActive } = req.body;
     const updateData = { updatedBy: req.user._id };
 
     if (question !== undefined) updateData.question = question.trim();
     if (answer !== undefined) updateData.answer = answer.trim();
+    if (link !== undefined) updateData.link = link ? link.trim() : null;
     if (order !== undefined) updateData.order = order;
     if (isActive !== undefined) updateData.isActive = isActive;
 
@@ -191,4 +193,3 @@ export async function deleteFaq(req, res, next) {
     next(err);
   }
 }
-

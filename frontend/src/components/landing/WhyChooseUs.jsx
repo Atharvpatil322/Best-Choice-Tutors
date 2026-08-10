@@ -2,43 +2,77 @@
  * WhyChooseUs Component
  * SEO-friendly section explaining the key benefits of using Best Choice Tutors.
  * Uses semantic HTML for better search engine understanding.
+ * Benefits are editable from the admin panel (max 6 active). Falls back to static data if API fails.
  */
 
-import { BadgeCheck, Shield, Users, Clock, GraduationCap, MessageSquare } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import {
+  BadgeCheck,
+  Shield,
+  Users,
+  Clock,
+  GraduationCap,
+  MessageSquare,
+  Sparkles,
+  Star,
+  HeartHandshake,
+  Globe,
+  Lock,
+  Headphones,
+  Award,
+} from 'lucide-react';
+import { getActiveBenefits } from '@/services/benefitService';
 
-const BENEFITS = [
+const ICON_MAP = {
+  BadgeCheck,
+  Shield,
+  Users,
+  Clock,
+  GraduationCap,
+  MessageSquare,
+  Sparkles,
+  Star,
+  HeartHandshake,
+  Globe,
+  Lock,
+  Headphones,
+  Award,
+};
+
+const FALLBACK_BENEFITS = [
   {
-    icon: BadgeCheck,
+    icon: 'BadgeCheck',
     title: 'Verified Tutors',
     description:
       'All tutors undergo rigorous identity, qualification, and background checks before joining our platform.',
   },
   {
-    icon: Shield,
+    icon: 'Shield',
     title: 'Secure Payments',
     description:
       'Your transactions are protected with industry-standard security. Book with confidence knowing your payments are safe.',
   },
   {
-    icon: Users,
+    icon: 'Users',
     title: 'Personalised Matching',
     description:
       'We match you with tutors based on your subject, level, learning goals, and preferred teaching style.',
   },
   {
-    icon: Clock,
+    icon: 'Clock',
     title: 'Flexible Scheduling',
     description:
       'Choose from online or in-person sessions that fit your schedule. Learn at your own pace, on your own time.',
   },
   {
-    icon: GraduationCap,
+    icon: 'GraduationCap',
     title: 'Expert Tutors',
     description:
       'Our tutors are experienced professionals and qualified educators with deep subject knowledge.',
   },
   {
-    icon: MessageSquare,
+    icon: 'MessageSquare',
     title: 'Dedicated Support',
     description:
       'Our support team is here to help with bookings, tutor matching, and any questions you may have.',
@@ -46,6 +80,29 @@ const BENEFITS = [
 ];
 
 export default function WhyChooseUs() {
+  const [benefits, setBenefits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchBenefits = async () => {
+      try {
+        const data = await getActiveBenefits();
+        if (!cancelled && data.benefits && data.benefits.length > 0) {
+          setBenefits(data.benefits);
+        }
+      } catch {
+        // Fallback to static data if API fails
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchBenefits();
+    return () => { cancelled = true; };
+  }, []);
+
+  const items = loading ? [] : benefits.length > 0 ? benefits : FALLBACK_BENEFITS;
+
   return (
     <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 bg-slate-50" aria-labelledby="why-choose-us-title">
       <div className="max-w-6xl mx-auto">
@@ -59,25 +116,30 @@ export default function WhyChooseUs() {
           We make expert tutoring accessible, transparent, and effective for every student.
         </p>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {BENEFITS.map((benefit) => {
-            const Icon = benefit.icon;
-            return (
-              <article
-                key={benefit.title}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="h-12 w-12 rounded-full bg-[#4FD1C5]/10 flex items-center justify-center mb-4">
-                  <Icon className="h-6 w-6 text-[#4FD1C5]" aria-hidden />
-                </div>
-                <h3 className="text-lg font-semibold text-[#1A365D] mb-2">{benefit.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{benefit.description}</p>
-              </article>
-            );
-          })}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-[#4FD1C5]" />
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((benefit, index) => {
+              const Icon = ICON_MAP[benefit.icon] || BadgeCheck;
+              return (
+                <article
+                  key={benefit._id || benefit.title || index}
+                  className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#4FD1C5]/10 flex items-center justify-center mb-4">
+                    <Icon className="h-6 w-6 text-[#4FD1C5]" aria-hidden />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[#1A365D] mb-2">{benefit.title}</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">{benefit.description}</p>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
 }
-

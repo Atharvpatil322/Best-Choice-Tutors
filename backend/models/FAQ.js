@@ -20,6 +20,12 @@ const faqSchema = new mongoose.Schema(
       trim: true,
       maxlength: [2000, "Answer cannot exceed 2000 characters"],
     },
+    link: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: [500, "Link cannot exceed 500 characters"],
+    },
     order: {
       type: Number,
       default: 0,
@@ -47,4 +53,3 @@ faqSchema.index({ order: 1, createdAt: -1 });
 
 const FAQ = mongoose.model("FAQ", faqSchema);
 export default FAQ;
-
