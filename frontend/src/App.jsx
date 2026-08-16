@@ -87,6 +87,7 @@ const AdminBlogManager = lazy(() => import('@/pages/admin/AdminBlogManager'));
 const AdminFaqManager = lazy(() => import('@/pages/admin/AdminFaqManager'));
 const AdminBenefitManager = lazy(() => import('@/pages/admin/AdminBenefitManager'));
 const AdminPopularSearchManager = lazy(() => import('@/pages/admin/AdminPopularSearchManager'));
+const AdminSeoManager = lazy(() => import('@/pages/admin/AdminSeoManager'));
 
 function RouteFallback() {
   return (
@@ -252,6 +253,7 @@ const router = createBrowserRouter([
           { path: 'chat', element: <Suspense fallback={<RouteFallback />}><AdminChatViewer /></Suspense> },
           { path: 'audit-log', element: <Suspense fallback={<RouteFallback />}><AdminAuditLog /></Suspense> },
           { path: 'config', element: <Suspense fallback={<RouteFallback />}><AdminConfig /></Suspense> },
+          { path: 'seo', element: <Suspense fallback={<RouteFallback />}><AdminSeoManager /></Suspense> },
           { path: 'notifications', element: <Suspense fallback={<RouteFallback />}><AdminNotifications /></Suspense> },
           { path: 'reported-reviews', element: <Suspense fallback={<RouteFallback />}><AdminReportedReviews /></Suspense> },
           { path: 'blog', element: <Suspense fallback={<RouteFallback />}><AdminBlogManager /></Suspense> },

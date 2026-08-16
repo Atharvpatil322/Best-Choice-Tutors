@@ -1,5 +1,6 @@
 import express from 'express';
 import { presignKey } from '../services/s3Service.js';
+import { getSeoConfigByPath } from '../controllers/publicSeoController.js';
 
 const router = express.Router();
 
@@ -27,5 +28,8 @@ router.get('/assets/*', async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   return res.redirect(302, signedUrl);
 });
+
+// Public SEO endpoint for page-specific metadata lookup.
+router.get('/seo', getSeoConfigByPath);
 
 export default router;

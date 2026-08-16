@@ -26,10 +26,11 @@ import {
   X,
   LifeBuoy,
   Megaphone,
-FileText,
+  FileText,
   HelpCircle,
   BadgeCheck,
   Search,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { localImageUrl } from '@/utils/s3Assets';
@@ -45,6 +46,7 @@ const SIDEBAR_ITEMS = [
   { to: '/admin/reported-reviews', end: true, label: 'Reported Reviews', icon: Star },
   { to: '/admin/audit-log', end: true, label: 'Audit Logs', icon: ClipboardList },
   { to: '/admin/config', end: true, label: 'Platform Configuration', icon: Settings },
+  { to: '/admin/seo', end: true, label: 'SEO Settings', icon: Tag },
   { to: '/admin/notifications', end: true, label: 'Broadcast notification', icon: Megaphone },
 { to: '/admin/blog', end: true, label: 'Blog Manager', icon: FileText },
   { to: '/admin/benefits', end: true, label: 'Why Choose Us', icon: BadgeCheck },

@@ -63,6 +63,13 @@ import {
   broadcastNotification,
   syncTutorPayouts,
 } from "../controllers/adminController.js";
+import {
+  getSeoConfigs,
+  getSeoConfigById,
+  createSeoConfig,
+  updateSeoConfig,
+  deleteSeoConfig,
+} from "../controllers/adminSeoController.js";
 const router = express.Router();
 
 // GET /api/admin/summary - Dashboard summary (admin only, read-only)
@@ -137,6 +144,13 @@ router.get("/reported-reviews", authenticate, getReportedReviews);
 router.get("/config", authenticate, getConfig);
 // PATCH /api/admin/config - Update platform config (admin only, audit-logged)
 router.patch("/config", authenticate, updateConfig);
+
+// SEO settings management routes (admin only)
+router.get("/seo", authenticate, getSeoConfigs);
+router.get("/seo/:id", authenticate, getSeoConfigById);
+router.post("/seo", authenticate, createSeoConfig);
+router.put("/seo/:id", authenticate, updateSeoConfig);
+router.delete("/seo/:id", authenticate, deleteSeoConfig);
 
 // GET /api/admin/audit-log - List admin audit log (admin only, read-only)
 router.get("/audit-log", authenticate, getAuditLog);
