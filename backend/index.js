@@ -26,6 +26,7 @@ import { attachSocketServer } from "./services/socketService.js";
 import { completeEligibleBookings } from "./services/bookingService.js";
 import { runDbsExpiryCheck } from "./services/dbsExpiryService.js";
 import { logTransactionalEmailStatus } from "./services/emailService.js";
+import { renderSeoHtml } from "./services/seoHtmlService.js";
 import fs from "node:fs";
 import path from "path";
 
@@ -95,14 +96,22 @@ const hasFrontendBuild = fs.existsSync(frontendIndexHtml);
 // hard reloads on client routes (/dashboard, /tutor, etc.) receive index.html.
 if (hasFrontendBuild) {
   app.use(express.static(frontendDist));
-  app.get("*", (req, res, next) => {
+  app.get("*", async (req, res, next) => {
     if (
       req.path.startsWith("/api") ||
       req.path.startsWith("/socket.io")
     ) {
       return next();
     }
-    res.sendFile(path.join(frontendDist, "index.html"));
+    try {
+      const indexHtml = await fs.promises.readFile(frontendIndexHtml, "utf8");
+      const html = await renderSeoHtml(indexHtml, req.path);
+      res.set("Content-Type", "text/html; charset=utf-8");
+      res.set("Cache-Control", "no-store");
+      res.send(html);
+    } catch (err) {
+      next(err);
+    }
   });
 }
 

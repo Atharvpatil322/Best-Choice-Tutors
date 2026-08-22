@@ -5,8 +5,14 @@
 
 import { getAuthToken } from "./authService.js";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api").replace(/\/+$/, "");
+
+function buildApiUrl(path) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return API_BASE_URL.endsWith("/api")
+    ? `${API_BASE_URL}${normalizedPath}`
+    : `${API_BASE_URL}/api${normalizedPath}`;
+}
 
 /**
  * Get active FAQs (public)
@@ -14,7 +20,7 @@ const API_BASE_URL =
  * @returns {Promise<{ faqs: Array }>}
  */
 export const getActiveFaqs = async () => {
-  const response = await fetch(`${API_BASE_URL}/faq`, {
+  const response = await fetch(buildApiUrl("/faq"), {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });
@@ -39,7 +45,7 @@ export const getAllFaqsAdmin = async (params = {}) => {
   if (params.isActive) search.set("isActive", params.isActive);
   const query = search.toString() ? `?${search.toString()}` : "";
 
-  const response = await fetch(`${API_BASE_URL}/admin/faq${query}`, {
+  const response = await fetch(buildApiUrl(`/admin/faq${query}`), {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -61,7 +67,7 @@ export const createFaqAdmin = async (faqData) => {
   const token = getAuthToken();
   if (!token) throw new Error("Authentication required");
 
-  const response = await fetch(`${API_BASE_URL}/admin/faq`, {
+  const response = await fetch(buildApiUrl("/admin/faq"), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -85,7 +91,7 @@ export const updateFaqAdmin = async (id, faqData) => {
   const token = getAuthToken();
   if (!token) throw new Error("Authentication required");
 
-  const response = await fetch(`${API_BASE_URL}/admin/faq/${encodeURIComponent(id)}`, {
+  const response = await fetch(buildApiUrl(`/admin/faq/${encodeURIComponent(id)}`), {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -108,7 +114,7 @@ export const deleteFaqAdmin = async (id) => {
   const token = getAuthToken();
   if (!token) throw new Error("Authentication required");
 
-  const response = await fetch(`${API_BASE_URL}/admin/faq/${encodeURIComponent(id)}`, {
+  const response = await fetch(buildApiUrl(`/admin/faq/${encodeURIComponent(id)}`), {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,

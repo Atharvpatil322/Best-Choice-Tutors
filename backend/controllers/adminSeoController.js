@@ -62,12 +62,29 @@ export async function createSeoConfig(req, res, next) {
       return res.status(400).json({ message: 'Path is required' });
     }
 
+    const payload = buildSeoPayload(req.body);
     const existing = await PageSeo.findOne({ path });
     if (existing) {
-      return res.status(409).json({ message: 'An SEO configuration already exists for this path' });
+      const updated = await PageSeo.findByIdAndUpdate(
+        existing._id,
+        { $set: payload },
+        { new: true, runValidators: true },
+      ).lean();
+
+      await AdminAuditLog.create({
+        adminId: req.user._id,
+        action: 'SEO_CONFIG_UPDATED',
+        entityType: 'PageSeo',
+        entityId: updated._id,
+        metadata: {
+          path: updated.path,
+          ...payload,
+        },
+      });
+
+      return res.status(200).json({ message: 'SEO configuration updated', config: updated, upserted: true });
     }
 
-    const payload = buildSeoPayload(req.body);
     const config = await PageSeo.create({ path, ...payload });
 
     await AdminAuditLog.create({

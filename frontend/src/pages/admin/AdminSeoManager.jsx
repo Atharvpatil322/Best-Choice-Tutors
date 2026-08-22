@@ -113,8 +113,14 @@ export default function AdminSeoManager() {
         toast.success('SEO configuration updated.');
       } else {
         result = await createSeoConfig(payload);
-        setConfigs((current) => [result.config, ...current]);
-        toast.success('SEO configuration created.');
+        setConfigs((current) => {
+          const exists = current.some((item) => item._id === result.config._id);
+          if (exists) {
+            return current.map((item) => (item._id === result.config._id ? result.config : item));
+          }
+          return [result.config, ...current];
+        });
+        toast.success(result.upserted ? 'SEO configuration updated.' : 'SEO configuration created.');
       }
 
       setForm(emptyForm());
