@@ -254,12 +254,17 @@ export const createPaymentOrderForBooking = async ({
     throw new BookingError('Booking is not in PENDING status', 400);
   }
 
-  const tutor = await Tutor.findById(booking.tutorId).select('stripeAccountId hourlyRate').lean();
+  const tutor = await Tutor.findById(booking.tutorId).select('stripeAccountId hourlyRate payoutsEnabled').lean();
   if (!tutor) {
     throw new BookingError('Tutor not found', 404);
   }
   if (!tutor.stripeAccountId) {
     throw new BookingError('Tutor has not connected Stripe payouts yet', 400);
+  }
+  if (!tutor.payoutsEnabled) {
+    // Account exists but hasn't finished Stripe Connect onboarding (KYC/bank details) —
+    // Stripe would reject the destination charge with a raw capability error otherwise.
+    throw new BookingError('This tutor has not finished setting up payments yet. Please try again later or choose another tutor.', 400);
   }
 
   // Use agreedHourlyRate (request-based or tutor default); fallback to tutor for legacy bookings (same as before)

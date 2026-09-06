@@ -403,6 +403,14 @@ function TutorProfile({ tutorId: propTutorId }) {
                 onDarkBackground
                 className="justify-center sm:justify-start"
               />
+              {!tutor.payoutsEnabled && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-white"
+                  title="This tutor hasn't finished setting up payments yet"
+                >
+                  Setup pending
+                </span>
+              )}
             </div>
             <p className="flex flex-wrap items-center justify-center sm:justify-start gap-x-1 gap-y-0.5 text-white/80 text-sm mt-1">
               {tutor.mode && <span>{tutor.mode}</span>}
@@ -648,6 +656,13 @@ function TutorProfile({ tutorId: propTutorId }) {
                       </p>
                     </div>
                   )}
+                {!tutor.payoutsEnabled && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-4">
+                    <p className="text-sm font-medium text-amber-900">
+                      This tutor hasn&apos;t finished setting up payments yet, so bookings aren&apos;t available right now. Please check back later.
+                    </p>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground mb-4">
                   Showing upcoming available time slots for the next 4 weeks
                 </p>
@@ -665,13 +680,15 @@ function TutorProfile({ tutorId: propTutorId }) {
                     </p>
                     <Button
                       onClick={() => setConfirmDialogOpen(true)}
-                      disabled={bookingLoading || paymentLoading}
+                      disabled={bookingLoading || paymentLoading || !tutor.payoutsEnabled}
                     >
                       {bookingLoading
                         ? 'Creating…'
                         : paymentLoading
                           ? 'Opening payment…'
-                          : 'Book Session'}
+                          : !tutor.payoutsEnabled
+                            ? 'Bookings unavailable'
+                            : 'Book Session'}
                     </Button>
 
                     <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>

@@ -364,6 +364,7 @@ export const listTutors = async (req, res, next) => {
         reviewCount,
         isVerified: !!tutor.isVerified,
         isDbsVerified: !!tutor.isDbsVerified,
+        payoutsEnabled: !!tutor.payoutsEnabled,
       };
     });
 
@@ -440,6 +441,7 @@ export const getTutorById = async (req, res, next) => {
         reviewCount,
         isVerified: !!tutor.isVerified,
         isDbsVerified: !!tutor.isDbsVerified,
+        payoutsEnabled: !!tutor.payoutsEnabled,
       },
     });
   } catch (error) {
