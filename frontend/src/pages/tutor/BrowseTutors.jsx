@@ -9,6 +9,7 @@ import { getMe } from '@/services/authService';
 import Seo from '@/components/Seo';
 
 const DEFAULT_DISTANCE_KM = 10;
+const TUTORS_PER_PAGE = 10;
 
 function BrowseTutors() {
   const [tutors, setTutors] = useState([]);
@@ -17,6 +18,8 @@ function BrowseTutors() {
   const [viewMode, setViewMode] = useState('grid');
   const [userLocation, setUserLocation] = useState(null);
   const [firstSessionDiscountAvailable, setFirstSessionDiscountAvailable] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 0, totalCount: 0 });
   const locationRequested = useRef(false);
 
   const requestLocation = () => {
@@ -60,15 +63,25 @@ function BrowseTutors() {
     };
   }, []);
 
+  // Reset back to page 1 whenever the location filter changes.
+  useEffect(() => {
+    setPage(1);
+  }, [userLocation]);
+
   useEffect(() => {
     const fetchTutors = async () => {
       try {
         setLoading(true);
-        const filters = userLocation
-          ? { lat: userLocation.lat, lng: userLocation.lng, distance: DEFAULT_DISTANCE_KM }
-          : {};
+        const filters = {
+          page,
+          limit: TUTORS_PER_PAGE,
+          ...(userLocation
+            ? { lat: userLocation.lat, lng: userLocation.lng, distance: DEFAULT_DISTANCE_KM }
+            : {}),
+        };
         const data = await getAllTutors(filters);
         setTutors(data.tutors || []);
+        setPagination(data.pagination || { page: 1, totalPages: 0, totalCount: 0 });
         setError(null);
       } catch (err) {
         setError(err.message || 'Failed to load tutors');
@@ -77,7 +90,13 @@ function BrowseTutors() {
       }
     };
     fetchTutors();
-  }, [userLocation]);
+  }, [userLocation, page]);
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === page) return;
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // ... (keep your loading and error states as they are)
 
@@ -151,6 +170,30 @@ function BrowseTutors() {
               firstSessionDiscountAvailable={firstSessionDiscountAvailable}
             />
           ))}
+
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-slate-500">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="animate-in fade-in duration-500">
