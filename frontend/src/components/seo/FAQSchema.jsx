@@ -6,11 +6,11 @@
 
 import { getFAQSchema } from '@/utils/schema';
 import { getFaqForSchema } from '@/utils/faqData';
-import Seo from '../Seo';
+import StructuredData from './StructuredData';
 
 export default function FAQSchema({ faqItems }) {
   const items = faqItems || getFaqForSchema();
   const schema = getFAQSchema(items);
-  return <Seo structuredData={schema} />;
+  return <StructuredData schema={schema} id="faq" />;
 }
 

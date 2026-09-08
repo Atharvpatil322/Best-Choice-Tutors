@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { localImageUrl } from '@/utils/s3Assets';
-import { CANONICAL_SUBJECTS, SUBJECT_OTHER } from '@/constants/subjects';
+import {
+  CANONICAL_SUBJECTS,
+  SUBJECT_OTHER,
+  slugToSubject,
+  tutorSearchPath,
+} from '@/constants/subjects';
 import { normalizeSubject } from '@/utils/subjectUtils';
 import { getAllTutors } from '../../services/tutorService';
 import { isAuthenticated } from '../../lib/auth';
 import LandingTutorCard from './LandingTutorCard';
 import '../../styles/LandingPage.css';
+import { usePageContent, contentOr } from '@/hooks/usePageContent';
 
 const heroImage = localImageUrl('images/HeroUpdatePic.png');
 
@@ -14,6 +20,17 @@ const HERO_BG_GRADIENT =
   'linear-gradient(95deg, rgba(10, 24, 46, 0.95) 0%, rgba(12, 28, 52, 0.88) 32%, rgba(12, 28, 52, 0.55) 55%, rgba(12, 28, 52, 0.15) 72%, rgba(12, 28, 52, 0) 100%)';
 
 export default function HeroSection() {
+  const pageSections = usePageContent('home');
+  const heroHeading = contentOr(
+    pageSections.hero,
+    'heading',
+    'Connecting You With Trusted Tutors – Online & In-Person',
+  );
+  const heroSubheading = contentOr(
+    pageSections.hero,
+    'subheading',
+    'Book qualified, verified tutors for GCSE, A-Levels, 11+ & SATs, University & more. Safe payments. Flexible scheduling. Trusted by parents and students.',
+  );
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const subjectFromUrl = searchParams.get('subject') || '';
@@ -83,6 +100,30 @@ export default function HeroSection() {
       ...prev,
       [filterName]: value,
     }));
+  };
+
+  /**
+   * Carry the chosen filters to the dedicated results page.
+   * Results are no longer listed beneath the hero, so the search box now acts
+   * purely as an entry point to /tutors.
+   */
+  const goToResults = () => {
+    const params = new URLSearchParams();
+    const rawSubject =
+      filters.subject === SUBJECT_OTHER ? customSubjectInput.trim() : filters.subject;
+    // The subject becomes part of the path; only the other filters stay in the
+    // query string. A free-text subject that matches no canonical one is
+    // dropped, so the link never points at a subject page that cannot exist.
+    const subject = rawSubject ? slugToSubject(normalizeSubject(rawSubject)) : '';
+    if (filters.mode) params.set('mode', filters.mode);
+    if (filters.price) {
+      // Pass a concrete ceiling rather than the range key, so the results page
+      // can apply it without knowing about this component's options.
+      const range = priceRanges.find((option) => option.value === filters.price);
+      if (range?.max != null) params.set('priceMax', String(range.max));
+    }
+    const query = params.toString();
+    navigate(`${tutorSearchPath(subject)}${query ? `?${query}` : ''}`);
   };
 
   const handleSearch = async (page = 1) => {
@@ -164,10 +205,10 @@ export default function HeroSection() {
           {/* LEFT SIDE */}
           <div className="hero-text">
             <h1 className="hero-title">
-             Connecting You With Trusted Tutors – Online & In-Person
+             {heroHeading}
             </h1>
             <p className="hero-subtitle">
-              Book qualified, verified tutors for GCSE, A-Levels, 11+ & SATs, University & more. Safe payments. Flexible scheduling. Trusted by parents and students.
+              {heroSubheading}
             </p>
 
             <div className="search-filter-box">
@@ -232,10 +273,10 @@ export default function HeroSection() {
 
               <button
                 className="btn-book-hero"
-                onClick={() => handleSearch(1)}
-                disabled={loading || (filters.subject === SUBJECT_OTHER && !customSubjectInput.trim())}
+                onClick={goToResults}
+                disabled={filters.subject === SUBJECT_OTHER && !customSubjectInput.trim()}
               >
-                {loading ? 'Searching...' : 'Search Tutor'}
+                Search Tutor
               </button>
             </div>
           </div>

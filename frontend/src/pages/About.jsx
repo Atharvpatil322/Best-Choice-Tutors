@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema } from '@/components/seo/index';
 import {
   BadgeCheck,
   BookOpen,
@@ -19,8 +18,12 @@ import {
   Users,
 } from 'lucide-react';
 import '@/styles/LandingPage.css';
+import { usePageContent, contentOr } from '@/hooks/usePageContent';
 
 export default function About() {
+  const sections = usePageContent('about');
+  const missionHeading = contentOr(sections.mission, 'heading', 'Our Mission');
+  const ctaHeading = contentOr(sections.cta, 'heading', 'Get started today');
   return (
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
       <Seo
@@ -29,7 +32,6 @@ export default function About() {
         ogTitle="About Best Choice Tutors"
         ogDescription="A trusted tutoring marketplace connecting learners with verified tutors across multiple subjects and educational levels."
       />
-      <BreadcrumbSchema />
       <Header />
       <main className="flex-1">
         <section className="relative overflow-hidden bg-gradient-to-br from-[#0F2442] via-[#112D4E] to-[#1A365D] text-white">
@@ -85,7 +87,7 @@ export default function About() {
         <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10">
             <div className="space-y-4">
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">Our Mission</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">{missionHeading}</h2>
               <p className="text-slate-700 leading-relaxed">
                 We make expert tutoring accessible, transparent, and outcomes-driven. Our platform helps learners achieve their goals while empowering tutors to build thriving, flexible businesses.
               </p>
@@ -212,7 +214,7 @@ export default function About() {
           <div className="max-w-6xl mx-auto rounded-3xl border border-slate-200 bg-white p-8 sm:p-10">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">Get started today</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">{ctaHeading}</h2>
                 <p className="text-slate-600 mt-2">
                   Whether you’re preparing for exams or growing your tutoring business, we’re ready to help.
                 </p>

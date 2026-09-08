@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema } from '@/components/seo/index';
+import { DecodedImage } from '@/components/DecodedImage';
 import { getPublishedBlogs } from '@/services/blogService';
 import { Calendar, Clock, User, ArrowRight } from 'lucide-react';
 import '@/styles/LandingPage.css';
@@ -76,7 +76,6 @@ export default function BlogList() {
         ogTitle="Best Choice Tutors Blog"
         ogDescription="Expert advice on tutoring, study tips, exam preparation, and more."
       />
-      <BreadcrumbSchema />
       <Header />
 
       <main className="flex-1">
@@ -146,6 +145,17 @@ export default function BlogList() {
                       key={blog._id}
                       className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
                     >
+                      {/* Thumbnail. Only rendered when the post has an image, so
+                          existing image-less cards keep their current layout. */}
+                      {blog.imageUrl && (
+                        <Link to={`/blog/${blog.slug}`} className="block">
+                          <DecodedImage
+                            src={blog.imageUrl}
+                            alt={blog.imageAlt || blog.title}
+                            className="w-full h-44 object-cover"
+                          />
+                        </Link>
+                      )}
                       <div className="p-6 flex-1 flex flex-col">
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#4FD1C5]/10 text-[#1A365D]">

@@ -161,6 +161,17 @@ export async function deleteDocumentByStorageKey(key) {
  * @returns {Promise<string>} Public URL of the uploaded file
  */
 async function uploadToS3(fileBuffer, key, contentType) {
+  // Without a bucket the AWS SDK falls back to path-style addressing and treats
+  // the key's first segment as the bucket, producing a confusing
+  // "PermanentRedirect" error. Fail with an actionable message instead.
+  if (!bucketOrAccessPoint) {
+    const error = new Error(
+      'File uploads are not configured. Set AWS_BUCKET_NAME, AWS_REGION, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.',
+    );
+    error.statusCode = 503;
+    throw error;
+  }
+
   const command = new PutObjectCommand({
     Bucket: bucketOrAccessPoint,
     Key: key,

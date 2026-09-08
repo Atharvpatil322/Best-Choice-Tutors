@@ -5,7 +5,6 @@
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema } from '@/components/seo/index';
 import { Link } from 'react-router-dom';
 import '@/styles/LandingPage.css';
 
@@ -17,7 +16,6 @@ export default function Terms() {
         description="Read the Terms and Conditions for using Best Choice Tutors. Understand your rights and obligations as a learner or tutor on our platform."
         ogTitle="Terms and Conditions | Best Choice Tutors"
       />
-      <BreadcrumbSchema />
       <Header />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-6 text-slate-700">

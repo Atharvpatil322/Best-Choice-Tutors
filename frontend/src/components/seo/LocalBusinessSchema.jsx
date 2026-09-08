@@ -5,10 +5,10 @@
  */
 
 import { getLocalBusinessSchema } from '@/utils/schema';
-import Seo from '../Seo';
+import StructuredData from './StructuredData';
 
 export default function LocalBusinessSchema({ overrides = {} }) {
   const schema = getLocalBusinessSchema(overrides);
-  return <Seo structuredData={schema} />;
+  return <StructuredData schema={schema} id="local-business" />;
 }
 

@@ -49,7 +49,7 @@ export async function uploadBlogImage(req, res, next) {
 /**
  * POST /api/admin/blog
  * Admin only. Create a new blog post.
- * Body: { title, excerpt, content, author?, category?, imageUrl?, status? }
+ * Body: { title, excerpt, content, author?, category?, imageUrl?, imageAlt?, status? }
  */
 export async function createBlog(req, res, next) {
   try {
@@ -57,7 +57,7 @@ export async function createBlog(req, res, next) {
       return res.status(403).json({ message: 'Access denied: Admin role required' });
     }
 
-    const { title, excerpt, content, author, category, imageUrl, status } = req.body;
+    const { title, excerpt, content, author, category, imageUrl, imageAlt, status } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ message: 'Title and content are required' });
@@ -81,6 +81,7 @@ export async function createBlog(req, res, next) {
       author: author ? author.trim() : 'Best Choice Tutors',
       category: category || 'General',
       imageUrl: imageUrl || null,
+      imageAlt: imageAlt || null,
       status: status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
       publishedAt: status === 'PUBLISHED' ? new Date() : null,
       createdBy: req.user._id,
@@ -124,7 +125,7 @@ export async function getAllBlogs(req, res, next) {
 
     const [blogs, totalCount] = await Promise.all([
       Blog.find(filter)
-        .select('title slug excerpt category author imageUrl status publishedAt createdAt updatedAt createdBy')
+        .select('title slug excerpt category author imageUrl imageAlt status publishedAt createdAt updatedAt createdBy')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -189,7 +190,7 @@ export async function updateBlog(req, res, next) {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    const { title, excerpt, content, author, category, imageUrl, status } = req.body;
+    const { title, excerpt, content, author, category, imageUrl, imageAlt, status } = req.body;
     const updateData = { updatedBy: req.user._id };
 
     if (title !== undefined) {
@@ -212,6 +213,7 @@ export async function updateBlog(req, res, next) {
     if (author !== undefined) updateData.author = author.trim();
     if (category !== undefined) updateData.category = category;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (imageAlt !== undefined) updateData.imageAlt = imageAlt;
 
     // Handle status transition
     if (status === 'PUBLISHED' && existing.status !== 'PUBLISHED') {

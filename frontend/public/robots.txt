@@ -1,46 +1,21 @@
+# Fallback only.
+# The live file is generated from the database (Admin -> SEO -> Robot) and
+# copied here at build time by scripts/fetch-seo-files.mjs. This copy is what
+# gets served if that fetch fails, so it is kept deliberately conservative.
+
 User-agent: *
-Disallow:
-
-User-agent: PerplexityBot
 Allow: /
-
-User-agent: Googlebot
-Allow: /
-
-User-agent: Googlebot-Image
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: Facebot
-Allow: /
-
-User-agent: Applebot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: GPTBot
-Allow: /
-
-User-agent: CCBot
-Allow: /
-
-User-agent: Pinterest
-Allow: /
-
-User-agent: Bingbot
-Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /tutor/
+Disallow: /tutor$
+Disallow: /api
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /auth
+Disallow: /onboarding
+Disallow: /age-consent
 
 Sitemap: https://bestchoicetutors.com/sitemap.xml

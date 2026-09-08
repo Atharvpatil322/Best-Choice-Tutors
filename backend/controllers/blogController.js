@@ -23,7 +23,7 @@ export async function getPublishedBlogs(req, res, next) {
 
     const [blogs, totalCount] = await Promise.all([
       Blog.find(filter)
-        .select('title slug excerpt category author imageUrl publishedAt createdAt')
+        .select('title slug excerpt category author imageUrl imageAlt publishedAt createdAt')
         .sort({ publishedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -55,7 +55,7 @@ export async function getBlogBySlug(req, res, next) {
   try {
     const { slug } = req.params;
     const blog = await Blog.findOne({ slug, status: 'PUBLISHED' })
-      .select('title slug excerpt content author category imageUrl publishedAt createdAt updatedAt')
+      .select('title slug excerpt content author category imageUrl imageAlt publishedAt createdAt updatedAt')
       .lean();
 
     if (!blog) {

@@ -33,9 +33,28 @@ const pageSeoSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    /**
+     * Absolute URL of the image shown when the page is shared. Without one,
+     * Facebook, LinkedIn, WhatsApp and Slack render a link with no preview.
+     */
+    ogImage: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     ogType: {
       type: String,
       default: 'website',
+    },
+    /**
+     * Keeps this page out of search results. Emitted as
+     * <meta name="robots" content="noindex, nofollow">, which is how a page is
+     * removed from an index - robots.txt only stops crawling, and a blocked
+     * page can still be listed.
+     */
+    noindex: {
+      type: Boolean,
+      default: false,
     },
   },
   {

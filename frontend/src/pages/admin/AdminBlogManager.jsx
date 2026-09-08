@@ -20,6 +20,7 @@ import {
   uploadBlogImageAdmin,
 } from '@/services/blogService';
 import { toast } from 'sonner';
+import RichTextEditor from '@/components/admin/RichTextEditor';
 import '../../styles/Profile.css';
 
 function formatDate(iso) {
@@ -55,6 +56,7 @@ function AdminBlogManager() {
     author: '',
     category: 'General',
     imageUrl: '',
+    imageAlt: '',
     status: 'DRAFT',
   });
   const [saving, setSaving] = useState(false);
@@ -95,6 +97,7 @@ function AdminBlogManager() {
       author: user?.name || 'Best Choice Tutors',
       category: 'General',
       imageUrl: '',
+      imageAlt: '',
       status: 'DRAFT',
     });
     setImageFile(null);
@@ -110,6 +113,7 @@ function AdminBlogManager() {
       author: blog.author || 'Best Choice Tutors',
       category: blog.category || 'General',
       imageUrl: blog.imageUrl || '',
+      imageAlt: blog.imageAlt || '',
       status: blog.status || 'DRAFT',
     });
     setImageFile(null);
@@ -304,15 +308,16 @@ function AdminBlogManager() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Content * (Markdown supported)</label>
-                <textarea
+                <label className="block text-sm font-medium text-slate-700 mb-1">Content *</label>
+                <RichTextEditor
                   value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent font-mono"
-                  rows={12}
+                  onChange={(html) => setFormData({ ...formData, content: html })}
                   placeholder="Write your blog content here..."
-                  required
                 />
+                <p className="text-xs text-slate-400 mt-1">
+                  Paste from Word, Google Docs or a web page and tables, headings and
+                  lists are kept.
+                </p>
               </div>
 
               <div>
@@ -345,7 +350,7 @@ function AdminBlogManager() {
                     <button
                       type="button"
                       onClick={() => {
-                        setFormData({ ...formData, imageUrl: '' });
+                        setFormData({ ...formData, imageUrl: '', imageAlt: '' });
                         setImageFile(null);
                       }}
                       className="text-xs font-medium text-red-600 hover:text-red-700"
@@ -354,6 +359,23 @@ function AdminBlogManager() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Image Alt Text
+                </label>
+                <input
+                  type="text"
+                  value={formData.imageAlt}
+                  onChange={(e) => setFormData({ ...formData, imageAlt: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                  maxLength={250}
+                  placeholder="Describe the image, e.g. Student revising GCSE maths with a tutor"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Read aloud by screen readers and used by search engines to understand the image.
+                </p>
               </div>
 
               <div>

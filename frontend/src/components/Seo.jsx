@@ -47,6 +47,7 @@ export function Seo({
   structuredData,
   canonicalUrl,
   path,
+  noindex = false,
 }) {
   const resolvedPath = resolvePath(path ?? (typeof window !== 'undefined' ? window.location.pathname : '/'));
   const [overrideConfig, setOverrideConfig] = useState(null);
@@ -79,12 +80,17 @@ export function Seo({
   const finalOgDescription = effectiveConfig.ogDescription || ogDescription || finalDescription;
   const finalOgImage = effectiveConfig.ogImage || ogImage;
   const finalOgType = effectiveConfig.ogType || ogType;
+  // Either the page asks to be hidden, or an admin has flagged it in the SEO
+  // panel. A page marked noindex still gets its other tags, so sharing a link
+  // to it still looks right.
+  const finalNoindex = noindex || Boolean(effectiveConfig.noindex);
 
   return (
     <Helmet>
       <title>{finalTitle}</title>
       <meta name="description" content={finalDescription} />
       <meta name="keywords" content={finalKeywords} />
+      <meta name="robots" content={finalNoindex ? 'noindex, nofollow' : 'index, follow'} />
 
       <meta property="og:title" content={finalOgTitle} />
       <meta property="og:description" content={finalOgDescription} />

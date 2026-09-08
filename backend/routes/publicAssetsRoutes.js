@@ -1,6 +1,7 @@
 import express from 'express';
 import { presignKey } from '../services/s3Service.js';
-import { getSeoConfigByPath } from '../controllers/publicSeoController.js';
+import { getSeoConfigByPath, getPseoPageByPath } from '../controllers/publicSeoController.js';
+import { getPublicPageContent } from '../controllers/pageContentController.js';
 
 const router = express.Router();
 
@@ -31,5 +32,10 @@ router.get('/assets/*', async (req, res) => {
 
 // Public SEO endpoint for page-specific metadata lookup.
 router.get('/seo', getSeoConfigByPath);
+// Content for a generated landing page, looked up by its path.
+router.get('/pseo', getPseoPageByPath);
+
+// Public page copy, so components can render admin-edited content.
+router.get('/page-content/:pageKey', getPublicPageContent);
 
 export default router;

@@ -5,7 +5,7 @@
  * Max of 6 active benefits allowed (enforced on backend too).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getAllBenefitsAdmin,
   createBenefitAdmin,
@@ -62,12 +62,30 @@ const ICON_OPTIONS = [
   { name: "Award", icon: Award },
 ];
 
+/**
+ * Count whitespace-separated words in a string, used to enforce description limits.
+ *
+ * @param {string} text - Text to measure.
+ * @returns {number} Number of words, or 0 for empty or whitespace-only input.
+ */
 function countWords(text) {
   const trimmed = (text || "").trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).length;
 }
 
+/**
+ * Controlled form for creating or editing a single "Why Choose Us" benefit.
+ * Field state is seeded from `benefit` on mount only, so callers must pass a
+ * `key` tied to the record id to force a remount when the selection changes.
+ *
+ * @param {Object|null} benefit - Existing benefit to edit, or null when creating a new one.
+ * @param {(values: Object) => Promise<void>} onSave - Persists the submitted values; may throw to surface an error.
+ * @param {() => void} onCancel - Dismisses the form without saving.
+ * @param {boolean} saving - True while a save is in flight; disables the action buttons.
+ * @param {number} maxActive - Maximum benefits allowed to be active at once.
+ * @param {number} activeCount - How many benefits are currently active.
+ */
 function BenefitForm({ benefit, onSave, onCancel, saving, maxActive, activeCount }) {
   const [title, setTitle] = useState(benefit?.title || "");
   const [description, setDescription] = useState(benefit?.description || "");
@@ -79,8 +97,14 @@ function BenefitForm({ benefit, onSave, onCancel, saving, maxActive, activeCount
   const wordCount = countWords(description);
   const isNew = !benefit;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  /**
+   * Validate the form and hand the trimmed values to the parent save handler.
+   * Validation failures and save errors are shown inline rather than thrown.
+   *
+   * @param {React.FormEvent} event - Submit event from the form element.
+   */
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
 
     if (!title.trim()) {
@@ -227,15 +251,22 @@ function BenefitForm({ benefit, onSave, onCancel, saving, maxActive, activeCount
   );
 }
 
+/**
+ * Admin screen for managing the public "Why Choose Us" benefits.
+ * Supports creating, editing, reordering, activating and deleting entries,
+ * reloading from the server after each successful change.
+ */
 export default function AdminBenefitManager() {
   const [benefits, setBenefits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingBenefit, setEditingBenefit] = useState(null);
+  const editFormRef = useRef(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [maxActive, setMaxActive] = useState(6);
 
+  /** Load every benefit (active and inactive) into local state for the list view. */
   const fetchBenefits = async () => {
     try {
       setLoading(true);
@@ -253,6 +284,16 @@ export default function AdminBenefitManager() {
     fetchBenefits();
   }, []);
 
+  /**
+   * Bring the edit form into view whenever a different benefit is selected.
+   * The form renders above the list, so without this it can open off-screen
+   * when the user is scrolled further down the page.
+   */
+  useEffect(() => {
+    if (!editingBenefit) return;
+    editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [editingBenefit]);
+
   const activeCount = benefits.filter((b) => b.isActive).length;
 
   const getIconComponent = (iconName) => {
@@ -260,10 +301,16 @@ export default function AdminBenefitManager() {
     return found ? found.icon : BadgeCheck;
   };
 
-  const handleCreate = async (benefitData) => {
+  /**
+   * Persist a new benefit, then close the create form and refresh the list.
+   * Re-throws so the form can render the failure message inline.
+   *
+   * @param {Object} benefitValues - Title, description, icon, order and active flag.
+   */
+  const handleCreate = async (benefitValues) => {
     setSaving(true);
     try {
-      await createBenefitAdmin(benefitData);
+      await createBenefitAdmin(benefitValues);
       toast.success("Benefit created successfully");
       setCreating(false);
       await fetchBenefits();
@@ -274,11 +321,17 @@ export default function AdminBenefitManager() {
     }
   };
 
-  const handleUpdate = async (benefitData) => {
+  /**
+   * Persist edits to the currently selected benefit, then refresh the list.
+   * Re-throws so the form can render the failure message inline.
+   *
+   * @param {Object} benefitValues - Title, description, icon, order and active flag.
+   */
+  const handleUpdate = async (benefitValues) => {
     if (!editingBenefit) return;
     setSaving(true);
     try {
-      await updateBenefitAdmin(editingBenefit._id, benefitData);
+      await updateBenefitAdmin(editingBenefit._id, benefitValues);
       toast.success("Benefit updated successfully");
       setEditingBenefit(null);
       await fetchBenefits();
@@ -289,11 +342,16 @@ export default function AdminBenefitManager() {
     }
   };
 
-  const handleDelete = async (id) => {
+  /**
+   * Remove a benefit after user confirmation, then refresh the list.
+   *
+   * @param {string} benefitId - Identifier of the benefit to delete.
+   */
+  const handleDelete = async (benefitId) => {
     if (!window.confirm("Delete this benefit? This action cannot be undone.")) return;
-    setDeletingId(id);
+    setDeletingId(benefitId);
     try {
-      await deleteBenefitAdmin(id);
+      await deleteBenefitAdmin(benefitId);
       toast.success("Benefit deleted successfully");
       await fetchBenefits();
     } catch (err) {
@@ -303,6 +361,11 @@ export default function AdminBenefitManager() {
     }
   };
 
+  /**
+   * Flip a benefit between active and inactive so it shows or hides on the website.
+   *
+   * @param {Object} benefit - The benefit whose visibility is being toggled.
+   */
   const handleToggleActive = async (benefit) => {
     try {
       await updateBenefitAdmin(benefit._id, { isActive: !benefit.isActive });
@@ -313,9 +376,15 @@ export default function AdminBenefitManager() {
     }
   };
 
-  const handleReorder = async (id, newOrder) => {
+  /**
+   * Change a benefit's display position and refresh so the new order is reflected.
+   *
+   * @param {string} benefitId - Identifier of the benefit being moved.
+   * @param {number} nextOrder - Zero-based position to move the entry to.
+   */
+  const handleReorder = async (benefitId, nextOrder) => {
     try {
-      await updateBenefitAdmin(id, { order: newOrder });
+      await updateBenefitAdmin(benefitId, { order: nextOrder });
       await fetchBenefits();
     } catch (err) {
       toast.error(err.message || "Failed to reorder benefit");
@@ -370,13 +439,14 @@ export default function AdminBenefitManager() {
 
       {/* Edit Form */}
       {editingBenefit && (
-        <Card className="border-amber-200 bg-amber-50/30 rounded-2xl">
+        <Card ref={editFormRef} className="border-amber-200 bg-amber-50/30 rounded-2xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-[#1A365D]">Edit Benefit</CardTitle>
             <CardDescription>Update the benefit details below.</CardDescription>
           </CardHeader>
           <CardContent>
             <BenefitForm
+              key={editingBenefit._id}
               benefit={editingBenefit}
               onSave={handleUpdate}
               onCancel={() => setEditingBenefit(null)}

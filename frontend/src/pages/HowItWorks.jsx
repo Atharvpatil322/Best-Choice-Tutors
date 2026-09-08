@@ -3,7 +3,6 @@ import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import BookSection from '@/components/landing/BookSection';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema } from '@/components/seo/index';
 import '@/styles/LandingPage.css';
 
 export default function HowItWorks() {
@@ -15,7 +14,6 @@ export default function HowItWorks() {
         ogTitle="How Best Choice Tutors Works"
         ogDescription="Simple steps to find, compare and book expert tutors. Start your learning journey today."
       />
-      <BreadcrumbSchema />
       <Header />
       <main className="flex-1">
         <HowItWorksSection />

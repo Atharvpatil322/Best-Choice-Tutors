@@ -25,6 +25,15 @@ out/
 .env.production.local
 *.local
 
+# Loose copies of production config kept for reference. These hold real
+# credentials and are not matched by the .env rules above, because the filename
+# does not start with a dot.
+backend.env
+frontend.env
+outermost_env.txt
+*.env
+!*.env.example
+
 # Logs
 logs/
 *.log

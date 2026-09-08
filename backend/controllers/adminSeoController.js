@@ -20,7 +20,9 @@ function buildSeoPayload(body) {
     keywords: body.keywords?.trim() ?? '',
     ogTitle: body.ogTitle?.trim() ?? '',
     ogDescription: body.ogDescription?.trim() ?? '',
+    ogImage: body.ogImage?.trim() ?? '',
     ogType: body.ogType?.trim() || 'website',
+    noindex: Boolean(body.noindex),
   };
 }
 

@@ -16,7 +16,7 @@
  */
 
 import { getArticleSchema } from '@/utils/schema';
-import Seo from '../Seo';
+import StructuredData from './StructuredData';
 
 export default function ArticleSchema({
   url,
@@ -36,6 +36,6 @@ export default function ArticleSchema({
     datePublished,
     dateModified,
   });
-  return <Seo structuredData={schema} />;
+  return <StructuredData schema={schema} id="article" />;
 }
 

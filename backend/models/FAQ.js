@@ -26,6 +26,17 @@ const faqSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, "Link cannot exceed 500 characters"],
     },
+    /**
+     * Subject this FAQ belongs to, e.g. "English". Null means it is general and
+     * shows wherever no subject-specific set exists. Validated against the
+     * canonical subject list before it reaches the model.
+     */
+    subject: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
     order: {
       type: Number,
       default: 0,
@@ -50,6 +61,8 @@ const faqSchema = new mongoose.Schema(
 
 // Index for ordering
 faqSchema.index({ order: 1, createdAt: -1 });
+// The public endpoint always filters on subject and isActive together.
+faqSchema.index({ subject: 1, isActive: 1, order: 1 });
 
 const FAQ = mongoose.model("FAQ", faqSchema);
 export default FAQ;

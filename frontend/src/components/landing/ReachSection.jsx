@@ -3,19 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import '../../styles/LandingPage.css';
 import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
+import { usePageContent, contentOr, itemsOr } from '@/hooks/usePageContent';
 const reach = localImageUrl('images/reach.png');
 
+/** Bullets as they appear today, used until an admin edits them. */
+const DEFAULT_BULLETS = [
+  { title: '• Connect Globally' },
+  { title: '• Learn Anytime' },
+  { title: '• Achieve More' },
+];
+
+const DEFAULT_BODY =
+  'Best Choice Tutors is proud to serve students and connect them with qualified educators across various countries. Our global network ensures that quality education is accessible no matter where you are.';
+
 export default function ReachSection() {
+  const sections = usePageContent('home');
+  const reach = sections.reach;
+  const heading = contentOr(reach, 'heading', 'Global Reach, Local Expertise');
+  const subheading = contentOr(reach, 'subheading', 'Find Trusted Tutors Worldwide');
+  const body = contentOr(reach, 'body', DEFAULT_BODY);
+  const ctaLabel = contentOr(reach, 'ctaLabel', 'Browse Tutors - Explore By Location');
+  const ctaHref = contentOr(reach, 'ctaHref', '/register?role=learner&from=explore-location');
+  const bullets = itemsOr(reach, DEFAULT_BULLETS);
   const navigate = useNavigate();
 
   const goToSignUpForLocation = () => {
-    navigate('/register?role=learner&from=explore-location');
+    navigate(ctaHref);
   };
 
   return (
     <section className="reach-section">
       <div className="reach-container">
-        <h2 className="reach-main-title">Global Reach, Local Expertise</h2>
+        <h2 className="reach-main-title">{heading}</h2>
         
         <div className="reach-flex-content">
           {/* LEFT COLUMN: IMAGE & BULLETS */}
@@ -25,26 +44,24 @@ export default function ReachSection() {
             </div>
             {/* Horizontal Bullets */}
             <div className="reach-bullets">
-              <span className="bullet-item">• Connect Globally</span>
-              <span className="bullet-item">• Learn Anytime</span>
-              <span className="bullet-item">• Achieve More</span>
+              {bullets.map((bullet, index) => (
+                <span className="bullet-item" key={bullet.title || index}>
+                  {bullet.title}
+                </span>
+              ))}
             </div>
           </div>
 
           {/* RIGHT COLUMN: TEXT CONTENT */}
           <div className="reach-right">
-            <h3 className="reach-sub-title">Find Trusted Tutors Worldwide</h3>
-            <p className="reach-description">
-              Best Choice Tutors is proud to serve students and connect them with 
-              qualified educators across various countries. Our global network 
-              ensures that quality education is accessible no matter where you are.
-            </p>
+            <h3 className="reach-sub-title">{subheading}</h3>
+            <p className="reach-description">{body}</p>
             <button
               type="button"
               className="btn-explore-location"
               onClick={goToSignUpForLocation}
             >
-              Browse Tutors - Explore By Location
+              {ctaLabel}
             </button>
           </div>
         </div>

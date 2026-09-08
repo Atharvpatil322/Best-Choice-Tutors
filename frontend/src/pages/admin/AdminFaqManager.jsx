@@ -4,7 +4,7 @@
  * SEO team can add, edit, delete, and reorder FAQs from here.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getAllFaqsAdmin,
   createFaqAdmin,
@@ -30,17 +30,55 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CANONICAL_SUBJECTS, SUBJECT_OTHER } from "@/constants/subjects";
 
-function FaqForm({ faq, onSave, onCancel, saving }) {
+/**
+ * Subjects a FAQ can be attached to. "Other" is excluded because it is a
+ * free-text option on the tutor form, not a subject with a page of its own.
+ */
+const FAQ_SUBJECTS = CANONICAL_SUBJECTS.filter((subject) => subject !== SUBJECT_OTHER);
+
+/** Value used in the UI for an FAQ that is not tied to any subject. */
+const GENERAL = "general";
+
+/**
+ * Label for a stored subject value.
+ *
+ * @param {string|null|undefined} subject
+ * @returns {string}
+ */
+function subjectLabel(subject) {
+  return subject || "General";
+}
+
+/**
+ * Controlled form for creating or editing a single FAQ entry.
+ * Field state is seeded from `faq` on mount only, so callers must pass a
+ * `key` tied to the record id to force a remount when the selection changes.
+ *
+ * @param {Object|null} faq - Existing FAQ to edit, or null when creating a new one.
+ * @param {string} [defaultSubject] - Subject preselected when creating; ignored when editing.
+ * @param {(values: Object) => Promise<void>} onSave - Persists the submitted values; may throw to surface an error.
+ * @param {() => void} onCancel - Dismisses the form without saving.
+ * @param {boolean} saving - True while a save is in flight; disables the action buttons.
+ */
+function FaqForm({ faq, defaultSubject = GENERAL, onSave, onCancel, saving }) {
   const [question, setQuestion] = useState(faq?.question || "");
   const [answer, setAnswer] = useState(faq?.answer || "");
   const [link, setLink] = useState(faq?.link || "");
   const [order, setOrder] = useState(faq?.order ?? 0);
   const [isActive, setIsActive] = useState(faq?.isActive ?? true);
+  const [subject, setSubject] = useState(faq?.subject || defaultSubject);
   const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  /**
+   * Validate the form and hand the trimmed values to the parent save handler.
+   * Validation failures and save errors are shown inline rather than thrown.
+   *
+   * @param {React.FormEvent} event - Submit event from the form element.
+   */
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
 
     if (!question.trim()) {
@@ -57,7 +95,16 @@ function FaqForm({ faq, onSave, onCancel, saving }) {
     }
 
     try {
-      await onSave({ question: question.trim(), answer: answer.trim(), link: link.trim() || null, order, isActive });
+      await onSave({
+        question: question.trim(),
+        answer: answer.trim(),
+        link: link.trim() || null,
+        order,
+        isActive,
+        // The API turns "general" back into null; sending it explicitly means
+        // clearing a subject on an existing entry works too.
+        subject: subject === GENERAL ? "general" : subject,
+      });
     } catch (err) {
       setError(err.message || "Failed to save FAQ");
     }
@@ -65,6 +112,26 @@ function FaqForm({ faq, onSave, onCancel, saving }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+        <select
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700"
+        >
+          <option value={GENERAL}>General (all pages)</option>
+          {FAQ_SUBJECTS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-400 mt-1">
+          General FAQs show on the home page and on any subject that has none of
+          its own. Pick a subject to show this only when that subject is searched.
+        </p>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">Question</label>
         <Input
@@ -173,34 +240,65 @@ function FaqForm({ faq, onSave, onCancel, saving }) {
   );
 }
 
+/**
+ * Admin screen for managing the public FAQ list.
+ * Supports creating, editing, reordering, activating and deleting entries,
+ * reloading from the server after each successful change.
+ */
 export default function AdminFaqManager() {
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingFaq, setEditingFaq] = useState(null);
+  const editFormRef = useRef(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  // "" means show every subject; otherwise a subject name or "general".
+  const [subjectFilter, setSubjectFilter] = useState("");
 
-  const fetchFaqs = async () => {
+  /**
+   * Load FAQs (active and inactive) for the current subject filter.
+   * Declared as a callback so the effect below can depend on it safely.
+   */
+  const fetchFaqs = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getAllFaqsAdmin({ limit: 100 });
+      const data = await getAllFaqsAdmin({
+        limit: 100,
+        subject: subjectFilter || undefined,
+      });
       setFaqs(data.faqs || []);
     } catch (err) {
       toast.error(err.message || "Failed to load FAQs");
     } finally {
       setLoading(false);
     }
-  };
+  }, [subjectFilter]);
 
   useEffect(() => {
     fetchFaqs();
-  }, []);
+  }, [fetchFaqs]);
 
-  const handleCreate = async (faqData) => {
+  /**
+   * Bring the edit form into view whenever a different FAQ is selected.
+   * The form renders above the list, so without this it can open off-screen
+   * when the user is scrolled further down the page.
+   */
+  useEffect(() => {
+    if (!editingFaq) return;
+    editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [editingFaq]);
+
+  /**
+   * Persist a new FAQ, then close the create form and refresh the list.
+   * Re-throws so the form can render the failure message inline.
+   *
+   * @param {Object} faqValues - Question, answer, link, order and active flag.
+   */
+  const handleCreate = async (faqValues) => {
     setSaving(true);
     try {
-      await createFaqAdmin(faqData);
+      await createFaqAdmin(faqValues);
       toast.success("FAQ created successfully");
       setCreating(false);
       await fetchFaqs();
@@ -211,11 +309,17 @@ export default function AdminFaqManager() {
     }
   };
 
-  const handleUpdate = async (faqData) => {
+  /**
+   * Persist edits to the currently selected FAQ, then refresh the list.
+   * Re-throws so the form can render the failure message inline.
+   *
+   * @param {Object} faqValues - Question, answer, link, order and active flag.
+   */
+  const handleUpdate = async (faqValues) => {
     if (!editingFaq) return;
     setSaving(true);
     try {
-      await updateFaqAdmin(editingFaq._id, faqData);
+      await updateFaqAdmin(editingFaq._id, faqValues);
       toast.success("FAQ updated successfully");
       setEditingFaq(null);
       await fetchFaqs();
@@ -226,11 +330,16 @@ export default function AdminFaqManager() {
     }
   };
 
-  const handleDelete = async (id) => {
+  /**
+   * Remove a FAQ after user confirmation, then refresh the list.
+   *
+   * @param {string} faqId - Identifier of the FAQ to delete.
+   */
+  const handleDelete = async (faqId) => {
     if (!window.confirm("Delete this FAQ entry? This action cannot be undone.")) return;
-    setDeletingId(id);
+    setDeletingId(faqId);
     try {
-      await deleteFaqAdmin(id);
+      await deleteFaqAdmin(faqId);
       toast.success("FAQ deleted successfully");
       await fetchFaqs();
     } catch (err) {
@@ -240,6 +349,11 @@ export default function AdminFaqManager() {
     }
   };
 
+  /**
+   * Flip a FAQ between active and inactive so it shows or hides on the website.
+   *
+   * @param {Object} faq - The FAQ whose visibility is being toggled.
+   */
   const handleToggleActive = async (faq) => {
     try {
       await updateFaqAdmin(faq._id, { isActive: !faq.isActive });
@@ -250,9 +364,15 @@ export default function AdminFaqManager() {
     }
   };
 
-  const handleReorder = async (id, newOrder) => {
+  /**
+   * Change a FAQ's display position and refresh so the new order is reflected.
+   *
+   * @param {string} faqId - Identifier of the FAQ being moved.
+   * @param {number} nextOrder - Zero-based position to move the entry to.
+   */
+  const handleReorder = async (faqId, nextOrder) => {
     try {
-      await updateFaqAdmin(id, { order: newOrder });
+      await updateFaqAdmin(faqId, { order: nextOrder });
       await fetchFaqs();
     } catch (err) {
       toast.error(err.message || "Failed to reorder FAQ");
@@ -289,20 +409,29 @@ export default function AdminFaqManager() {
             <CardDescription>Add a new question and answer for the FAQ section.</CardDescription>
           </CardHeader>
           <CardContent>
-            <FaqForm onSave={handleCreate} onCancel={() => setCreating(false)} saving={saving} />
+            <FaqForm
+              // Start on whichever subject is being viewed, so adding to a
+              // subject list does not mean re-picking it every time.
+              key={subjectFilter}
+              defaultSubject={subjectFilter && subjectFilter !== GENERAL ? subjectFilter : GENERAL}
+              onSave={handleCreate}
+              onCancel={() => setCreating(false)}
+              saving={saving}
+            />
           </CardContent>
         </Card>
       )}
 
       {/* Edit Form */}
       {editingFaq && (
-        <Card className="border-amber-200 bg-amber-50/30 rounded-2xl">
+        <Card ref={editFormRef} className="border-amber-200 bg-amber-50/30 rounded-2xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-[#1A365D]">Edit FAQ Entry</CardTitle>
             <CardDescription>Update the question or answer below.</CardDescription>
           </CardHeader>
           <CardContent>
             <FaqForm
+              key={editingFaq._id}
               faq={editingFaq}
               onSave={handleUpdate}
               onCancel={() => setEditingFaq(null)}
@@ -315,12 +444,36 @@ export default function AdminFaqManager() {
       {/* FAQ List */}
       <Card className="rounded-2xl border-gray-100 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base text-[#1A365D]">
-            All FAQs ({faqs.length})
-          </CardTitle>
-          <CardDescription>
-            Drag to reorder. Toggle visibility to show/hide on the website.
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base text-[#1A365D]">
+                {subjectFilter ? `${subjectLabel(subjectFilter === GENERAL ? null : subjectFilter)} FAQs` : "All FAQs"}
+                {` (${faqs.length})`}
+              </CardTitle>
+              <CardDescription>
+                Drag to reorder. Toggle visibility to show/hide on the website.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="faq-subject-filter" className="text-sm text-slate-500">
+                Show
+              </label>
+              <select
+                id="faq-subject-filter"
+                value={subjectFilter}
+                onChange={(e) => setSubjectFilter(e.target.value)}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700"
+              >
+                <option value="">All subjects</option>
+                <option value={GENERAL}>General (all pages)</option>
+                {FAQ_SUBJECTS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -330,8 +483,16 @@ export default function AdminFaqManager() {
           ) : faqs.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <HelpCircle size={48} className="mx-auto mb-3 text-slate-300" />
-              <p className="font-medium">No FAQs yet</p>
-              <p className="text-sm mt-1">Click "Add FAQ" to create your first one.</p>
+              <p className="font-medium">
+                {subjectFilter
+                  ? `No FAQs for ${subjectLabel(subjectFilter === GENERAL ? null : subjectFilter)} yet`
+                  : "No FAQs yet"}
+              </p>
+              <p className="text-sm mt-1">
+                {subjectFilter
+                  ? "Visitors browsing this subject see no FAQ section until you add some here."
+                  : 'Click "Add FAQ" to create your first one.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -356,16 +517,28 @@ export default function AdminFaqManager() {
                           <h3 className="font-medium text-slate-900 truncate">{faq.question}</h3>
                           <p className="text-sm text-slate-500 mt-1 line-clamp-2">{faq.answer}</p>
                         </div>
-                        <Badge
-                          variant={faq.isActive ? "default" : "secondary"}
-                          className={`shrink-0 mt-0.5 ${
-                            faq.isActive
-                              ? "bg-green-100 text-green-700 hover:bg-green-100"
-                              : "bg-slate-200 text-slate-500 hover:bg-slate-200"
-                          }`}
-                        >
-                          {faq.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex shrink-0 items-center gap-2 mt-0.5">
+                          <Badge
+                            variant="secondary"
+                            className={
+                              faq.subject
+                                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-100"
+                            }
+                          >
+                            {subjectLabel(faq.subject)}
+                          </Badge>
+                          <Badge
+                            variant={faq.isActive ? "default" : "secondary"}
+                            className={
+                              faq.isActive
+                                ? "bg-green-100 text-green-700 hover:bg-green-100"
+                                : "bg-slate-200 text-slate-500 hover:bg-slate-200"
+                            }
+                          >
+                            {faq.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">

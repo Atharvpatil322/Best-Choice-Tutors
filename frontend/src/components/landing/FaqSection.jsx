@@ -5,37 +5,60 @@ import FAQ_ITEMS from '../../utils/faqData';
 import { FAQSchema } from '../seo/index';
 import { getActiveFaqs } from '@/services/faqService';
 
-export default function FaqSection() {
+/**
+ * Public FAQ accordion.
+ *
+ * General and subject FAQs are kept strictly apart. Without a `subject` this
+ * shows the general set - the home page and the unfiltered tutor search. With a
+ * `subject` it shows only that subject's own entries, and renders nothing at
+ * all when it has none, so general answers never appear on a subject page.
+ *
+ * @param {string} [subject] - Canonical subject name, e.g. "English".
+ */
+export default function FaqSection({ subject }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [faqItems, setFaqItems] = useState(FAQ_ITEMS);
+  // Null until the first response, so an empty list can be told apart from
+  // "not loaded yet" and the section can hide itself.
+  const [faqItems, setFaqItems] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    // Collapse any open answer when the subject changes: the panel at that
+    // index belongs to the previous subject's list.
+    setActiveIndex(0);
+    setLoading(true);
     const fetchFaqs = async () => {
       try {
-        const data = await getActiveFaqs();
-        if (!cancelled && data.faqs && data.faqs.length > 0) {
-          setFaqItems(data.faqs);
-        }
+        const data = await getActiveFaqs(subject);
+        // Whatever came back is what shows, empty included.
+        if (!cancelled) setFaqItems(Array.isArray(data.faqs) ? data.faqs : []);
       } catch {
-        // Fallback to static data if API fails
+        // The API is unreachable. On the general pages the built-in list is a
+        // better answer than a missing section; on a subject page there is no
+        // safe stand-in, since the built-in list is general copy.
+        if (!cancelled) setFaqItems(subject ? [] : FAQ_ITEMS);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     fetchFaqs();
     return () => { cancelled = true; };
-  }, []);
+  }, [subject]);
 
   const toggleFaq = (index) => {
     setActiveIndex(activeIndex === index ? null : index);
   };
 
+  // Nothing to say: drop the whole section rather than show an empty heading.
+  if (!loading && (!faqItems || faqItems.length === 0)) return null;
+
   return (
     <section className="faq-section">
-      {/* FAQ Schema is injected alongside the UI from the same data source */}
-      <FAQSchema faqItems={faqItems} />
+      {/* FAQ Schema is injected alongside the UI from the same data source.
+          Only once there is something to describe: an FAQPage with no entries
+          is worse than none at all. */}
+      {faqItems && faqItems.length > 0 && <FAQSchema faqItems={faqItems} />}
       <div className="faq-container">
         <h2 className="faq-main-title">Frequently Asked Questions</h2>
 
@@ -45,7 +68,7 @@ export default function FaqSection() {
           </div>
         ) : (
           <div className="faq-list">
-            {faqItems.map((faq, index) => {
+            {(faqItems || []).map((faq, index) => {
               const isOpen = activeIndex === index;
               return (
                 <div

@@ -1,0 +1,152 @@
+/**
+ * Published blog article styling.
+ *
+ * Applies to posts written in the rich text editor, which are stored as HTML.
+ * Older markdown posts carry their own Tailwind classes per line and are
+ * unaffected by anything here.
+ *
+ * The site has no Tailwind typography plugin, so the "prose" classes on the
+ * wrapper do nothing; these rules are what actually style the article.
+ */
+
+.blog-rich-content {
+  color: #334155;
+  font-size: 1rem;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.blog-rich-content > * + * {
+  margin-top: 0.9rem;
+}
+
+.blog-rich-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a365d;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+.blog-rich-content h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a365d;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.blog-rich-content h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a365d;
+  margin-top: 1.25rem;
+}
+
+.blog-rich-content p {
+  margin-bottom: 0.75rem;
+}
+
+.blog-rich-content ul,
+.blog-rich-content ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+}
+.blog-rich-content ul {
+  list-style: disc;
+}
+.blog-rich-content ol {
+  list-style: decimal;
+}
+.blog-rich-content li {
+  margin-bottom: 0.35rem;
+}
+.blog-rich-content li::marker {
+  color: #4fd1c5;
+}
+
+.blog-rich-content strong {
+  font-weight: 700;
+  color: #1a365d;
+}
+
+.blog-rich-content a {
+  color: #4fd1c5;
+  text-decoration: underline;
+}
+.blog-rich-content a:hover {
+  color: #38b2ac;
+}
+
+.blog-rich-content blockquote {
+  border-left: 4px solid #4fd1c5;
+  padding: 0.25rem 0 0.25rem 1rem;
+  margin: 1.25rem 0;
+  color: #64748b;
+  font-style: italic;
+}
+
+.blog-rich-content code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.blog-rich-content pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1rem 1.15rem;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 1.25rem 0;
+}
+.blog-rich-content pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+.blog-rich-content hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 2rem 0;
+}
+
+.blog-rich-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1.25rem 0;
+}
+
+/* Tables scroll inside their own box rather than pushing the page sideways on
+   a phone, which is what a wide pasted table would otherwise do. */
+.blog-rich-content .blog-table-scroll {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.blog-rich-content table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 480px;
+  font-size: 0.95rem;
+}
+
+.blog-rich-content th,
+.blog-rich-content td {
+  border: 1px solid #e2e8f0;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.blog-rich-content th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #1a365d;
+}
+
+.blog-rich-content tbody tr:nth-child(even) {
+  background: #fbfcfd;
+}

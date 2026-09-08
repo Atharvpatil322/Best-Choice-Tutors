@@ -152,9 +152,11 @@ export default function HowItWorksSection() {
       aria-labelledby="how-it-works-heading"
     >
       <div className="how-container">
-        <h2 id="how-it-works-heading" className="how-heading">
+        {/* h1, not h2: this is the only heading on /how-it-works and the page
+            had none. The class carries the styling, so it looks identical. */}
+        <h1 id="how-it-works-heading" className="how-heading">
           How it works
-        </h2>
+        </h1>
         <p className="how-subheading">
           From sign-up to session — see how learners and tutors use Best Choice Tutors.
         </p>

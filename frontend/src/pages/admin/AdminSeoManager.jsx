@@ -38,7 +38,75 @@ function emptyForm() {
     keywords: '',
     canonicalUrl: '',
     ogDescription: '',
+    ogImage: '',
+    noindex: false,
   };
+}
+
+/**
+ * Recommended lengths. Google truncates beyond roughly these, and something far
+ * under them usually means the field was left half-written.
+ */
+const LENGTH_GUIDES = {
+  title: { min: 20, max: 60 },
+  description: { min: 70, max: 155 },
+};
+
+/**
+ * Character count with a plain-language warning when a field is too long or
+ * too short. Advisory only - nothing here blocks a save, because an editor may
+ * have a good reason to go over.
+ *
+ * @param {string} value - Current field value.
+ * @param {'title'|'description'} field - Which guide to apply.
+ */
+function LengthHint({ value, field }) {
+  const { min, max } = LENGTH_GUIDES[field];
+  const length = (value || '').trim().length;
+  let tone = 'text-slate-400';
+  let note = '';
+  if (length === 0) {
+    note = 'empty - the page falls back to the site default';
+  } else if (length > max) {
+    tone = 'text-amber-600';
+    note = `over ${max}; search results will cut it off`;
+  } else if (length < min) {
+    tone = 'text-amber-600';
+    note = `under ${min}; likely too short to be useful`;
+  } else {
+    tone = 'text-green-600';
+    note = 'good length';
+  }
+  return (
+    <p className={`text-xs mt-1 ${tone}`}>
+      {length}/{max} characters - {note}
+    </p>
+  );
+}
+
+/**
+ * Warn when another saved page already uses this exact title or description.
+ * Duplicate metadata across pages competes with itself in search results.
+ *
+ * @param {Array} configs - Every saved page config.
+ * @param {Object} form - The record being edited.
+ */
+function DuplicateWarning({ configs, form }) {
+  const clashes = [];
+  const same = (a, b) => a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
+  for (const config of configs) {
+    if (config._id === form.id) continue;
+    if (same(config.title, form.title)) clashes.push(`title matches ${config.path}`);
+    if (same(config.description, form.description)) clashes.push(`description matches ${config.path}`);
+  }
+  if (clashes.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+      <span className="font-medium">Duplicate metadata: </span>
+      {clashes.join('; ')}. Pages sharing a title or description compete with each other in
+      search results.
+    </div>
+  );
 }
 
 export default function AdminSeoManager() {
@@ -74,6 +142,8 @@ export default function AdminSeoManager() {
         keywords: selectedConfig.keywords || '',
         canonicalUrl: selectedConfig.canonicalUrl || '',
         ogDescription: selectedConfig.ogDescription || '',
+        ogImage: selectedConfig.ogImage || '',
+        noindex: Boolean(selectedConfig.noindex),
       });
     }
   }, [selectedConfig]);
@@ -104,6 +174,8 @@ export default function AdminSeoManager() {
         keywords: form.keywords,
         canonicalUrl: form.canonicalUrl,
         ogDescription: form.ogDescription,
+        ogImage: form.ogImage,
+        noindex: form.noindex,
       };
 
       let result;
@@ -180,6 +252,22 @@ export default function AdminSeoManager() {
                 </div>
               </div>
 
+              <label className="flex items-start gap-2 rounded-lg border border-slate-200 p-3">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.noindex)}
+                  onChange={(event) => handleChange('noindex', event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#4FD1C5] focus:ring-[#4FD1C5]"
+                />
+                <span className="text-sm text-slate-700">
+                  Hide this page from search results
+                  <span className="block text-xs text-slate-400">
+                    Adds noindex, nofollow. Use for thin or duplicate pages. Blocking a page in
+                    robots.txt does not remove it from search; this does.
+                  </span>
+                </span>
+              </label>
+
               <div className="grid gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Page title</label>
@@ -188,6 +276,7 @@ export default function AdminSeoManager() {
                     onChange={(event) => handleChange('title', event.target.value)}
                     placeholder="Best Choice Tutors | About Us"
                   />
+                  <LengthHint value={form.title} field="title" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Meta description</label>
@@ -197,7 +286,9 @@ export default function AdminSeoManager() {
                     placeholder="Write a short description for search engines and social shares."
                     rows={4}
                   />
+                  <LengthHint value={form.description} field="description" />
                 </div>
+                <DuplicateWarning configs={configs} form={form} />
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Keywords</label>
                   <Textarea
@@ -214,6 +305,17 @@ export default function AdminSeoManager() {
                     onChange={(event) => handleChange('ogDescription', event.target.value)}
                     placeholder="Short description used when this page is shared"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Share image URL</label>
+                  <Input
+                    value={form.ogImage}
+                    onChange={(event) => handleChange('ogImage', event.target.value)}
+                    placeholder="https://bestchoicetutors.com/logo.png"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Shown when the page is shared on social media. Leave blank to use the site logo.
+                  </p>
                 </div>
               </div>
 

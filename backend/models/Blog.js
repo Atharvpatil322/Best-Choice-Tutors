@@ -39,6 +39,17 @@ const blogSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    /**
+     * Alternative text for the cover image. Required by screen readers and used
+     * by search engines to understand image content, so it is stored with the
+     * post rather than derived from the filename.
+     */
+    imageAlt: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: [250, 'Image alt text cannot exceed 250 characters'],
+    },
     status: {
       type: String,
       enum: ['DRAFT', 'PUBLISHED'],

@@ -4,7 +4,7 @@
  * SEO team can add, edit, delete, and reorder popular searches from here.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getAllPopularSearchesAdmin,
   createPopularSearchAdmin,
@@ -30,6 +30,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+/**
+ * Controlled form for creating or editing a single popular-search entry.
+ * Field state is seeded from `searchItem` on mount only, so callers must pass a
+ * `key` tied to the record id to force a remount when the selection changes.
+ *
+ * @param {Object|null} searchItem - Existing entry to edit, or null when creating a new one.
+ * @param {(values: Object) => Promise<void>} onSave - Persists the submitted values; may throw to surface an error.
+ * @param {() => void} onCancel - Dismisses the form without saving.
+ * @param {boolean} saving - True while a save is in flight; disables the action buttons.
+ */
 function SearchForm({ searchItem, onSave, onCancel, saving }) {
   const [label, setLabel] = useState(searchItem?.label || "");
   const [query, setQuery] = useState(searchItem?.query || "");
@@ -37,8 +47,14 @@ function SearchForm({ searchItem, onSave, onCancel, saving }) {
   const [isActive, setIsActive] = useState(searchItem?.isActive ?? true);
   const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  /**
+   * Validate the form and hand the trimmed values to the parent save handler.
+   * Validation failures and save errors are shown inline rather than thrown.
+   *
+   * @param {React.FormEvent} event - Submit event from the form element.
+   */
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
 
     if (!label.trim()) {
@@ -153,14 +169,21 @@ function SearchForm({ searchItem, onSave, onCancel, saving }) {
   );
 }
 
+/**
+ * Admin screen for managing the popular-search shortcuts shown on the landing page.
+ * Supports creating, editing, reordering, activating and deleting entries,
+ * reloading from the server after each successful change.
+ */
 export default function AdminPopularSearchManager() {
   const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingSearch, setEditingSearch] = useState(null);
+  const editFormRef = useRef(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
+  /** Load every popular-search entry (active and inactive) for the list view. */
   const fetchSearches = async () => {
     try {
       setLoading(true);
@@ -177,10 +200,26 @@ export default function AdminPopularSearchManager() {
     fetchSearches();
   }, []);
 
-  const handleCreate = async (searchData) => {
+  /**
+   * Bring the edit form into view whenever a different popular search is selected.
+   * The form renders above the list, so without this it can open off-screen
+   * when the user is scrolled further down the page.
+   */
+  useEffect(() => {
+    if (!editingSearch) return;
+    editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [editingSearch]);
+
+  /**
+   * Persist a new popular-search entry, then close the form and refresh the list.
+   * Re-throws so the form can render the failure message inline.
+   *
+   * @param {Object} searchValues - Label, query, order and active flag.
+   */
+  const handleCreate = async (searchValues) => {
     setSaving(true);
     try {
-      await createPopularSearchAdmin(searchData);
+      await createPopularSearchAdmin(searchValues);
       toast.success("Popular search created successfully");
       setCreating(false);
       await fetchSearches();
@@ -191,11 +230,17 @@ export default function AdminPopularSearchManager() {
     }
   };
 
-  const handleUpdate = async (searchData) => {
+  /**
+   * Persist edits to the selected popular-search entry, then refresh the list.
+   * Re-throws so the form can render the failure message inline.
+   *
+   * @param {Object} searchValues - Label, query, order and active flag.
+   */
+  const handleUpdate = async (searchValues) => {
     if (!editingSearch) return;
     setSaving(true);
     try {
-      await updatePopularSearchAdmin(editingSearch._id, searchData);
+      await updatePopularSearchAdmin(editingSearch._id, searchValues);
       toast.success("Popular search updated successfully");
       setEditingSearch(null);
       await fetchSearches();
@@ -206,11 +251,16 @@ export default function AdminPopularSearchManager() {
     }
   };
 
-  const handleDelete = async (id) => {
+  /**
+   * Remove a popular-search entry after user confirmation, then refresh the list.
+   *
+   * @param {string} searchId - Identifier of the entry to delete.
+   */
+  const handleDelete = async (searchId) => {
     if (!window.confirm("Delete this popular search? This action cannot be undone.")) return;
-    setDeletingId(id);
+    setDeletingId(searchId);
     try {
-      await deletePopularSearchAdmin(id);
+      await deletePopularSearchAdmin(searchId);
       toast.success("Popular search deleted successfully");
       await fetchSearches();
     } catch (err) {
@@ -220,6 +270,11 @@ export default function AdminPopularSearchManager() {
     }
   };
 
+  /**
+   * Flip an entry between active and inactive so it shows or hides on the website.
+   *
+   * @param {Object} searchItem - The entry whose visibility is being toggled.
+   */
   const handleToggleActive = async (searchItem) => {
     try {
       await updatePopularSearchAdmin(searchItem._id, { isActive: !searchItem.isActive });
@@ -230,9 +285,15 @@ export default function AdminPopularSearchManager() {
     }
   };
 
-  const handleReorder = async (id, newOrder) => {
+  /**
+   * Change an entry's display position and refresh so the new order is reflected.
+   *
+   * @param {string} searchId - Identifier of the entry being moved.
+   * @param {number} nextOrder - Zero-based position to move the entry to.
+   */
+  const handleReorder = async (searchId, nextOrder) => {
     try {
-      await updatePopularSearchAdmin(id, { order: newOrder });
+      await updatePopularSearchAdmin(searchId, { order: nextOrder });
       await fetchSearches();
     } catch (err) {
       toast.error(err.message || "Failed to reorder popular search");
@@ -276,13 +337,14 @@ export default function AdminPopularSearchManager() {
 
       {/* Edit Form */}
       {editingSearch && (
-        <Card className="border-amber-200 bg-amber-50/30 rounded-2xl">
+        <Card ref={editFormRef} className="border-amber-200 bg-amber-50/30 rounded-2xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-[#1A365D]">Edit Popular Search</CardTitle>
             <CardDescription>Update the popular search details below.</CardDescription>
           </CardHeader>
           <CardContent>
             <SearchForm
+              key={editingSearch._id}
               searchItem={editingSearch}
               onSave={handleUpdate}
               onCancel={() => setEditingSearch(null)}
