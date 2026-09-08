@@ -8,12 +8,12 @@
 import { useLocation } from 'react-router-dom';
 import { getBreadcrumbSchema } from '@/utils/schema';
 import { getBreadcrumbs } from '@/utils/seo';
-import Seo from '../Seo';
+import StructuredData from './StructuredData';
 
 export default function BreadcrumbSchema() {
   const { pathname } = useLocation();
   const crumbs = getBreadcrumbs(pathname);
   const schema = getBreadcrumbSchema(crumbs);
-  return <Seo structuredData={schema} />;
+  return <StructuredData schema={schema} id="breadcrumb" />;
 }
 

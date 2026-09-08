@@ -5,10 +5,10 @@
  */
 
 import { getServiceSchema } from '@/utils/schema';
-import Seo from '../Seo';
+import StructuredData from './StructuredData';
 
 export default function ServiceSchema({ overrides = {} }) {
   const schema = getServiceSchema(overrides);
-  return <Seo structuredData={schema} />;
+  return <StructuredData schema={schema} id="service" />;
 }
 

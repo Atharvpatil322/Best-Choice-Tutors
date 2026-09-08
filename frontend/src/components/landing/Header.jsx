@@ -4,7 +4,7 @@ import { Search, Menu, X, ChevronDown, PartyPopper } from "lucide-react";
 import '../../styles/LandingPage.css';
 import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
-import { CANONICAL_SUBJECTS } from '@/constants/subjects';
+import { CANONICAL_SUBJECTS, tutorSearchPath } from '@/constants/subjects';
 import { isAuthenticated } from '@/lib/auth';
 
 const logoImage = localImageUrl('images/BCT_Logo.png');
@@ -48,6 +48,21 @@ export default function Header() {
     }, 150);
   };
 
+  /**
+   * Close the subjects menu straight away.
+   *
+   * Picking a subject now keeps the visitor on /tutors, so the route no longer
+   * changes and the dropdown would otherwise stay open over the results.
+   */
+  const closeSubjectsDropdown = () => {
+    if (hideSubjectsTimerRef.current) {
+      clearTimeout(hideSubjectsTimerRef.current);
+      hideSubjectsTimerRef.current = null;
+    }
+    document.querySelector('.header-subjects-dropdown')?.classList.remove('is-visible');
+    setSubjectsOpen(false);
+  };
+
   return (
     <header className="main-header">
       <div className="header-container">
@@ -86,10 +101,13 @@ export default function Header() {
                   {CANONICAL_SUBJECTS.map((subject) => (
                     <Link
                       key={subject}
-                      to={`/?subject=${encodeURIComponent(subject)}`}
+                      to={tutorSearchPath(subject)}
                       className="header-subject-box"
                       role="menuitem"
-                      onClick={() => setMenuOpen(false)}
+                      onClick={() => {
+                        closeSubjectsDropdown();
+                        setMenuOpen(false);
+                      }}
                     >
                       {subject}
                     </Link>

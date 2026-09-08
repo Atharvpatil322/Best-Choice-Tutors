@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema } from '@/components/seo/index';
 import { BookOpen, GraduationCap } from 'lucide-react';
 import '@/styles/LandingPage.css';
 
@@ -18,7 +17,6 @@ export default function PrivacyPolicy() {
         description="Review the Privacy Policy for Best Choice Tutors. Learn how we collect, use, and protect your personal data when using our tutoring platform."
         ogTitle="Privacy Policy | Best Choice Tutors"
       />
-      <BreadcrumbSchema />
       <Header />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-8">

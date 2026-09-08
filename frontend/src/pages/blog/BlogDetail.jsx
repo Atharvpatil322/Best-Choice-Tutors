@@ -7,10 +7,13 @@ import { useParams, Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema, ArticleSchema } from '@/components/seo/index';
+import { ArticleSchema } from '@/components/seo/index';
+import { DecodedImage } from '@/components/DecodedImage';
 import { getBlogBySlug } from '@/services/blogService';
+import { isHtmlContent, sanitizeBlogHtml } from '@/utils/blogContent';
 import { Calendar, Clock, User, ArrowLeft, Share2 } from 'lucide-react';
 import '@/styles/LandingPage.css';
+import '@/styles/BlogContent.css';
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -116,11 +119,11 @@ export default function BlogDetail() {
         url={articleUrl}
         headline={blog.title}
         description={blog.excerpt}
+        imageUrl={blog.imageUrl || undefined}
         authorName={blog.author || 'Best Choice Tutors'}
         datePublished={blog.publishedAt || blog.createdAt}
         dateModified={blog.updatedAt}
       />
-      <BreadcrumbSchema />
       <Header />
 
       <main className="flex-1">
@@ -172,13 +175,33 @@ export default function BlogDetail() {
             </div>
           </header>
 
+          {/* Cover image. Rendered only when the post has one, so posts without
+              an image keep their existing layout unchanged. */}
+          {blog.imageUrl && (
+            <DecodedImage
+              src={blog.imageUrl}
+              alt={blog.imageAlt || blog.title}
+              loading="eager"
+              className="w-full rounded-2xl border border-slate-200 object-cover mb-8"
+            />
+          )}
+
           {/* Article content - rendered as HTML from the Markdown content */}
           <div
             className="prose prose-slate max-w-none prose-headings:text-[#1A365D] prose-a:text-[#4FD1C5] prose-strong:text-[#1A365D] prose-li:marker:text-[#4FD1C5]"
             style={{ wordBreak: 'break-word' }}
           >
-            {/* Render the content, converting markdown-style to basic HTML blocks */}
-            {blog.content.split('\n').map((line, i) => {
+            {/* Posts written in the editor are stored as HTML and rendered as
+                such, which is what allows tables, images and code blocks to
+                appear. Older posts are still markdown-ish plain text, so they
+                keep the line-by-line rendering below. */}
+            {isHtmlContent(blog.content) ? (
+              <div
+                className="blog-rich-content"
+                dangerouslySetInnerHTML={{ __html: sanitizeBlogHtml(blog.content) }}
+              />
+            ) : (
+              blog.content.split('\n').map((line, i) => {
               if (line.startsWith('## ')) {
                 return (
                   <h2 key={i} className="text-2xl font-bold text-[#1A365D] mt-8 mb-4">
@@ -251,7 +274,8 @@ export default function BlogDetail() {
               return (
                 <p key={i} className="text-slate-700 mb-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: processedLine }} />
               );
-            })}
+              })
+            )}
           </div>
 
           {/* Article footer */}

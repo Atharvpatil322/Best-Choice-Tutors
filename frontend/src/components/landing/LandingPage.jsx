@@ -13,7 +13,7 @@ import FaqSection from "./FaqSection";
 import FooterSection from "./FooterSection";
 import WhyChooseUs from "./WhyChooseUs";
 import Seo from "../Seo";
-import { LocalBusinessSchema, ServiceSchema, BreadcrumbSchema } from "../seo/index";
+import { LocalBusinessSchema, ServiceSchema } from "../seo/index";
 
 function LandingPage() {
   return (
@@ -29,7 +29,6 @@ function LandingPage() {
       {/* Schema injection for homepage */}
       <LocalBusinessSchema />
       <ServiceSchema />
-      <BreadcrumbSchema />
       <Header />
       <main className="w-full overflow-x-hidden">
 <HeroSection />

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/fetch-seo-files.mjs",
     "preview": "vite preview",
     "preview:spa": "vite build && vite preview --port 4173",
     "preview:no-spa": "vite build && npx --yes serve@14.2.4 -l 4174 dist"
@@ -16,8 +16,14 @@
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",
+    "@tiptap/extension-image": "^3.31.3",
+    "@tiptap/extension-link": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "dompurify": "^3.4.15",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.294.0",
     "radix-ui": "^1.4.3",

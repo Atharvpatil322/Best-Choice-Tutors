@@ -5,7 +5,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Seo from '@/components/Seo';
-import { BreadcrumbSchema } from '@/components/seo/index';
 import { BookOpen, GraduationCap } from 'lucide-react';
 
 function Policy() {
@@ -15,7 +14,6 @@ function Policy() {
         title="Platform Policy | Best Choice Tutors"
         description="Best Choice Tutors platform policy for learners and tutors. Learn about eligibility, bookings, payments, conduct, reviews, and privacy."
       />
-      <BreadcrumbSchema />
       <div className="space-y-8 max-w-4xl">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">Platform Policy</h1>

@@ -16,11 +16,18 @@ function buildApiUrl(path) {
 
 /**
  * Get active FAQs (public)
- * GET /api/faq
- * @returns {Promise<{ faqs: Array }>}
+ * GET /api/faq?subject=English
+ *
+ * Without a subject this returns the general set shown on the home page and the
+ * unfiltered tutor search. With one it returns only that subject's own FAQs,
+ * which may be an empty list - the two sets are never mixed.
+ *
+ * @param {string} [subject] - Canonical subject name, e.g. "English".
+ * @returns {Promise<{ faqs: Array, subject: string|null }>}
  */
-export const getActiveFaqs = async () => {
-  const response = await fetch(buildApiUrl("/faq"), {
+export const getActiveFaqs = async (subject) => {
+  const query = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+  const response = await fetch(buildApiUrl(`/faq${query}`), {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });
@@ -31,8 +38,9 @@ export const getActiveFaqs = async () => {
 
 /**
  * Get all FAQs (admin only)
- * GET /api/admin/faq?page=1&limit=50&isActive=true
- * @param {Object} [params] - Query params: page, limit, isActive
+ * GET /api/admin/faq?page=1&limit=50&isActive=true&subject=English
+ * @param {Object} [params] - Query params: page, limit, isActive, subject
+ *   (`subject` takes a canonical name, or "general" for untagged entries)
  * @returns {Promise<{ faqs: Array, pagination: Object }>}
  */
 export const getAllFaqsAdmin = async (params = {}) => {
@@ -43,6 +51,7 @@ export const getAllFaqsAdmin = async (params = {}) => {
   if (params.page) search.set("page", String(params.page));
   if (params.limit) search.set("limit", String(params.limit));
   if (params.isActive) search.set("isActive", params.isActive);
+  if (params.subject) search.set("subject", params.subject);
   const query = search.toString() ? `?${search.toString()}` : "";
 
   const response = await fetch(buildApiUrl(`/admin/faq${query}`), {

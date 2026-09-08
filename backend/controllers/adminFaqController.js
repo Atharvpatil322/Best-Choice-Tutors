@@ -6,11 +6,13 @@
 import FAQ from "../models/FAQ.js";
 import AdminAuditLog from "../models/AdminAuditLog.js";
 import mongoose from "mongoose";
+import { normalizeSubject } from "../constants/subjects.js";
 
 /**
  * POST /api/admin/faq
  * Admin only. Create a new FAQ entry.
- * Body: { question, answer, link?, order?, isActive? }
+ * Body: { question, answer, link?, order?, isActive?, subject? }
+ * `subject` is a canonical subject name, or omitted/blank for a general FAQ.
  */
 export async function createFaq(req, res, next) {
   try {
@@ -18,10 +20,15 @@ export async function createFaq(req, res, next) {
       return res.status(403).json({ message: "Access denied: Admin role required" });
     }
 
-    const { question, answer, link, order, isActive } = req.body;
+    const { question, answer, link, order, isActive, subject } = req.body;
 
     if (!question || !answer) {
       return res.status(400).json({ message: "Question and answer are required" });
+    }
+
+    const normalized = normalizeSubject(subject);
+    if (!normalized.ok) {
+      return res.status(400).json({ message: normalized.message });
     }
 
     const faqData = {
@@ -30,6 +37,7 @@ export async function createFaq(req, res, next) {
       link: link ? link.trim() : null,
       order: typeof order === "number" ? order : 0,
       isActive: typeof isActive === "boolean" ? isActive : true,
+      subject: normalized.subject,
       createdBy: req.user._id,
     };
 
@@ -40,7 +48,7 @@ export async function createFaq(req, res, next) {
       action: "FAQ_CREATED",
       entityType: "FAQ",
       entityId: faq._id,
-      metadata: { question: faq.question },
+      metadata: { question: faq.question, subject: faq.subject },
     });
 
     return res.status(201).json({ message: "FAQ created successfully", faq });
@@ -52,7 +60,9 @@ export async function createFaq(req, res, next) {
 /**
  * GET /api/admin/faq
  * Admin only. List all FAQs (including inactive).
- * Query params: page, limit, isActive
+ * Query params: page, limit, isActive, subject
+ * `subject` accepts a canonical subject name, or "general" for the entries that
+ * are not tied to a subject. Omit it to list every FAQ.
  */
 export async function getAllFaqs(req, res, next) {
   try {
@@ -62,15 +72,25 @@ export async function getAllFaqs(req, res, next) {
 
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
-    const { isActive } = req.query;
+    const { isActive, subject } = req.query;
 
     const filter = {};
     if (isActive === "true") filter.isActive = true;
     else if (isActive === "false") filter.isActive = false;
 
+    // An explicit "general" narrows to the untagged entries; documents created
+    // before subjects existed have no field at all, which null also matches.
+    if (subject !== undefined && subject !== "") {
+      const normalized = normalizeSubject(subject);
+      if (!normalized.ok) {
+        return res.status(400).json({ message: normalized.message });
+      }
+      filter.subject = normalized.subject;
+    }
+
     const [faqs, totalCount] = await Promise.all([
       FAQ.find(filter)
-        .select("question answer link order isActive createdAt updatedAt")
+        .select("question answer link order isActive subject createdAt updatedAt")
         .sort({ order: 1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -135,7 +155,7 @@ export async function updateFaq(req, res, next) {
       return res.status(404).json({ message: "FAQ not found" });
     }
 
-    const { question, answer, link, order, isActive } = req.body;
+    const { question, answer, link, order, isActive, subject } = req.body;
     const updateData = { updatedBy: req.user._id };
 
     if (question !== undefined) updateData.question = question.trim();
@@ -143,6 +163,13 @@ export async function updateFaq(req, res, next) {
     if (link !== undefined) updateData.link = link ? link.trim() : null;
     if (order !== undefined) updateData.order = order;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (subject !== undefined) {
+      const normalized = normalizeSubject(subject);
+      if (!normalized.ok) {
+        return res.status(400).json({ message: normalized.message });
+      }
+      updateData.subject = normalized.subject;
+    }
 
     const faq = await FAQ.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true }).lean();
 
@@ -151,7 +178,7 @@ export async function updateFaq(req, res, next) {
       action: "FAQ_UPDATED",
       entityType: "FAQ",
       entityId: faq._id,
-      metadata: { question: faq.question, isActive: faq.isActive },
+      metadata: { question: faq.question, isActive: faq.isActive, subject: faq.subject },
     });
 
     return res.status(200).json({ message: "FAQ updated successfully", faq });

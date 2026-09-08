@@ -11,6 +11,7 @@ import {
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
 import { BreadcrumbSchema } from '@/components/seo/index';
+import DedupeServerSeo from '@/components/seo/DedupeServerSeo';
 import LandingPage from '@/components/landing/LandingPage';
 import Login from '@/pages/auth/Login';
 import Register from '@/pages/auth/Register';
@@ -54,7 +55,7 @@ const BookingChat = lazy(() => import('@/pages/bookings/BookingChat'));
 const CreateTutorProfile = lazy(() => import('@/pages/tutor/CreateTutorProfile'));
 const TutorProfile = lazy(() => import('@/pages/tutor/TutorProfile'));
 const TutorMyProfile = lazy(() => import('@/pages/tutor/TutorMyProfile'));
-const TutorListing = lazy(() => import('@/pages/tutor/TutorListing'));
+const FindTutors = lazy(() => import('@/pages/tutor/FindTutors'));
 const BrowseTutors = lazy(() => import('@/pages/tutor/BrowseTutors'));
 const ManageAvailability = lazy(() => import('@/pages/tutor/ManageAvailability'));
 const TutorWallet = lazy(() => import('@/pages/tutor/TutorWallet'));
@@ -84,10 +85,13 @@ const AdminSupportTickets = lazy(() => import('@/pages/admin/AdminSupportTickets
 const AdminSupportTicketDetail = lazy(() => import('@/pages/admin/AdminSupportTicketDetail'));
 const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'));
 const AdminBlogManager = lazy(() => import('@/pages/admin/AdminBlogManager'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+const PseoLanding = lazy(() => import('@/pages/PseoLanding'));
 const AdminFaqManager = lazy(() => import('@/pages/admin/AdminFaqManager'));
 const AdminBenefitManager = lazy(() => import('@/pages/admin/AdminBenefitManager'));
 const AdminPopularSearchManager = lazy(() => import('@/pages/admin/AdminPopularSearchManager'));
-const AdminSeoManager = lazy(() => import('@/pages/admin/AdminSeoManager'));
+const AdminSeoTools = lazy(() => import('@/pages/admin/AdminSeoTools'));
+const AdminPagesManager = lazy(() => import('@/pages/admin/AdminPagesManager'));
 
 function RouteFallback() {
   return (
@@ -124,6 +128,7 @@ function AppRootLayout() {
     <>
       <AuthenticatedNavigationGuard />
       <BreadcrumbSchema />
+      <DedupeServerSeo />
       <Outlet />
     </>
   );
@@ -178,13 +183,23 @@ const router = createBrowserRouter([
       { path: '/contact', element: <Suspense fallback={<RouteFallback />}><Contact /></Suspense> },
 
       {
+        // Public: browsing tutors is open to everyone. Viewing a full profile and
+        // booking still require an account, handled inside the page.
         path: '/tutors',
         element: (
-          <ProtectedRoute>
-            <Suspense fallback={<RouteFallback />}>
-              <TutorListing />
-            </Suspense>
-          </ProtectedRoute>
+          <Suspense fallback={<RouteFallback />}>
+            <FindTutors />
+          </Suspense>
+        ),
+      },
+      {
+        // Subject results live at a readable path rather than a query string,
+        // e.g. /tutors/subject/english. Same page; the slug seeds the filter.
+        path: '/tutors/subject/:subjectSlug',
+        element: (
+          <Suspense fallback={<RouteFallback />}>
+            <FindTutors />
+          </Suspense>
         ),
       },
       {
@@ -253,7 +268,8 @@ const router = createBrowserRouter([
           { path: 'chat', element: <Suspense fallback={<RouteFallback />}><AdminChatViewer /></Suspense> },
           { path: 'audit-log', element: <Suspense fallback={<RouteFallback />}><AdminAuditLog /></Suspense> },
           { path: 'config', element: <Suspense fallback={<RouteFallback />}><AdminConfig /></Suspense> },
-          { path: 'seo', element: <Suspense fallback={<RouteFallback />}><AdminSeoManager /></Suspense> },
+          { path: 'seo', element: <Suspense fallback={<RouteFallback />}><AdminSeoTools /></Suspense> },
+          { path: 'pages', element: <Suspense fallback={<RouteFallback />}><AdminPagesManager /></Suspense> },
           { path: 'notifications', element: <Suspense fallback={<RouteFallback />}><AdminNotifications /></Suspense> },
           { path: 'reported-reviews', element: <Suspense fallback={<RouteFallback />}><AdminReportedReviews /></Suspense> },
           { path: 'blog', element: <Suspense fallback={<RouteFallback />}><AdminBlogManager /></Suspense> },
@@ -277,6 +293,10 @@ const router = createBrowserRouter([
         element: <Suspense fallback={<RouteFallback />}><BlogDetail /></Suspense>,
         errorElement: <AppRouterError />,
       },
+      // Anything unmatched. Generated landing pages live at arbitrary paths, so
+      // this asks for one first and shows the not-found screen when there is
+      // none - which is also what the server's 404 status reflects.
+      { path: '*', element: <Suspense fallback={<RouteFallback />}><PseoLanding /></Suspense> },
     ],
   },
 ]);
