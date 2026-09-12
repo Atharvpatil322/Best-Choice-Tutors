@@ -37,7 +37,7 @@ import { Star, Pencil, Save, X, MapPin, User, Trash2, Wallet, AlertCircle, Loade
 import '../../styles/Profile.css';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
 import { getMyAvailability } from '@/services/availabilityService';
-import { getTutorProfile, updateTutorProfile, createPayoutSetupLink } from '@/services/tutorProfileService';
+import { getTutorProfile, updateTutorProfile, createPayoutSetupLink, syncPayoutStatus } from '@/services/tutorProfileService';
 import { getMyReceivedReviews, reportReview as reportReviewApi } from '@/services/reviewService';
 import { forgotPassword } from '@/services/authService';
 import { toast } from 'sonner';
@@ -202,7 +202,9 @@ setLocation(
     }
   }, [normalizedRole]);
 
-  // Refetch profile when user returns to the tab (e.g. after Stripe Connect onboarding) so onboarding status updates from webhook
+  // Refetch profile when user returns to the tab (e.g. after Stripe Connect onboarding).
+  // If onboarding is still PENDING, also sync directly from Stripe as a fallback in case
+  // the account.updated webhook is delayed or was never delivered.
   useEffect(() => {
     const handleVisibility = async () => {
       if (document.visibilityState !== 'visible' || normalizedRole !== 'tutor' || !tutorProfile?.id) return;
@@ -210,6 +212,12 @@ setLocation(
         const profileData = await getTutorProfile();
         const tutor = profileData?.tutor;
         if (tutor) setTutorProfile(tutor);
+        if (tutor?.payout?.onboardingStatus === 'PENDING') {
+          const synced = await syncPayoutStatus().catch(() => null);
+          if (synced?.payout) {
+            setTutorProfile((prev) => (prev ? { ...prev, payout: synced.payout } : prev));
+          }
+        }
       } catch {
         // ignore refetch errors
       }
@@ -218,16 +226,16 @@ setLocation(
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [normalizedRole, tutorProfile?.id]);
 
-  // While onboarding is PENDING, poll for a short time so we pick up account.updated webhook after return from Stripe
+  // While onboarding is PENDING, poll for a short time, reconciling directly from Stripe
+  // (syncPayoutStatus) rather than relying solely on the account.updated webhook having arrived.
   const payoutStatus = tutorProfile?.payout?.onboardingStatus || 'NOT_STARTED';
   useEffect(() => {
     if (payoutStatus !== 'PENDING' || normalizedRole !== 'tutor' || !tutorProfile?.id) return;
     const interval = setInterval(async () => {
       try {
-        const profileData = await getTutorProfile();
-        const tutor = profileData?.tutor;
-        if (tutor && (tutor.payout?.onboardingStatus === 'COMPLETED' || tutor.payout?.onboardingStatus === 'FAILED')) {
-          setTutorProfile(tutor);
+        const synced = await syncPayoutStatus();
+        if (synced?.payout && (synced.payout.onboardingStatus === 'COMPLETED' || synced.payout.onboardingStatus === 'FAILED')) {
+          setTutorProfile((prev) => (prev ? { ...prev, payout: synced.payout } : prev));
         }
       } catch {
         // ignore

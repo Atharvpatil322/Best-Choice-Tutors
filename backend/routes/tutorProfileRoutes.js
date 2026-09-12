@@ -7,6 +7,7 @@ import {
   getTutorProfileStatus,
   updateMyTutorProfile,
   createPayoutSetupLink,
+  syncPayoutStatus,
 } from '../controllers/tutorController.js';
 import { getWallet } from '../controllers/tutorWalletController.js';
 import { getMyReceivedReviews, reportReview } from '../controllers/reviewController.js';
@@ -185,6 +186,9 @@ router.get('/wallet', authenticate, getWallet);
 
 // POST /api/tutor/payout-setup - Create Stripe Connect onboarding link; frontend redirects tutor to Stripe (tutor only)
 router.post('/payout-setup', authenticate, createPayoutSetupLink);
+
+// POST /api/tutor/payout-sync - Reconcile payout/onboarding status directly from Stripe (fallback if webhook is delayed/missed)
+router.post('/payout-sync', authenticate, syncPayoutStatus);
 
 // GET /api/tutor/reviews - List reviews received by the authenticated tutor (tutor only)
 router.get('/reviews', authenticate, getMyReceivedReviews);

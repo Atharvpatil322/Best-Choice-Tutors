@@ -3,7 +3,8 @@ import User from "../models/User.js";
 import Availability from "../models/Availability.js";
 import { validationResult } from "express-validator";
 import { normalizeSubjects, normalizeSubject } from "../utils/subjectUtils.js";
-import { createPayoutOnboardingLink } from "../services/stripeConnectService.js";
+import { createPayoutOnboardingLink, updateTutorFromStripeAccount } from "../services/stripeConnectService.js";
+import { retrieveConnectedAccount } from "../services/stripeService.js";
 import {
   uploadImage,
   presignProfilePhotoUrl,
@@ -979,5 +980,53 @@ export const createPayoutSetupLink = async (req, res, next) => {
         lastOnboardingError: message,
       },
     });
+  }
+};
+
+/**
+ * Reconcile Tutor's payout status directly from Stripe (bypasses reliance on the
+ * account.updated webhook). Used as a fallback when the tutor returns from Stripe
+ * onboarding, in case the webhook hasn't arrived/been processed yet.
+ * POST /api/tutor/payout-sync
+ */
+export const syncPayoutStatus = async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    if (user.role !== "Tutor") {
+      return res.status(403).json({ message: "Access denied: Tutor role required" });
+    }
+
+    const tutor = await Tutor.findOne({ userId: user._id }).lean();
+    if (!tutor) {
+      return res.status(404).json({ message: "Tutor profile not found" });
+    }
+    if (!tutor.stripeAccountId) {
+      return res.status(200).json({
+        payout: {
+          onboardingStatus: tutor.stripeOnboardingStatus || "NOT_STARTED",
+          lastOnboardingError: tutor.lastOnboardingError || null,
+          chargesEnabled: !!tutor.chargesEnabled,
+          payoutsEnabled: !!tutor.payoutsEnabled,
+        },
+      });
+    }
+
+    const account = await retrieveConnectedAccount(tutor.stripeAccountId);
+    const updated = await updateTutorFromStripeAccount(account);
+
+    return res.status(200).json({
+      payout: {
+        onboardingStatus: updated?.stripeOnboardingStatus || "NOT_STARTED",
+        lastOnboardingError: updated?.lastOnboardingError || null,
+        chargesEnabled: !!updated?.chargesEnabled,
+        payoutsEnabled: !!updated?.payoutsEnabled,
+      },
+    });
+  } catch (err) {
+    console.error("Payout sync error:", { message: err?.message });
+    next(err);
   }
 };

@@ -64,6 +64,31 @@ export const createPayoutSetupLink = async () => {
 };
 
 /**
+ * Reconcile payout/onboarding status directly from Stripe (fallback for when the
+ * account.updated webhook is delayed or missed).
+ * POST /api/tutor/payout-sync
+ * @returns {Promise<{ payout: Object }>}
+ */
+export const syncPayoutStatus = async () => {
+  const token = getAuthToken();
+  if (!token) throw new Error("Authentication required");
+
+  const response = await fetch(`${API_BASE_URL}/tutor/payout-sync`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to sync payout status");
+  }
+  return data;
+};
+
+/**
  * Lightweight check: does the tutor have a Tutor profile document?
  * GET /api/tutor/profile/status — for sidebar "complete your profile" indicator.
  * @returns {Promise<{ hasProfile: boolean }>}
