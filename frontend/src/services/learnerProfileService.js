@@ -37,6 +37,29 @@ export const getLearnerProfile = async () => {
 };
 
 /**
+ * Lightweight check: does the learner still need to fill in important profile details?
+ * GET /api/learner/profile/status — for header/sidebar dot indicator.
+ * @returns {Promise<{ needsProfileSetup: boolean }>}
+ */
+export const getLearnerProfileStatus = async () => {
+  const token = getAuthToken();
+  if (!token) return { needsProfileSetup: false };
+
+  const response = await fetch(`${API_BASE_URL}/learner/profile/status`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) return { needsProfileSetup: false };
+
+  return { needsProfileSetup: !!data.needsProfileSetup };
+};
+
+/**
  * Update authenticated learner's profile
  * FR-4.1.1, FR-4.1.2, UC-4.1, UC-4.2: Update basic details and learning preferences
  * @param {Object} profileData - { name?, phone?: { countryCode?, number? }, profilePhoto? (File), gradeLevel?, subjectsOfInterest? (array) }

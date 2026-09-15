@@ -169,9 +169,6 @@ function TutorVerificationDocuments() {
       <div className="container mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Verification Documents</h1>
-          <Button variant="outline" onClick={() => navigate('/tutor')}>
-            Back to dashboard
-          </Button>
         </div>
 
         {error && (

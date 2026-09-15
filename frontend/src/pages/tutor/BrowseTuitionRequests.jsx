@@ -5,7 +5,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getActiveTuitionRequestsForTutor, expressInterest } from '@/services/tuitionRequestService';
@@ -22,7 +21,6 @@ function formatPostedDate(iso) {
 }
 
 function BrowseTuitionRequests() {
-  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessError, setAccessError] = useState(null);
@@ -77,13 +75,6 @@ function BrowseTuitionRequests() {
             Requests matching your subjects. Express interest to get in touch with learners.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate('/tutor')}
-          className="rounded-xl border-slate-200 text-[#1A365D] hover:bg-slate-50 shrink-0"
-        >
-          Back to dashboard
-        </Button>
       </div>
 
       {loading && (

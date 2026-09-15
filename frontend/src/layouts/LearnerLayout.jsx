@@ -6,11 +6,12 @@
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { Outlet, NavLink, useNavigate, Link, Navigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedHomePath, getCurrentRole, getStoredUser, logout } from '@/services/authService';
 import { getNotifications, markAllNotificationsRead } from '@/services/notificationService';
+import { getLearnerProfileStatus } from '@/services/learnerProfileService';
 import {
   LayoutDashboard,
   Calendar,
@@ -49,10 +50,12 @@ const logoImage = localImageUrl('images/BCT_Logo.png');
 
 function LearnerLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = getStoredUser();
   const role = getCurrentRole();
   const isLearner = typeof role === 'string' && role.toLowerCase() === 'learner';
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -99,6 +102,21 @@ function LearnerLayout() {
   useEffect(() => {
     if (notificationsOpen && isLearner) fetchNotifications(true);
   }, [notificationsOpen, isLearner, fetchNotifications]);
+
+  // Flags the profile icon until the learner fills in their important profile details; re-checked
+  // on route change so the dot clears right after saving without needing a manual refresh.
+  useEffect(() => {
+    if (!isLearner) return;
+    let cancelled = false;
+    getLearnerProfileStatus()
+      .then(({ needsProfileSetup: needsSetup }) => {
+        if (!cancelled) setNeedsProfileSetup(needsSetup);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isLearner, location.pathname]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -202,14 +220,23 @@ function LearnerLayout() {
           <Link
             to="/dashboard/profile"
             className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 hover:opacity-90 transition-opacity min-w-0"
-            aria-label="Go to my profile"
+            aria-label={needsProfileSetup ? 'Go to my profile — details missing' : 'Go to my profile'}
           >
-            <ProfileAvatar
-              src={user?.profilePhoto || headerProfilePhoto}
-              alt="Profile"
-              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0 border-2 border-gray-100"
-              iconClassName="h-4 w-4 sm:h-5 sm:w-5"
-            />
+            <div className="relative shrink-0">
+              <ProfileAvatar
+                src={user?.profilePhoto || headerProfilePhoto}
+                alt="Profile"
+                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0 border-2 border-gray-100"
+                iconClassName="h-4 w-4 sm:h-5 sm:w-5"
+              />
+              {needsProfileSetup && (
+                <span
+                  className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-amber-400 border-2 border-white"
+                  title="Complete your profile details"
+                  aria-hidden
+                />
+              )}
+            </div>
             <div className="hidden md:block text-left min-w-0">
               <p className="text-sm font-bold text-[#1A365D] leading-none truncate max-w-[120px] lg:max-w-none">{user?.name || 'Learner'}</p>
             </div>
@@ -247,6 +274,7 @@ function LearnerLayout() {
           <nav className="flex-1 px-4 space-y-1 mt-4 lg:mt-8 overflow-y-auto">
             {SIDEBAR_ITEMS.map((item) => {
               const Icon = item.icon;
+              const showProfileDot = item.to === '/dashboard/profile' && needsProfileSetup;
               return (
                 <NavLink
                   key={item.to}
@@ -263,7 +291,10 @@ function LearnerLayout() {
                   }
                 >
                   <Icon size={18} className="shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {showProfileDot && (
+                    <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" title="Complete your profile details" aria-hidden />
+                  )}
                 </NavLink>
               );
             })}

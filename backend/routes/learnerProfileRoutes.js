@@ -2,7 +2,7 @@ import express from 'express';
 import { body } from 'express-validator';
 import { authenticate } from '../middlewares/auth.js';
 import { upload } from '../middlewares/upload.js';
-import { getProfile, updateProfile } from '../controllers/learnerProfileController.js';
+import { getProfile, updateProfile, getProfileStatus } from '../controllers/learnerProfileController.js';
 import { getMySubmittedReviews } from '../controllers/reviewController.js';
 
 const router = express.Router();
@@ -61,6 +61,9 @@ router.use(authenticate);
 
 // GET /api/learner/profile - Get learner profile
 router.get('/profile', getProfile);
+
+// GET /api/learner/profile/status - Lightweight { needsProfileSetup } for header/sidebar indicator
+router.get('/profile/status', getProfileStatus);
 
 // GET /api/learner/reviews - Get reviews submitted by the learner (learner only)
 router.get('/reviews', getMySubmittedReviews);

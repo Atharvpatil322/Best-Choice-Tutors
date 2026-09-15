@@ -51,6 +51,38 @@ export const getProfile = async (req, res, next) => {
 };
 
 /**
+ * Lightweight check: has the learner filled in the important profile details?
+ * GET /api/learner/profile/status — for header/sidebar dot indicator.
+ */
+export const getProfileStatus = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'Learner') {
+      return res.status(403).json({ message: 'This endpoint is only accessible to Learners' });
+    }
+
+    const user = await User.findById(req.user._id).select(
+      'phone dob gradeLevel subjectsOfInterest instituteName learningGoal'
+    );
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const needsProfileSetup = !(
+      user.phone?.number &&
+      user.dob &&
+      user.gradeLevel &&
+      user.subjectsOfInterest?.length > 0 &&
+      user.instituteName &&
+      user.learningGoal
+    );
+
+    res.json({ needsProfileSetup });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Update learner profile
  * FR-4.1.1: Update basic details (Name, Profile Picture, Phone Number)
  * FR-4.1.2: Update learning preferences (Grade Level, Subjects of Interest)

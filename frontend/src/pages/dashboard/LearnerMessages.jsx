@@ -110,13 +110,6 @@ function LearnerMessages() {
             Open a conversation with a tutor for a paid or completed booking
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate('/dashboard/bookings')}
-          className="rounded-lg w-full sm:w-auto shrink-0"
-        >
-          My Bookings
-        </Button>
       </div>
 
       <Card className="rounded-2xl border-gray-100 shadow-sm mt-6">

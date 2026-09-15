@@ -574,7 +574,7 @@ export const getTutorProfileStatus = async (req, res, next) => {
       return res.status(403).json({ message: "Tutor only" });
     }
     const tutor = await Tutor.findOne({ userId: user._id })
-      .select("_id profilePhoto")
+      .select("_id profilePhoto payoutsEnabled stripeOnboardingStatus")
       .lean();
     const profilePhoto = await presignProfilePhotoUrl(
       tutor?.profilePhoto ?? null,
@@ -582,6 +582,8 @@ export const getTutorProfileStatus = async (req, res, next) => {
     res.json({
       hasProfile: !!tutor,
       profilePhoto,
+      // Payout setup isn't done until Stripe actually enables payouts, not just when onboarding starts.
+      needsPayoutSetup: !!tutor && !tutor.payoutsEnabled,
     });
   } catch (error) {
     next(error);

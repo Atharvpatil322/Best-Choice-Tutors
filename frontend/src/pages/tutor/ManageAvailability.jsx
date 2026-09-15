@@ -177,6 +177,7 @@ function ManageAvailability() {
       }
 
       setHasExistingAvailability(true);
+      navigate('/tutor/profile');
     } catch (err) {
       console.error('Availability save error:', err);
       let errorMessage = 'Could not save availability.';

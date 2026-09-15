@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser, getAuthenticatedHomePath, logout } from '@/services/authService';
 import { getNotifications, markAllNotificationsRead } from '@/services/notificationService';
+import { getTutorProfileStatus } from '@/services/tutorProfileService';
 import {
   LayoutDashboard,
   Calendar,
@@ -55,7 +56,7 @@ function TutorLayout() {
   const isTutor = typeof role === 'string' && role.toLowerCase() === 'tutor';
   const isLearner = typeof role === 'string' && role.toLowerCase() === 'learner';
   const isCreatePath = location.pathname === '/tutor/create' || location.pathname.startsWith('/tutor/create/');
-  const [hasProfile] = useState(true); // no layout API; assume complete
+  const [needsPayoutSetup, setNeedsPayoutSetup] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -94,6 +95,21 @@ function TutorLayout() {
   useEffect(() => {
     if (notificationsOpen && isTutor) fetchNotifications(true);
   }, [notificationsOpen, isTutor, fetchNotifications]);
+
+  // Flags the profile icon until the tutor completes Stripe payout onboarding; re-checked on route
+  // change so the dot clears right after onboarding without needing a manual refresh.
+  useEffect(() => {
+    if (!isTutor) return;
+    let cancelled = false;
+    getTutorProfileStatus()
+      .then(({ needsPayoutSetup: needsSetup }) => {
+        if (!cancelled) setNeedsPayoutSetup(needsSetup);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isTutor, location.pathname]);
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {
@@ -228,14 +244,23 @@ function TutorLayout() {
           <Link
             to="/tutor/profile"
             className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 hover:opacity-90 transition-opacity min-w-0"
-            aria-label="Go to my profile"
+            aria-label={needsPayoutSetup ? 'Go to my profile — payout setup needed' : 'Go to my profile'}
           >
-            <ProfileAvatar
-              src={user?.profilePhoto}
-              alt="Profile"
-              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0"
-              iconClassName="h-4 w-4 sm:h-5 sm:w-5"
-            />
+            <div className="relative shrink-0">
+              <ProfileAvatar
+                src={user?.profilePhoto}
+                alt="Profile"
+                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover shrink-0"
+                iconClassName="h-4 w-4 sm:h-5 sm:w-5"
+              />
+              {needsPayoutSetup && (
+                <span
+                  className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-amber-400 border-2 border-white"
+                  title="Complete payout setup to get paid"
+                  aria-hidden
+                />
+              )}
+            </div>
             <div className="hidden md:block text-left min-w-0">
               <p className="text-sm font-bold text-[#1A365D] leading-none truncate max-w-[120px] lg:max-w-none">{user?.name || 'Tutor'}</p>
             </div>
@@ -271,7 +296,7 @@ function TutorLayout() {
           <nav className="flex-1 px-4 space-y-1 mt-4 lg:mt-8 overflow-y-auto">
             {SIDEBAR_ITEMS.map((item) => {
               const Icon = item.icon;
-              const showProfileDot = item.to === '/tutor/profile' && !hasProfile;
+              const showProfileDot = item.to === '/tutor/profile' && needsPayoutSetup;
               return (
                 <NavLink
                   key={item.to}
@@ -288,7 +313,7 @@ function TutorLayout() {
                   <Icon size={18} className="shrink-0" />
                   <span className="flex-1 truncate">{item.label}</span>
                   {showProfileDot && (
-                    <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" title="Complete your tutor profile" aria-hidden />
+                    <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" title="Complete payout setup to get paid" aria-hidden />
                   )}
                 </NavLink>
               );

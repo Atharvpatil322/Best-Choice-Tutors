@@ -80,7 +80,6 @@ return (
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#1A365D]">My tuition requests</h1>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-xl border-slate-200">Dashboard</Button>
           <Button onClick={() => navigate('/dashboard/tuition-requests/new')} className="bg-[#3B82F6] hover:bg-blue-600 text-white rounded-xl px-6">
             <Plus size={18} className="mr-2" /> New request
           </Button>

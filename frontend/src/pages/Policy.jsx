@@ -14,7 +14,7 @@ function Policy() {
         title="Platform Policy | Best Choice Tutors"
         description="Best Choice Tutors platform policy for learners and tutors. Learn about eligibility, bookings, payments, conduct, reviews, and privacy."
       />
-      <div className="space-y-8 max-w-4xl">
+      <div className="space-y-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#1A365D]">Platform Policy</h1>
           <p className="text-slate-600 mt-1">

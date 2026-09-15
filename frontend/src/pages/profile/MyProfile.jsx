@@ -365,6 +365,20 @@ function MyProfile() {
   const Placeholder = ({ text }) => (
     <span className="text-muted-foreground italic">{text || 'Not provided'}</span>
   );
+  // Flags fields the header/sidebar "profile incomplete" dot is based on (see getLearnerProfileStatus)
+  const RequiredTag = () => (
+    <span className="ml-2 align-middle inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+      Good to have
+    </span>
+  );
+  const missingPhone = isEditing ? !formData.phone.number : !profile?.phone?.number;
+  const missingDob = isEditing ? !formData.dob : !profile?.dob;
+  const missingGradeLevel = isEditing ? !formData.gradeLevel : !profile?.learningPreferences?.gradeLevel;
+  const missingSubjects = isEditing
+    ? (formData.subjectsOfInterest?.length ?? 0) === 0
+    : (profile?.learningPreferences?.subjectsOfInterest?.length ?? 0) === 0;
+  const missingInstituteName = isEditing ? !formData.instituteName : !profile?.learningPreferences?.instituteName;
+  const missingLearningGoal = isEditing ? !formData.learningGoal : !profile?.learningPreferences?.learningGoal;
   const EmptyField = () => (
     <span className="text-muted-foreground italic">Not added yet. Update in Edit Profile.</span>
   );
@@ -510,13 +524,13 @@ return (
             ) : <p>{profile?.preferredLanguage || 'English'}</p>}
           </div>
           <div className="info-block">
-            <Label>Date of Birth</Label>
+            <Label>Date of Birth{missingDob && <RequiredTag />}</Label>
             {isEditing ? (
               <Input name="dob" type="date" value={formData.dob} onChange={handleInputChange} className="mt-1" />
             ) : <p>{formatDob(profile?.dob) || 'Not set'}</p>}
           </div>
           <div className="info-block">
-            <Label>Phone Number</Label>
+            <Label>Phone Number{missingPhone && <RequiredTag />}</Label>
             {isEditing ? (
                <div className="flex flex-col gap-2 mt-1 sm:flex-row sm:items-stretch min-w-0">
                   <CountryCodePicker
@@ -550,13 +564,13 @@ return (
         </div>
         <div className="section-grid">
           <div className="info-block">
-            <Label>Current School</Label>
+            <Label>Current School{missingInstituteName && <RequiredTag />}</Label>
             {isEditing ? (
               <Input name="instituteName" value={formData.instituteName} onChange={handleInputChange} className="mt-1" />
             ) : <p>{profile?.learningPreferences?.instituteName || 'Not set'}</p>}
           </div>
           <div className="info-block col-span-2">
-            <Label>Subjects of Interest</Label>
+            <Label>Subjects of Interest{missingSubjects && <RequiredTag />}</Label>
             {isEditing ? (
               <div className="mt-2">
                 <SubjectSelector
@@ -576,7 +590,7 @@ return (
             ) : <p>{profile?.learningPreferences?.subjectsOfInterest?.join(', ') || 'Not set'}</p>}
           </div>
           <div className="info-block">
-            <Label>Grade Level</Label>
+            <Label>Grade Level{missingGradeLevel && <RequiredTag />}</Label>
             {isEditing ? (
               <Select value={formData.gradeLevel || GRADE_NONE} onValueChange={handleGradeLevelChange}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -587,7 +601,7 @@ return (
             ) : <p>{profile?.learningPreferences?.gradeLevel || 'Not set'}</p>}
           </div>
           <div className="info-block col-span-2">
-            <Label>Learning Goal</Label>
+            <Label>Learning Goal{missingLearningGoal && <RequiredTag />}</Label>
             {isEditing ? (
               <textarea 
                 name="learningGoal" 

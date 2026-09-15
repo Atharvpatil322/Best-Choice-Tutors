@@ -119,9 +119,6 @@ function TutorWallet() {
       <div className="container mx-auto max-w-4xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold">Wallet</h1>
-          <Button variant="outline" onClick={() => navigate('/tutor')}>
-            Dashboard
-          </Button>
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

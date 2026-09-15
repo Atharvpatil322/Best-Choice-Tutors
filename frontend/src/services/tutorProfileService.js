@@ -95,7 +95,7 @@ export const syncPayoutStatus = async () => {
  */
 export const getTutorProfileStatus = async () => {
   const token = getAuthToken();
-  if (!token) return { hasProfile: false };
+  if (!token) return { hasProfile: false, needsPayoutSetup: false };
   const response = await fetch(`${API_BASE_URL}/tutor/profile/status`, {
     method: "GET",
     headers: {
@@ -104,10 +104,11 @@ export const getTutorProfileStatus = async () => {
     },
   });
   const data = await response.json();
-  if (!response.ok) return { hasProfile: false, profilePhoto: null };
+  if (!response.ok) return { hasProfile: false, profilePhoto: null, needsPayoutSetup: false };
   return {
     hasProfile: !!data.hasProfile,
     profilePhoto: data.profilePhoto ?? null,
+    needsPayoutSetup: !!data.needsPayoutSetup,
   };
 };
 

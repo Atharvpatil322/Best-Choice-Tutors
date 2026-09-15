@@ -990,13 +990,29 @@ setLocation(
         </Card>
 
         {/* Payout Details – Stripe Connect Express onboarding (Stripe hosts KYC + bank details) */}
-        <Card className="profile-section-card min-w-0">
+        <Card
+          className={`profile-section-card min-w-0 ${
+            payoutStatus !== 'COMPLETED'
+              ? 'border-amber-300 ring-1 ring-amber-200 dark:border-amber-800 dark:ring-amber-900/40'
+              : ''
+          }`}
+        >
           <div className="section-header">
             <h3 className="flex items-center gap-2">
               <Wallet size={18} className="shrink-0" />
               Payout Details
+              {payoutStatus !== 'COMPLETED' && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  Pending
+                </span>
+              )}
             </h3>
           </div>
+          {payoutStatus !== 'COMPLETED' && (
+            <p className="px-6 pb-2 text-sm text-amber-800 dark:text-amber-300">
+              One last step before you can get paid — set up your payout details to start receiving earnings.
+            </p>
+          )}
           <CardDescription className="px-6 pb-2 text-sm text-muted-foreground">
             Complete payout setup with Stripe to receive earnings. You will be redirected to Stripe to add your details; no bank details are stored on this site.
           </CardDescription>
@@ -1065,13 +1081,31 @@ setLocation(
         </Card>
 
         {/* Availability Summary – same section card pattern as Learner */}
-        <Card className="profile-section-card min-w-0">
+        <Card
+          className={`profile-section-card min-w-0 ${
+            availabilitySummary.weeklyRules.length === 0
+              ? 'border-amber-300 ring-1 ring-amber-200 dark:border-amber-800 dark:ring-amber-900/40'
+              : ''
+          }`}
+        >
           <div className="section-header">
-            <h3>Availability</h3>
+            <h3 className="flex items-center gap-2">
+              Availability
+              {availabilitySummary.weeklyRules.length === 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  Pending
+                </span>
+              )}
+            </h3>
             <Button variant="outline" size="sm" onClick={() => navigate('/tutor/availability')}>
               Manage Availability
             </Button>
           </div>
+          {availabilitySummary.weeklyRules.length === 0 && (
+            <p className="pb-2 text-sm text-amber-800 dark:text-amber-300">
+              Set your weekly availability so learners can find and book time with you.
+            </p>
+          )}
           <div className="section-grid">
             <div className="info-block">
               <Label>Timezone</Label>

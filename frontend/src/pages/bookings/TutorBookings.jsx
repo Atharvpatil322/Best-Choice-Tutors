@@ -99,9 +99,6 @@ function TutorBookings() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">View your scheduled sessions with learners</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/tutor')} className="rounded-lg shrink-0">
-          Dashboard
-        </Button>
       </div>
 
       <Card className="rounded-2xl border-gray-100 shadow-sm mt-6 overflow-hidden">
