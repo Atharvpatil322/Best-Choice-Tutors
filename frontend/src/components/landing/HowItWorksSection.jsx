@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   Bell,
+  Wallet,
   Banknote,
   GraduationCap,
   Briefcase,
@@ -88,12 +89,19 @@ const TUTOR_STEPS = [
   },
   {
     step: 5,
+    icon: Wallet,
+    title: 'Connect your payout account',
+    description:
+      'Set up secure payouts with Stripe in just a few minutes. This one-time step is what unlocks getting paid, so complete it early to make sure your earnings reach you without delay.',
+  },
+  {
+    step: 6,
     icon: Bell,
     title: 'Receive bookings',
     description: 'Learners find you and book sessions. You get notified and can manage bookings in your dashboard.',
   },
   {
-    step: 6,
+    step: 7,
     icon: Banknote,
     title: 'Deliver sessions & get paid',
     description:
