@@ -74,7 +74,43 @@ services:
         sync: false
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false
+    # Order matters: Render applies the first matching rule.
+    #
+    # The build pre-renders one ready-made HTML file per public route, each
+    # carrying its own title, description and canonical. Without the explicit
+    # rules below, the catch-all rewrote every URL to the homepage shell, so
+    # those files were built and never served - and every page told crawlers
+    # its canonical was the homepage, which invites search engines to drop the
+    # page as a duplicate. Anything that does not run JavaScript, including
+    # social link previews, saw the homepage title on every page.
+    #
+    # Each source matches that exact path only, so /blog/<slug> and every other
+    # dynamic route still falls through to the SPA shell at the end.
+    # Keep this list in step with the `routes` array in vite.config.js.
     routes:
+      - type: rewrite
+        source: /about
+        destination: /about/index.html
+      - type: rewrite
+        source: /contact
+        destination: /contact/index.html
+      - type: rewrite
+        source: /how-it-works
+        destination: /how-it-works/index.html
+      - type: rewrite
+        source: /privacy
+        destination: /privacy/index.html
+      - type: rewrite
+        source: /terms
+        destination: /terms/index.html
+      - type: rewrite
+        source: /blog
+        destination: /blog/index.html
+      - type: rewrite
+        source: /tutors
+        destination: /tutors/index.html
+      # Everything else - dynamic routes, signed-in areas, unknown paths - is
+      # handled by the single-page app.
       - type: rewrite
         source: /*
         destination: /index.html
