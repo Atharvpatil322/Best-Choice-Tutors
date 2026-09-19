@@ -243,7 +243,7 @@ function TutorResultCard({ tutor, onView, onBook }) {
           </Button>
           <Button
             type="button"
-            className="flex-1 h-8 px-2 text-xs bg-[#4F46E5] hover:bg-[#4338CA] text-white"
+            className="flex-1 h-8 px-2 text-xs bg-[#4FD1C5] hover:bg-[#38B2AC] text-white"
             onClick={() => onBook(tutor)}
           >
             Book Tutor

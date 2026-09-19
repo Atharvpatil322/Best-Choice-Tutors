@@ -72,16 +72,27 @@ export default defineConfig({
     devSeoHtml(),
     vitePrerender({
       staticDir: path.resolve(__dirname, 'dist'),
+      // Public routes worth serving as ready-made HTML. Each one must exist in
+      // App.jsx and be listed in render.yaml, or the file is built and never
+      // served. '/policy' and '/privacy-policy' used to be here and are neither
+      // routes nor linked anywhere; the real page is '/privacy'.
       routes: [
         '/',
         '/about',
         '/contact',
-        '/policy',
-        '/privacy-policy',
-        '/terms',
         '/how-it-works',
+        '/privacy',
+        '/terms',
         '/blog',
+        '/tutors',
       ],
+      // Snapshot only once React has mounted and Helmet has written the title,
+      // description and canonical. The renderer otherwise captures on network
+      // idle, which can land before the page's own SEO API call resolves - and
+      // a page captured too early ships with the raw template title and no
+      // canonical at all, which is worse than having no prerendered file.
+      // Generous on purpose: this runs once per deploy, not per request.
+      renderAfterTime: 6000,
       minify: {
         collapseWhitespace: true,
         removeComments: true,
