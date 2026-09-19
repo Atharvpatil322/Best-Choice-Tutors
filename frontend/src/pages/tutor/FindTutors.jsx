@@ -243,7 +243,12 @@ function TutorResultCard({ tutor, onView, onBook }) {
           </Button>
           <Button
             type="button"
-            className="flex-1 h-8 px-2 text-xs bg-[#4FD1C5] hover:bg-[#38B2AC] text-white"
+            // Same red as "Book a Tutor" in the header (--button-red), which
+            // dims on hover rather than switching to a second shade. The
+            // hover background is restated because the Button component's
+            // default variant carries hover:bg-primary/90 - without it, the
+            // button turns blue on hover.
+            className="flex-1 h-8 px-2 text-xs bg-[#FF6B6B] hover:bg-[#FF6B6B] hover:opacity-90 text-white"
             onClick={() => onBook(tutor)}
           >
             Book Tutor
@@ -334,7 +339,7 @@ function FilterPanel({ draft, setDraft, toggleInDraft, onApply, onClearAll }) {
           step={5}
           value={draft.maxPrice}
           onChange={(event) => setDraft({ ...draft, maxPrice: Number(event.target.value) })}
-          className="w-full accent-[#4F46E5]"
+          className="w-full accent-[#1A365D]"
           aria-label="Maximum hourly rate"
         />
         <div className="flex justify-between text-[11px] text-slate-500 mt-1">
@@ -394,7 +399,7 @@ function FilterPanel({ draft, setDraft, toggleInDraft, onApply, onClearAll }) {
       <Button
         type="button"
         onClick={onApply}
-        className="w-full h-9 text-sm bg-[#4F46E5] hover:bg-[#4338CA] text-white"
+        className="w-full h-9 text-sm bg-[#1A365D] hover:bg-[#0F172A] text-white"
       >
         <SlidersHorizontal className="h-4 w-4 mr-1.5" aria-hidden />
         Apply Filters
@@ -641,7 +646,7 @@ export default function FindTutors() {
 
                   <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1A365D] tracking-tight leading-tight">
                     Find Your <br className="hidden sm:block" />
-                    <span className="text-[#4F46E5]">Perfect Tutor</span>
+                    <span className="text-[#1A365D]">Perfect Tutor</span>
                   </h1>
 
                   <p className="mt-3 text-sm text-slate-600 max-w-md">
@@ -788,7 +793,7 @@ export default function FindTutors() {
                             aria-current={number === page ? 'page' : undefined}
                             className={`h-9 w-9 rounded-lg text-sm font-medium border ${
                               number === page
-                                ? 'bg-[#4F46E5] border-[#4F46E5] text-white'
+                                ? 'bg-[#1A365D] border-[#1A365D] text-white'
                                 : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                             }`}
                           >
