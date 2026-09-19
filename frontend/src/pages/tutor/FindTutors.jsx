@@ -277,7 +277,7 @@ function FilterPanel({ draft, setDraft, toggleInDraft, onApply, onClearAll }) {
         <button
           type="button"
           onClick={onClearAll}
-          className="text-xs text-[#4F46E5] hover:text-[#4338CA] font-medium"
+          className="text-xs text-[#1A365D] hover:text-[#0F172A] font-medium"
         >
           Clear all
         </button>
