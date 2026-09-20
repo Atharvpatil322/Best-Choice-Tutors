@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Heart,
   Loader2,
@@ -412,6 +412,7 @@ export default function FindTutors() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { subjectSlug } = useParams();
+  const { pathname } = useLocation();
 
   // The subject lives in the path (/tutors/subject/english), so the URL reads
   // as a page rather than a query. Everything else stays a query parameter,
@@ -466,7 +467,13 @@ export default function FindTutors() {
 
   const [tutors, setTutors] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 0, totalCount: 0 });
-  const [page, setPage] = useState(1);
+
+  // The page number lives in the URL rather than in component state, so each
+  // page is its own history entry and the browser Back button steps back
+  // through the pages actually visited. Held in state, Back would leave the
+  // page entirely and any link to page 4 would open on page 1.
+  const pageParam = Number(searchParams.get('page'));
+  const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
   const [sort, setSort] = useState('best');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -486,7 +493,6 @@ export default function FindTutors() {
     });
     setDraft(withUrlSubject);
     setApplied(withUrlSubject);
-    setPage(1);
   }, [urlSubject, appliedSubject]);
 
   const fetchTutors = useCallback(async () => {
@@ -571,15 +577,34 @@ export default function FindTutors() {
     const query = new URLSearchParams(searchParams);
     // The subject is no longer a parameter; drop any left by an older link.
     query.delete('subject');
+    // Changing the filters changes what the results are, so start again at the
+    // first page rather than landing on a page number that may no longer exist.
+    query.delete('page');
     if (filters.genders.length === 1) query.set('gender', filters.genders[0]);
     else query.delete('gender');
     const search = query.toString();
     return `${tutorSearchPath(filters.subjects[0])}${search ? `?${search}` : ''}`;
   };
 
+  /**
+   * Move to a page, adding a history entry so Back returns to the previous one.
+   * Page 1 is written as a bare URL rather than "?page=1", keeping the common
+   * case clean and giving each page a single address.
+   *
+   * @param {number} next - 1-based page number.
+   */
+  const goToPage = (next) => {
+    const target = Math.min(Math.max(1, next), Math.max(1, pagination.totalPages));
+    if (target === page) return;
+    const query = new URLSearchParams(searchParams);
+    if (target > 1) query.set('page', String(target));
+    else query.delete('page');
+    const search = query.toString();
+    navigate(`${pathname}${search ? `?${search}` : ''}`);
+  };
+
   const handleApply = () => {
     setApplied(draft);
-    setPage(1);
     setFiltersOpen(false);
     navigate(urlForFilters(draft), { replace: true });
   };
@@ -594,7 +619,6 @@ export default function FindTutors() {
     };
     setDraft(cleared);
     setApplied(cleared);
-    setPage(1);
     navigate(urlForFilters(cleared), { replace: true });
   };
 
@@ -771,7 +795,7 @@ export default function FindTutors() {
                     >
                       <button
                         type="button"
-                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        onClick={() => goToPage(page - 1)}
                         disabled={page === 1}
                         className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-500 disabled:opacity-40 flex items-center justify-center"
                         aria-label="Previous page"
@@ -789,7 +813,7 @@ export default function FindTutors() {
                           <button
                             key={number}
                             type="button"
-                            onClick={() => setPage(number)}
+                            onClick={() => goToPage(number)}
                             aria-current={number === page ? 'page' : undefined}
                             className={`h-9 w-9 rounded-lg text-sm font-medium border ${
                               number === page
@@ -803,7 +827,7 @@ export default function FindTutors() {
                       <button
                         type="button"
                         onClick={() =>
-                          setPage((current) => Math.min(pagination.totalPages, current + 1))
+                          goToPage(page + 1)
                         }
                         disabled={page === pagination.totalPages}
                         className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-500 disabled:opacity-40 flex items-center justify-center"
