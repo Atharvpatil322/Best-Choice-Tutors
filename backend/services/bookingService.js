@@ -149,6 +149,29 @@ export const createBookingForSlot = async ({
     throw new BookingError('Tutor not found', 404);
   }
 
+  // Reject slots that are already in the past, independent of whatever the
+  // client's UI showed (a direct API call could otherwise request any date).
+  const slotDateTime = new Date(`${date}T${startTime}:00`);
+  if (Number.isNaN(slotDateTime.getTime()) || slotDateTime <= new Date()) {
+    throw new BookingError('Booking date and time must be in the future', 400);
+  }
+
+  // Reject slots the tutor never made available, independent of whatever the
+  // client's UI showed (mirrors the same guard in rescheduleBooking).
+  const availability = await Availability.findOne({ tutorId });
+  if (!availability) {
+    throw new BookingError(
+      'Tutor has not set availability. Cannot book this slot.',
+      400
+    );
+  }
+  if (!isSlotWithinAvailability(availability, date, startTime, endTime)) {
+    throw new BookingError(
+      "The selected time slot is not within the tutor's availability",
+      400
+    );
+  }
+
   let agreedHourlyRateBase = Number(tutor.hourlyRate);
   let tuitionRequestId = null;
 
