@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 /**
  * Reusable email service for transactional emails (welcome, tutor upgrade, verification approvals, etc.).
@@ -7,7 +7,7 @@ import nodemailer from 'nodemailer';
 
 const getConfig = () => {
   const host = process.env.EMAIL_HOST;
-  const port = parseInt(process.env.EMAIL_PORT || '587', 10);
+  const port = parseInt(process.env.EMAIL_PORT || "587", 10);
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
   const from = process.env.EMAIL_FROM || user;
@@ -64,10 +64,10 @@ const createTransporter = () => {
  * @returns {string}
  */
 function getFirstName(user) {
-  const name = (user && user.name) ? String(user.name).trim() : '';
-  if (!name) return 'there';
+  const name = user && user.name ? String(user.name).trim() : "";
+  if (!name) return "there";
   const first = name.split(/\s+/)[0];
-  return first || 'there';
+  return first || "there";
 }
 
 /**
@@ -75,7 +75,10 @@ function getFirstName(user) {
  * @returns {string}
  */
 function getPlatformUrl() {
-  return (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  return (process.env.FRONTEND_URL || "http://localhost:5173").replace(
+    /\/$/,
+    "",
+  );
 }
 
 /**
@@ -87,7 +90,7 @@ function getPlatformUrl() {
  */
 export async function sendWelcomeEmail(user) {
   if (!user || !user.email) {
-    console.warn('emailService.sendWelcomeEmail: missing user or email');
+    console.warn("emailService.sendWelcomeEmail: missing user or email");
     return;
   }
 
@@ -152,7 +155,7 @@ We're here to help if you need anything. Let's make this year your best learning
   try {
     await transporter.sendMail(mailOptions);
   } catch (err) {
-    console.error('emailService.sendWelcomeEmail failed:', err?.message || err);
+    console.error("emailService.sendWelcomeEmail failed:", err?.message || err);
   }
 }
 
@@ -165,7 +168,7 @@ We're here to help if you need anything. Let's make this year your best learning
  */
 export async function sendTutorUpgradeEmail(user) {
   if (!user || !user.email) {
-    console.warn('emailService.sendTutorUpgradeEmail: missing user or email');
+    console.warn("emailService.sendTutorUpgradeEmail: missing user or email");
     return;
   }
 
@@ -201,6 +204,7 @@ To get the most out of it:
 1. Fill in your availability so learners can book you
 2. Add your subjects and experience so you show up in the right searches
 3. Check your dashboard and respond to requests — learners are waiting!
+4. Complete your Stripe payout setup from your dashboard — this is required before you can receive payments for your sessions
 
 Open your tutor dashboard and get started:
 ${dashboardUrl}
@@ -225,6 +229,7 @@ We're pumped to have you. Go make an impact!
           <li>Fill in your availability so learners can book you</li>
           <li>Add your subjects and experience so you show up in the right searches</li>
           <li>Check your dashboard and respond to requests — learners are waiting!</li>
+          <li>Complete your <strong>Stripe payout setup</strong> from your dashboard — this is required before you can receive payments for your sessions</li>
         </ol>
         <p style="margin: 24px 0 16px;">
           <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);">Open my dashboard →</a>
@@ -238,7 +243,73 @@ We're pumped to have you. Go make an impact!
   try {
     await transporter.sendMail(mailOptions);
   } catch (err) {
-    console.error('emailService.sendTutorUpgradeEmail failed:', err?.message || err);
+    console.error(
+      "emailService.sendTutorUpgradeEmail failed:",
+      err?.message || err,
+    );
+  }
+}
+
+/**
+ * Notify tutor that their Stripe Connect onboarding is complete and they can
+ * now receive payouts. Does not throw; logs errors.
+ *
+ * @param {{ name?: string, email: string }} user
+ * @returns {Promise<void>}
+ */
+export async function sendPayoutsEnabledEmail(user) {
+  if (!user || !user.email) {
+    console.warn("emailService.sendPayoutsEnabledEmail: missing user or email");
+    return;
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn(
+      `emailService: skipping payouts enabled email (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
+    );
+    return;
+  }
+
+  const firstName = getFirstName(user);
+  const dashboardUrl = `${getPlatformUrl()}/tutor/dashboard`;
+  const from = getConfig().from;
+
+  const mailOptions = {
+    from,
+    to: user.email,
+    subject:
+      "Congratulations! Your Stripe setup is complete — Best Choice Tutors",
+    text: `Hey ${firstName}!
+
+Congratulations — your Stripe onboarding is complete!
+
+You're now fully set up to receive payouts on Best Choice Tutors. Earnings from your completed sessions will be paid out to your connected bank account automatically.
+
+Thanks for being part of Best Choice Tutors.
+
+— The Best Choice Tutors Team`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto;">
+        <p style="font-size: 18px; color: #1a1a1a;">Hey ${firstName}!</p>
+        <p style="font-size: 18px; color: #1a1a1a; line-height: 1.5;"><strong>Congratulations</strong> — your Stripe onboarding is complete! 🎉</p>
+        <p style="font-size: 16px; color: #444; line-height: 1.6;">You're now fully set up to receive payouts on Best Choice Tutors. Earnings from your completed sessions will be paid out to your connected bank account automatically.</p>
+        <p style="margin: 24px 0 16px;">
+          <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white !important; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);">Open my dashboard →</a>
+        </p>
+        <p style="font-size: 15px; color: #666;">Thanks for being part of Best Choice Tutors.</p>
+        <p style="font-size: 14px; color: #888; margin-top: 32px;">— The Best Choice Tutors Team</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (err) {
+    console.error(
+      "emailService.sendPayoutsEnabledEmail failed:",
+      err?.message || err,
+    );
   }
 }
 
@@ -251,7 +322,9 @@ We're pumped to have you. Go make an impact!
  */
 export async function sendIdentityVerificationApprovedEmail(user) {
   if (!user || !user.email) {
-    console.warn('emailService.sendIdentityVerificationApprovedEmail: missing user or email');
+    console.warn(
+      "emailService.sendIdentityVerificationApprovedEmail: missing user or email",
+    );
     return;
   }
 
@@ -311,7 +384,10 @@ Thanks for working with us.
   try {
     await transporter.sendMail(mailOptions);
   } catch (err) {
-    console.error('emailService.sendIdentityVerificationApprovedEmail failed:', err?.message || err);
+    console.error(
+      "emailService.sendIdentityVerificationApprovedEmail failed:",
+      err?.message || err,
+    );
   }
 }
 
@@ -324,7 +400,9 @@ Thanks for working with us.
  */
 export async function sendDbsVerificationApprovedEmail(user) {
   if (!user || !user.email) {
-    console.warn('emailService.sendDbsVerificationApprovedEmail: missing user or email');
+    console.warn(
+      "emailService.sendDbsVerificationApprovedEmail: missing user or email",
+    );
     return;
   }
 
@@ -373,7 +451,10 @@ Thank you for keeping our community safe and trusted.
   try {
     await transporter.sendMail(mailOptions);
   } catch (err) {
-    console.error('emailService.sendDbsVerificationApprovedEmail failed:', err?.message || err);
+    console.error(
+      "emailService.sendDbsVerificationApprovedEmail failed:",
+      err?.message || err,
+    );
   }
 }
 
@@ -391,8 +472,14 @@ Thank you for keeping our community safe and trusted.
  * @returns {Promise<void>}
  */
 export async function sendBookingPaidEmails({ learner, tutor, session }) {
-  if (!learner?.email || !tutor?.email || !session?.date || !session?.startTime || !session?.endTime) {
-    console.warn('emailService.sendBookingPaidEmails: missing required data');
+  if (
+    !learner?.email ||
+    !tutor?.email ||
+    !session?.date ||
+    !session?.startTime ||
+    !session?.endTime
+  ) {
+    console.warn("emailService.sendBookingPaidEmails: missing required data");
     return;
   }
 
@@ -407,8 +494,8 @@ export async function sendBookingPaidEmails({ learner, tutor, session }) {
   const from = getConfig().from;
   const learnerFirstName = getFirstName(learner);
   const tutorFirstName = getFirstName(tutor);
-  const tutorName = String(tutor?.name || 'your tutor').trim();
-  const learnerName = String(learner?.name || 'A learner').trim();
+  const tutorName = String(tutor?.name || "your tutor").trim();
+  const learnerName = String(learner?.name || "A learner").trim();
   const sessionDate = session.date;
   const sessionTime = `${session.startTime} - ${session.endTime}`;
   const bookingsUrl = `${getPlatformUrl()}/dashboard/bookings`;
@@ -417,7 +504,7 @@ export async function sendBookingPaidEmails({ learner, tutor, session }) {
   const learnerMailOptions = {
     from,
     to: learner.email,
-    subject: 'Booking confirmed! Your session is successfully scheduled 🎉',
+    subject: "Booking confirmed! Your session is successfully scheduled 🎉",
     text: `Hey ${learnerFirstName},
 
 Awesome news - your payment was successful and your tutoring session is now confirmed.
@@ -455,7 +542,7 @@ We're excited for your learning session. Keep showing up - progress is on the wa
   const tutorMailOptions = {
     from,
     to: tutor.email,
-    subject: 'New booking received! A learner has scheduled a session ✅',
+    subject: "New booking received! A learner has scheduled a session ✅",
     text: `Hey ${tutorFirstName},
 
 Great news - you've received a new booking, and the learner's payment has been completed successfully.
@@ -496,6 +583,9 @@ Thanks for being part of Best Choice Tutors and helping learners move forward.
       transporter.sendMail(tutorMailOptions),
     ]);
   } catch (err) {
-    console.error('emailService.sendBookingPaidEmails failed:', err?.message || err);
+    console.error(
+      "emailService.sendBookingPaidEmails failed:",
+      err?.message || err,
+    );
   }
 }

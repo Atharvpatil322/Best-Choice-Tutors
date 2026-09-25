@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,20 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
+
+  // Arriving from a guest tutor-search click (View Profile / Book Tutor):
+  // nudge with a toast rather than a static inline banner.
+  useEffect(() => {
+    if (from === 'tutor-search') {
+      // Fixed id: a second effect run (React StrictMode's dev double-invoke)
+      // replaces this toast in place instead of stacking a duplicate.
+      toast.info('Sign up to view tutor profiles and book a session.', {
+        id: 'tutor-search-signup-prompt',
+      });
+    }
+    // Only on arrival, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

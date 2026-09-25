@@ -10,6 +10,7 @@ import {
   retrieveConnectedAccount,
   retrieveAccountExternalAccounts,
 } from './stripeService.js';
+import { sendPayoutsEnabledEmail } from './emailService.js';
 
 /**
  * Get or create Stripe Connect Express account for a tutor. Idempotent: one account per tutor.
@@ -109,6 +110,8 @@ export async function updateTutorFromStripeAccount(account) {
   const tutor = await Tutor.findOne({ stripeAccountId: accountId });
   if (!tutor) return null;
 
+  const wasCompleted = tutor.stripeOnboardingStatus === 'COMPLETED';
+
   const chargesEnabled = Boolean(account.charges_enabled);
   const payoutsEnabled = Boolean(account.payouts_enabled);
   const detailsSubmitted = Boolean(account.details_submitted);
@@ -155,5 +158,18 @@ export async function updateTutorFromStripeAccount(account) {
   }
 
   await Tutor.updateOne({ _id: tutor._id }, { $set: update });
+
+  // Edge-triggered: only send on the not-completed -> COMPLETED transition,
+  // since Stripe can resend account.updated after onboarding is already done.
+  if (!wasCompleted && stripeOnboardingStatus === 'COMPLETED') {
+    const populated = await Tutor.findById(tutor._id).populate('userId', 'name email');
+    const recipient = populated?.userId;
+    if (recipient?.email) {
+      sendPayoutsEnabledEmail({ name: recipient.name, email: recipient.email }).catch((err) =>
+        console.error('Payouts enabled email failed:', err?.message || err),
+      );
+    }
+  }
+
   return Tutor.findById(tutor._id);
 }

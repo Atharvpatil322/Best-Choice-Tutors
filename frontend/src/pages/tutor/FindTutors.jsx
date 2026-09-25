@@ -39,6 +39,7 @@ import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
 import { Button } from '@/components/ui/button';
 import { DecodedImage } from '@/components/DecodedImage';
+import { TutorVerificationBadges } from '@/components/tutor/TutorVerificationBadges';
 import { getAllTutors } from '@/services/tutorService';
 import { isAuthenticated } from '@/lib/auth';
 import { localImageUrl } from '@/utils/s3Assets';
@@ -171,10 +172,10 @@ function TutorResultCard({ tutor, onView, onBook }) {
           <DecodedImage
             src={tutor.profilePhoto}
             alt={tutor.fullName || 'Tutor'}
-            className="w-full h-36 object-cover"
+            className="w-full h-52 object-contain bg-slate-100"
           />
         ) : (
-          <div className="w-full h-36 bg-slate-100 flex items-center justify-center text-slate-300">
+          <div className="w-full h-52 bg-slate-100 flex items-center justify-center text-slate-300">
             <BookOpen className="h-7 w-7" aria-hidden />
           </div>
         )}
@@ -201,9 +202,16 @@ function TutorResultCard({ tutor, onView, onBook }) {
 
       <div className="p-3.5 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold text-[#1A365D] leading-snug truncate">
-            {tutor.fullName}
-          </h3>
+          <span className="flex items-center gap-1.5 min-w-0">
+            <h3 className="text-sm font-semibold text-[#1A365D] leading-snug truncate">
+              {tutor.fullName}
+            </h3>
+            <TutorVerificationBadges
+              isVerified={tutor.isVerified}
+              isDbsVerified={tutor.isDbsVerified}
+              variant="icons"
+            />
+          </span>
           {tutor.hourlyRate != null && (
             <span className="text-sm font-semibold text-[#1A365D] whitespace-nowrap">
               £{Number(tutor.hourlyRate).toFixed(2)}
