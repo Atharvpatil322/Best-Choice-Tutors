@@ -164,6 +164,12 @@ export const updateTestPaymentStatus = async (req, res, next) => {
       return res.status(404).json({ message: 'Not found' });
     }
 
+    // Admin-only even outside production: this bypasses Stripe entirely and
+    // must never be reachable by a regular learner/tutor account.
+    if (req.user.role !== 'Admin') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+
     const { id: bookingId } = req.params;
     const { status } = req.body;
 
