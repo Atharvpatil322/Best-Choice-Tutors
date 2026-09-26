@@ -18,13 +18,13 @@ const DEFAULT_BODY =
 
 export default function ReachSection() {
   const sections = usePageContent('home');
-  const reach = sections.reach;
-  const heading = contentOr(reach, 'heading', 'Global Reach, Local Expertise');
-  const subheading = contentOr(reach, 'subheading', 'Find Trusted Tutors Worldwide');
-  const body = contentOr(reach, 'body', DEFAULT_BODY);
-  const ctaLabel = contentOr(reach, 'ctaLabel', 'Browse Tutors - Explore By Location');
-  const ctaHref = contentOr(reach, 'ctaHref', '/register?role=learner&from=explore-location');
-  const bullets = itemsOr(reach, DEFAULT_BULLETS);
+  const reachContent = sections.reach;
+  const heading = contentOr(reachContent, 'heading', 'Global Reach, Local Expertise');
+  const subheading = contentOr(reachContent, 'subheading', 'Find Trusted Tutors Worldwide');
+  const body = contentOr(reachContent, 'body', DEFAULT_BODY);
+  const ctaLabel = contentOr(reachContent, 'ctaLabel', 'Browse Tutors - Explore By Location');
+  const ctaHref = contentOr(reachContent, 'ctaHref', '/register?role=learner&from=explore-location');
+  const bullets = itemsOr(reachContent, DEFAULT_BULLETS);
   const navigate = useNavigate();
 
   const goToSignUpForLocation = () => {

@@ -1588,8 +1588,9 @@ body.landing-page-active {
 .reach-bullets {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 1rem;
+  width: 100%;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1.25rem;
   color: var(--navy-primary);
   font-weight: 500;
   font-size: 0.9375rem;
@@ -1660,7 +1661,8 @@ body.landing-page-active {
   }
 
   .reach-bullets {
-    justify-content: flex-start;
+    max-width: 550px;
+    justify-content: space-between;
   }
 
   .reach-right {
