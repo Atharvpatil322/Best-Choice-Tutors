@@ -458,29 +458,58 @@ Thank you for keeping our community safe and trusted.
   }
 }
 
+const SEND_RETRY_DELAYS_MS = [2000, 5000];
+
+/**
+ * sendMail with a couple of in-process retries for transient SMTP failures.
+ * Does not throw.
+ *
+ * @returns {Promise<boolean>} true if the mail was accepted by the SMTP server
+ */
+async function sendMailWithRetry(transporter, mailOptions, label) {
+  for (let attempt = 0; attempt <= SEND_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      await transporter.sendMail(mailOptions);
+      return true;
+    } catch (err) {
+      const isLastAttempt = attempt === SEND_RETRY_DELAYS_MS.length;
+      console.error(
+        `emailService: ${label} failed (attempt ${attempt + 1}/${SEND_RETRY_DELAYS_MS.length + 1})${isLastAttempt ? "" : ", retrying"}:`,
+        err?.message || err,
+      );
+      if (isLastAttempt) return false;
+      await new Promise((resolve) => setTimeout(resolve, SEND_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  return false;
+}
+
 /**
  * Send booking success emails:
  * 1) Learner confirmation after successful payment
  * 2) Tutor notification about a newly booked session
  *
- * Does not throw; logs errors only.
+ * Each email is sent independently (with retries), so one failing does not
+ * block the other. Does not throw; logs errors only.
  *
  * @param {Object} params
- * @param {{ name?: string, email: string }} params.learner
- * @param {{ name?: string, email: string }} params.tutor
+ * @param {{ name?: string, email?: string }} params.learner
+ * @param {{ name?: string, email?: string }} params.tutor
  * @param {{ date: string, startTime: string, endTime: string }} params.session
- * @returns {Promise<void>}
+ * @param {{ learner?: boolean, tutor?: boolean }} [params.recipients] - Which emails to send (default both)
+ * @returns {Promise<{ learnerSent: boolean, tutorSent: boolean }>}
  */
-export async function sendBookingPaidEmails({ learner, tutor, session }) {
-  if (
-    !learner?.email ||
-    !tutor?.email ||
-    !session?.date ||
-    !session?.startTime ||
-    !session?.endTime
-  ) {
-    console.warn("emailService.sendBookingPaidEmails: missing required data");
-    return;
+export async function sendBookingPaidEmails({
+  learner,
+  tutor,
+  session,
+  recipients = { learner: true, tutor: true },
+}) {
+  const result = { learnerSent: false, tutorSent: false };
+
+  if (!session?.date || !session?.startTime || !session?.endTime) {
+    console.warn("emailService.sendBookingPaidEmails: missing session date/time");
+    return result;
   }
 
   const transporter = createTransporter();
@@ -488,7 +517,7 @@ export async function sendBookingPaidEmails({ learner, tutor, session }) {
     console.warn(
       `emailService: skipping booking paid emails (SMTP incomplete: ${getMissingSmtpEnvKeys().join(", ")})`,
     );
-    return;
+    return result;
   }
 
   const from = getConfig().from;
@@ -577,15 +606,15 @@ Thanks for being part of Best Choice Tutors and helping learners move forward.
     `,
   };
 
-  try {
-    await Promise.all([
-      transporter.sendMail(learnerMailOptions),
-      transporter.sendMail(tutorMailOptions),
-    ]);
-  } catch (err) {
-    console.error(
-      "emailService.sendBookingPaidEmails failed:",
-      err?.message || err,
-    );
-  }
+  const [learnerSent, tutorSent] = await Promise.all([
+    recipients.learner && learner?.email
+      ? sendMailWithRetry(transporter, learnerMailOptions, "booking confirmation (learner)")
+      : false,
+    recipients.tutor && tutor?.email
+      ? sendMailWithRetry(transporter, tutorMailOptions, "booking notification (tutor)")
+      : false,
+  ]);
+  result.learnerSent = learnerSent;
+  result.tutorSent = tutorSent;
+  return result;
 }

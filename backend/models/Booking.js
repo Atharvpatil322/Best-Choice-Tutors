@@ -72,6 +72,19 @@ const bookingSchema = new mongoose.Schema(
       ref: 'TuitionRequest',
       default: null,
     },
+    /**
+     * Booking confirmation emails still owed after payment. Set to true when the booking
+     * first becomes PAID; cleared once the email is sent. Lets a later webhook retry/replay
+     * resend an email that failed, without re-sending one that already went out.
+     */
+    learnerConfirmationEmailPending: {
+      type: Boolean,
+      default: false,
+    },
+    tutorConfirmationEmailPending: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // adds createdAt and updatedAt

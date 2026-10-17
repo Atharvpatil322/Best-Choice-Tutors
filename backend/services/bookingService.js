@@ -394,10 +394,14 @@ export async function handleBookingPaid(booking, options = {}) {
         { $set: { status: 'CLOSED' } }
       );
     }
+    // Retry/replay of the webhook: resend any confirmation email that failed last time.
+    void sendPendingBookingConfirmationEmails(booking._id);
     return booking;
   }
 
   booking.status = 'PAID';
+  booking.learnerConfirmationEmailPending = true;
+  booking.tutorConfirmationEmailPending = true;
   if (options.stripePaymentIntentId) {
     booking.stripePaymentIntentId = options.stripePaymentIntentId;
   }
@@ -448,41 +452,110 @@ export async function handleBookingPaid(booking, options = {}) {
     );
   }
 
-  // Send confirmation emails once when payment is first marked successful.
-  // Keep this non-blocking and resilient to email provider failures.
+  // Non-blocking so the webhook responds to Stripe promptly.
+  void sendPendingBookingConfirmationEmails(booking._id);
+
+  return booking;
+}
+
+const CONFIRMATION_EMAIL_FLAGS = {
+  learner: 'learnerConfirmationEmailPending',
+  tutor: 'tutorConfirmationEmailPending',
+};
+
+/**
+ * Send the booking confirmation emails (learner + tutor) that are still owed.
+ *
+ * Each pending flag is claimed atomically before sending, so concurrent webhook events
+ * (checkout.session.completed and payment_intent.succeeded arrive together) cannot
+ * double-send. If a send fails, its flag is restored so the next webhook delivery or
+ * replay for this booking retries it. Never throws.
+ *
+ * @param {import('mongoose').Types.ObjectId|string} bookingId
+ * @returns {Promise<void>}
+ */
+async function sendPendingBookingConfirmationEmails(bookingId) {
+  const claimed = { learner: false, tutor: false };
+  const restoreFlags = async (recipients) => {
+    const $set = {};
+    for (const recipient of recipients) $set[CONFIRMATION_EMAIL_FLAGS[recipient]] = true;
+    if (Object.keys($set).length > 0) {
+      await Booking.updateOne({ _id: bookingId }, { $set });
+    }
+  };
+
   try {
+    for (const [recipient, flag] of Object.entries(CONFIRMATION_EMAIL_FLAGS)) {
+      const res = await Booking.updateOne({ _id: bookingId, [flag]: true }, { $set: { [flag]: false } });
+      claimed[recipient] = res.modifiedCount === 1;
+    }
+    if (!claimed.learner && !claimed.tutor) return;
+
+    const booking = await Booking.findById(bookingId)
+      .select('learnerId tutorId date startTime endTime')
+      .lean();
     const [learner, tutorProfile] = await Promise.all([
       User.findById(booking.learnerId).select('name email').lean(),
       Tutor.findById(booking.tutorId).select('userId fullName').lean(),
     ]);
+    const tutorUser = tutorProfile?.userId
+      ? await User.findById(tutorProfile.userId).select('name email').lean()
+      : null;
 
-    if (learner?.email && tutorProfile?.userId) {
-      const tutorUser = await User.findById(tutorProfile.userId).select('name email').lean();
-      const tutorName = tutorProfile.fullName || tutorUser?.name || 'Your tutor';
-
-      if (tutorUser?.email) {
-        void sendBookingPaidEmails({
-          learner: {
-            name: learner.name,
-            email: learner.email,
-          },
-          tutor: {
-            name: tutorName,
-            email: tutorUser.email,
-          },
-          session: {
-            date: booking.date,
-            startTime: booking.startTime,
-            endTime: booking.endTime,
-          },
-        });
-      }
+    // A missing address will not fix itself on retry, so log it and drop the claim.
+    if (claimed.learner && !learner?.email) {
+      console.warn('Booking confirmation email skipped: learner has no email address', {
+        bookingId: bookingId.toString(),
+        learnerId: booking.learnerId?.toString(),
+      });
     }
-  } catch (emailErr) {
-    console.error('Failed to queue booking paid emails:', emailErr?.message);
-  }
+    if (claimed.tutor && !tutorUser?.email) {
+      console.warn('Booking notification email skipped: tutor has no linked user email', {
+        bookingId: bookingId.toString(),
+        tutorId: booking.tutorId?.toString(),
+      });
+    }
 
-  return booking;
+    const { learnerSent, tutorSent } = await sendBookingPaidEmails({
+      learner: { name: learner?.name, email: learner?.email },
+      tutor: {
+        name: tutorProfile?.fullName || tutorUser?.name || 'Your tutor',
+        email: tutorUser?.email,
+      },
+      session: {
+        date: booking.date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+      },
+      recipients: claimed,
+    });
+
+    const failed = [];
+    if (claimed.learner && learner?.email && !learnerSent) failed.push('learner');
+    if (claimed.tutor && tutorUser?.email && !tutorSent) failed.push('tutor');
+    if (failed.length > 0) {
+      await restoreFlags(failed);
+      console.error('Booking confirmation email(s) not sent; will retry on next webhook delivery', {
+        bookingId: bookingId.toString(),
+        failed,
+      });
+    } else {
+      console.info('Booking confirmation emails sent', {
+        bookingId: bookingId.toString(),
+        learner: claimed.learner && learnerSent,
+        tutor: claimed.tutor && tutorSent,
+      });
+    }
+  } catch (err) {
+    console.error('Booking confirmation emails failed:', err?.message || err, {
+      bookingId: bookingId?.toString?.(),
+    });
+    try {
+      await restoreFlags(Object.keys(claimed).filter((recipient) => claimed[recipient]));
+    } catch (restoreErr) {
+      console.error('Failed to restore pending confirmation email flags:', restoreErr?.message);
+    }
+  }
 }
 
 /**
