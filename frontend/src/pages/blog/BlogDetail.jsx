@@ -9,7 +9,7 @@ import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
 import { ArticleSchema } from '@/components/seo/index';
 import { DecodedImage } from '@/components/DecodedImage';
-import { getBlogBySlug } from '@/services/blogService';
+import { getBlogBySlug, getCachedBlogBySlug } from '@/services/blogService';
 import { isHtmlContent, sanitizeBlogHtml } from '@/utils/blogContent';
 import { Calendar, Clock, User, ArrowLeft, Share2 } from 'lucide-react';
 import '@/styles/LandingPage.css';
@@ -32,20 +32,23 @@ function getReadingTime(content) {
 
 export default function BlogDetail() {
   const { slug } = useParams();
-  const [blog, setBlog] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [blog, setBlog] = useState(() => getCachedBlogBySlug(slug)?.blog || null);
+  const [loading, setLoading] = useState(() => !getCachedBlogBySlug(slug));
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!slug) return;
-    setLoading(true);
+    // Render the cached article immediately (if any) and refresh in the background.
+    const cached = getCachedBlogBySlug(slug)?.blog || null;
+    setBlog(cached);
+    setLoading(!cached);
     setError(null);
     getBlogBySlug(slug)
       .then((data) => {
         setBlog(data.blog || null);
       })
       .catch((err) => {
-        setError(err.message || 'Blog not found');
+        if (!cached) setError(err.message || 'Blog not found');
       })
       .finally(() => {
         setLoading(false);

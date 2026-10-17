@@ -8,6 +8,21 @@ import { getAuthToken } from "./authService.js";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
+// In-memory cache of public responses for the lifetime of the tab. Pages read
+// it synchronously to render instantly (e.g. on back-navigation from a post),
+// then refetch in the background to pick up changes.
+const publicCache = new Map();
+
+const listCacheKey = (params = {}) =>
+  `list:${params.page || 1}:${params.limit || ""}:${params.category || ""}`;
+
+/** Last known blog list for these params, or null. */
+export const getCachedPublishedBlogs = (params = {}) =>
+  publicCache.get(listCacheKey(params)) || null;
+
+/** Last known blog for this slug, or null. */
+export const getCachedBlogBySlug = (slug) => publicCache.get(`blog:${slug}`) || null;
+
 /**
  * Get published blogs (public)
  * GET /api/blog?page=1&limit=12&category=...
@@ -27,6 +42,7 @@ export const getPublishedBlogs = async (params = {}) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "Failed to fetch blogs");
+  publicCache.set(listCacheKey(params), data);
   return data;
 };
 
@@ -43,6 +59,7 @@ export const getBlogBySlug = async (slug) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "Failed to fetch blog");
+  publicCache.set(`blog:${slug}`, data);
   return data;
 };
 

@@ -160,7 +160,7 @@ export async function deleteDocumentByStorageKey(key) {
  * @param {string} [contentType] - MIME type
  * @returns {Promise<string>} Public URL of the uploaded file
  */
-async function uploadToS3(fileBuffer, key, contentType) {
+async function uploadToS3(fileBuffer, key, contentType, cacheControl) {
   // Without a bucket the AWS SDK falls back to path-style addressing and treats
   // the key's first segment as the bucket, producing a confusing
   // "PermanentRedirect" error. Fail with an actionable message instead.
@@ -177,6 +177,7 @@ async function uploadToS3(fileBuffer, key, contentType) {
     Key: key,
     Body: fileBuffer,
     ContentType: contentType,
+    ...(cacheControl ? { CacheControl: cacheControl } : {}),
   });
   // Do not set ACL: buckets with "Object ownership: Bucket owner enforced" do not allow ACLs (AccessControlListNotSupported)
   await s3Client.send(command);
@@ -194,10 +195,11 @@ export const uploadImage = async (fileBuffer, options = {}) => {
     folder = 'profile-photos',
     mimetype,
     originalName,
+    cacheControl,
   } = options;
   const { ext, contentType } = resolveImageMeta(mimetype, originalName);
   const key = `${folder}/${randomUUID()}.${ext}`;
-  const url = await uploadToS3(fileBuffer, key, contentType);
+  const url = await uploadToS3(fileBuffer, key, contentType, cacheControl);
   return url;
 };
 

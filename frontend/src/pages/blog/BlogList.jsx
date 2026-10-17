@@ -8,7 +8,7 @@ import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
 import { DecodedImage } from '@/components/DecodedImage';
-import { getPublishedBlogs } from '@/services/blogService';
+import { getPublishedBlogs, getCachedPublishedBlogs } from '@/services/blogService';
 import { Calendar, Clock, User, ArrowRight } from 'lucide-react';
 import '@/styles/LandingPage.css';
 
@@ -30,24 +30,39 @@ function getReadingTime(content) {
 }
 
 export default function BlogList() {
-  const [blogs, setBlogs] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 0, totalCount: 0 });
+  const initial = getCachedPublishedBlogs({ page: 1, limit: 12 });
+  const [blogs, setBlogs] = useState(initial?.blogs || []);
+  const [pagination, setPagination] = useState(
+    initial?.pagination || { page: 1, totalPages: 0, totalCount: 0 },
+  );
   const [activeCategory, setActiveCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState(null);
 
   const fetchBlogs = async (page = 1, category = activeCategory) => {
-    setLoading(true);
+    const params = { page, limit: 12 };
+    if (category !== 'All') params.category = category;
+
+    // Show the last known result immediately and refresh it in the background;
+    // only fall back to the spinner when there is nothing cached.
+    const cached = getCachedPublishedBlogs(params);
+    if (cached) {
+      setBlogs(cached.blogs || []);
+      setPagination(cached.pagination || { page: 1, totalPages: 0, totalCount: 0 });
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError(null);
     try {
-      const params = { page, limit: 12 };
-      if (category !== 'All') params.category = category;
       const data = await getPublishedBlogs(params);
       setBlogs(data.blogs || []);
       setPagination(data.pagination || { page: 1, totalPages: 0, totalCount: 0 });
     } catch (err) {
-      setError(err.message || 'Failed to load blogs');
-      setBlogs([]);
+      if (!cached) {
+        setError(err.message || 'Failed to load blogs');
+        setBlogs([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -152,6 +167,8 @@ export default function BlogList() {
                           <DecodedImage
                             src={blog.imageUrl}
                             alt={blog.imageAlt || blog.title}
+                            width={400}
+                            height={176}
                             className="w-full h-44 object-cover"
                           />
                         </Link>

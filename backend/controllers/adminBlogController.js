@@ -6,7 +6,10 @@
 import Blog from '../models/Blog.js';
 import AdminAuditLog from '../models/AdminAuditLog.js';
 import mongoose from 'mongoose';
+import sharp from 'sharp';
 import { uploadImage } from '../services/s3Service.js';
+
+const MAX_IMAGE_WIDTH = 1600;
 
 /**
  * Helper to create a URL-friendly slug from a title.
@@ -34,10 +37,30 @@ export async function uploadBlogImage(req, res, next) {
       return res.status(400).json({ message: 'No image uploaded. Send a single file with field name: image.' });
     }
 
-    const imageUrl = await uploadImage(req.file.buffer, {
+    // Animated GIFs and SVGs would lose their behaviour if re-encoded, so they
+    // are stored as uploaded. Everything else becomes a resized WebP.
+    const keepOriginal = ['image/gif', 'image/svg+xml'].includes(req.file.mimetype);
+    let buffer = req.file.buffer;
+    let mimetype = req.file.mimetype;
+    if (!keepOriginal) {
+      try {
+        buffer = await sharp(req.file.buffer)
+          .rotate() // apply EXIF orientation before metadata is stripped
+          .resize({ width: MAX_IMAGE_WIDTH, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        mimetype = 'image/webp';
+      } catch {
+        return res.status(400).json({ message: 'Could not process the image. Upload a valid JPG, PNG or WebP file.' });
+      }
+    }
+
+    const imageUrl = await uploadImage(buffer, {
       folder: 'blog-images',
-      mimetype: req.file.mimetype,
+      mimetype,
       originalName: req.file.originalname,
+      // Keys are random UUIDs, so a given URL never changes content.
+      cacheControl: 'public, max-age=31536000, immutable',
     });
 
     return res.status(201).json({ message: 'Blog image uploaded successfully', imageUrl });

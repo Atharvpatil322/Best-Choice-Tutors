@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /**
- * Hides the image until it is fully loaded and decoded so progressive JPEGs
- * do not paint in visible “chunks”. Same src/bytes as a plain <img>.
- * Defaults to native lazy-loading; override with loading="eager" for LCP-critical images.
+ * <img> that paints as soon as bytes arrive and shows a neutral placeholder
+ * while it loads, so a slow image reads as "loading" instead of an empty gap.
+ * Decoding is left to the browser (decoding="async") rather than blocking
+ * visibility on it. Defaults to native lazy-loading; override with
+ * loading="eager" for LCP-critical images.
  */
 export function DecodedImage({
   src,
@@ -11,64 +13,45 @@ export function DecodedImage({
   className,
   style,
   onError,
+  onLoad,
   loading = 'lazy',
   ...rest
 }) {
-  const [visible, setVisible] = useState(false);
-  const revealTimeoutRef = useRef(null);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
 
-  const clearRevealTimeout = useCallback(() => {
-    if (revealTimeoutRef.current) {
-      clearTimeout(revealTimeoutRef.current);
-      revealTimeoutRef.current = null;
-    }
-  }, []);
-
+  // Cached images can finish loading before React attaches onLoad.
   useLayoutEffect(() => {
-    setVisible(false);
+    setLoaded(Boolean(imgRef.current?.complete && imgRef.current.naturalWidth > 0));
   }, [src]);
-
-  useEffect(() => {
-    if (!src) return undefined;
-    revealTimeoutRef.current = setTimeout(() => {
-      setVisible(true);
-      revealTimeoutRef.current = null;
-    }, 1500);
-    return () => clearRevealTimeout();
-  }, [src, clearRevealTimeout]);
 
   const handleLoad = useCallback(
     (e) => {
-      const el = e.currentTarget;
-      const reveal = () => setVisible(true);
-      if (typeof el.decode === 'function') {
-        el.decode().then(reveal).catch(reveal);
-      } else {
-        reveal();
-      }
+      setLoaded(true);
+      onLoad?.(e);
     },
-    [],
+    [onLoad],
   );
 
   const handleError = useCallback(
     (e) => {
-      setVisible(true);
-      clearRevealTimeout();
+      setLoaded(true);
       onError?.(e);
     },
-    [onError, clearRevealTimeout],
+    [onError],
   );
 
   return (
     <img
+      ref={imgRef}
       src={src}
       alt={alt}
       className={className}
       loading={loading}
+      decoding="async"
       style={{
+        ...(loaded ? null : { backgroundColor: '#f1f5f9' }),
         ...style,
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 0.2s ease-out',
       }}
       onLoad={handleLoad}
       onError={handleError}
