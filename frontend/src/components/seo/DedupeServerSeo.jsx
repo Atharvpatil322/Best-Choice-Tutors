@@ -168,7 +168,12 @@ export default function DedupeServerSeo() {
     const navigated = hasNavigated;
 
     let cancelled = false;
-    if (navigated) {
+    // Also fetch on the first load when the HTML arrived without any JSON-LD:
+    // the plain shell served for a post published after the last build, or for
+    // a generated landing page.
+    const shellOnly =
+      !navigated && !document.head.querySelector('script[type="application/ld+json"]');
+    if (navigated || shellOnly) {
       setRouteStructuredData([]);
       fetchRouteStructuredData(pathname).then((schemas) => {
         if (!cancelled) setRouteStructuredData(schemas);

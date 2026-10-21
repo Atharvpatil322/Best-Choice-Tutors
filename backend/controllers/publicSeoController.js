@@ -117,8 +117,10 @@ async function collectBuildPaths() {
  * GET /api/public/seo-head?path=/blog/my-post
  *
  * The finished head tags for one URL, for the frontend build to write into
- * the page it publishes. Only URLs the build publishes are answered, so the
- * endpoint cannot be used to run lookups for arbitrary paths.
+ * the page it publishes, and for the app to load a page's structured data
+ * after in-app navigation. Only published pages and active generated pages
+ * are answered, so the endpoint cannot be used to run lookups for arbitrary
+ * paths.
  */
 export async function getSeoHead(req, res, next) {
   try {
@@ -128,7 +130,12 @@ export async function getSeoHead(req, res, next) {
     }
     const path = normalizePath(raw).toLowerCase();
     const { pages } = await collectBuildPaths();
-    if (!pages.some((page) => page.path === path)) {
+    // Generated landing pages get no build file, but the app still loads
+    // their structured data from here.
+    const published =
+      pages.some((page) => page.path === path) ||
+      Boolean(await PseoPage.exists({ path, isActive: true }));
+    if (!published) {
       return res.status(404).json({ message: 'Not a published page' });
     }
 
