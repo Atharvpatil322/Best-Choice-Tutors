@@ -153,6 +153,9 @@ function AdminBlogManager() {
     if (!confirmDiscard()) return;
     const requestId = editRequestRef.current + 1;
     editRequestRef.current = requestId;
+    // Close whatever form is open while the post loads, so nothing typed in
+    // the meantime can be silently replaced when the response arrives.
+    setShowForm(false);
     setLoadingEditId(blog._id);
     try {
       const { blog: full } = await getBlogByIdAdmin(blog._id);
