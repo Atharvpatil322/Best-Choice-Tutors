@@ -40,8 +40,20 @@ test('converts bold and links inside lines and list items', () => {
   );
 });
 
-test('a whole bold line becomes a bold paragraph', () => {
+test('a whole bold line becomes a bold paragraph, as the public page showed it', () => {
   assert.equal(markdownToHtml('**Key point**'), '<p><strong>Key point</strong></p>');
+  assert.equal(markdownToHtml('**a** and **b**'), '<p><strong>a and b</strong></p>');
+  assert.equal(
+    markdownToHtml('**Press <Enter> to continue**'),
+    '<p><strong>Press &lt;Enter&gt; to continue</strong></p>',
+  );
+});
+
+test('text inside a bold span stays literal while the rest of a paragraph keeps its tags', () => {
+  assert.equal(
+    markdownToHtml('Use **<Tab>** then <em>x</em>'),
+    '<p>Use <strong>&lt;Tab&gt;</strong> then <em>x</em></p>',
+  );
 });
 
 test('paragraphs keep real inline tags but escape a stray "<"', () => {

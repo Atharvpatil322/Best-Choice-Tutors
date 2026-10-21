@@ -48,48 +48,64 @@ function escapeAll(text) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+const LINK_PATTERN = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+const BOLD_SPAN = /(\*\*[^*]+\*\*)/g;
+
 /**
- * Build a link, or keep the original text when the URL is unsafe. Quotes are
- * escaped so a URL cannot break out of the attribute.
+ * Build a link, or keep the original text when the URL is unsafe. The URL is
+ * attribute-escaped so it cannot break out of the href.
  *
- * @param {string} label
- * @param {string} url
+ * @param {string} label - Raw link text.
+ * @param {string} url - Raw URL.
+ * @param {(text: string) => string} escapeText - Escaping for the line's context.
  * @returns {string}
  */
-function linkHtml(label, url) {
-  if (/^\s*(javascript|data|vbscript):/i.test(url)) return `[${label}](${url})`;
-  return `<a href="${url.replace(/"/g, '&quot;')}">${label}</a>`;
+function linkHtml(label, url, escapeText) {
+  if (/^\s*(javascript|data|vbscript):/i.test(url)) return escapeText(`[${label}](${url})`);
+  const href = url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return `<a href="${href}">${escapeText(label)}</a>`;
 }
 
 /**
  * Apply the inline markers older posts use: [text](url) links and **bold**.
  *
- * Links are swapped for placeholders before bold is applied, so "**" inside a
- * URL cannot turn into a <strong> tag in the middle of an href.
+ * Mirrors how the public page rendered them. Bold spans were shown through
+ * React as plain text, so their contents are always fully escaped. The text
+ * around them was HTML in paragraphs and plain text in headings and list items,
+ * which the caller chooses with `escapeText`.
  *
- * Bold and links are also applied in headings and list items, where the
- * public page used to show the markers literally - converting them is a
- * deliberate fix, since authors clearly meant them as formatting.
+ * Links are swapped for placeholders first, so "**" inside a URL cannot turn
+ * into a <strong> tag in the middle of an href. Bold and links are also applied
+ * in headings and list items, where the public page used to show the markers
+ * literally - converting those is a deliberate fix, since authors clearly meant
+ * them as formatting.
  *
- * @param {string} text - Already escaped for its context.
+ * @param {string} text - Raw line text.
+ * @param {(text: string) => string} escapeText - Escaping for non-bold text.
  * @returns {string}
  */
-function inlineMarkdownToHtml(text) {
+function inlineMarkdownToHtml(text, escapeText) {
   const links = [];
-  const withPlaceholders = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) => {
-    links.push(linkHtml(label, url));
+  const withPlaceholders = text.replace(LINK_PATTERN, (_, label, url) => {
+    links.push(linkHtml(label, url, escapeText));
     return `\u0000${links.length - 1}\u0000`;
   });
   return withPlaceholders
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .split(BOLD_SPAN)
+    .map((part) =>
+      part.length > 4 && part.startsWith('**') && part.endsWith('**')
+        ? `<strong>${escapeAll(part.slice(2, -2))}</strong>`
+        : escapeText(part),
+    )
+    .join('')
     .replace(/\u0000(\d+)\u0000/g, (_, index) => links[Number(index)]);
 }
 
 /** Inline conversion for lines the public page rendered as HTML. */
-const paragraphHtml = (text) => inlineMarkdownToHtml(escapeStrayAngles(text));
+const paragraphHtml = (text) => inlineMarkdownToHtml(text, escapeStrayAngles);
 
 /** Inline conversion for lines the public page rendered as plain text. */
-const plainTextHtml = (text) => inlineMarkdownToHtml(escapeAll(text));
+const plainTextHtml = (text) => inlineMarkdownToHtml(text, escapeAll);
 
 /**
  * Convert an older markdown-ish post into HTML the rich text editor can load.
@@ -136,6 +152,11 @@ export function markdownToHtml(content) {
       addListItem('ol', line.replace(/^\d+\.\s/, ''));
     } else if (line.trim() === '') {
       closeList();
+    } else if (line.length > 4 && line.startsWith('**') && line.endsWith('**')) {
+      // The public page shows such a line wholly bold, as plain text, with
+      // every "**" removed - including any in the middle.
+      closeList();
+      blocks.push(`<p><strong>${escapeAll(line.replace(/\*\*/g, ''))}</strong></p>`);
     } else {
       closeList();
       blocks.push(`<p>${paragraphHtml(line)}</p>`);
