@@ -48,6 +48,7 @@ import {
   SUBJECT_OTHER,
   slugToSubject,
   subjectFromName,
+  setSubjectSlug,
   tutorSearchPath,
 } from '@/constants/subjects';
 import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
@@ -490,14 +491,26 @@ export default function FindTutors() {
       };
     }
 
-    findRedirect(`/tutors/subject/${subjectSlug}`).then((target) => {
-      if (cancelled) return;
-      if (target && /^https?:\/\//i.test(target)) {
-        window.location.replace(target);
-        return;
-      }
-      go(target || '/tutors');
-    });
+    // The subject list may be a cached copy from before an admin renamed a
+    // subject, so ask for this page directly before treating it as unknown.
+    getSubjectPage(subjectSlug.toLowerCase())
+      .then((page) => {
+        if (cancelled) return null;
+        if (page?.name) {
+          setSubjectSlug(page.name, page.slug);
+          return null;
+        }
+        return findRedirect(`/tutors/subject/${subjectSlug}`).then((target) => ({ target }));
+      })
+      .then((result) => {
+        if (cancelled || !result) return;
+        const { target } = result;
+        if (target && /^https?:\/\//i.test(target)) {
+          window.location.replace(target);
+          return;
+        }
+        go(target || '/tutors');
+      });
     return () => {
       cancelled = true;
     };

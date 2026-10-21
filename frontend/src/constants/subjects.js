@@ -74,6 +74,20 @@ export function setSubjectSlugs(subjects, { settled = true } = {}) {
   listeners.forEach((listener) => listener());
 }
 
+/**
+ * Record one subject's current slug, for example after confirming with the
+ * API that a URL the cached list did not know is that subject's new address.
+ *
+ * @param {string} name
+ * @param {string} slug
+ */
+export function setSubjectSlug(name, slug) {
+  if (!name || !slug || slugByName.get(name) === slug) return;
+  slugByName.set(name, slug);
+  registryVersion += 1;
+  listeners.forEach((listener) => listener());
+}
+
 /** Subscribe to registry changes; returns an unsubscribe function. */
 export function subscribeSubjectSlugs(listener) {
   listeners.add(listener);
