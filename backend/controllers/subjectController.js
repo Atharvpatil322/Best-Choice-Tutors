@@ -16,7 +16,7 @@ import {
   SubjectConflictError,
   SubjectRedirectError,
 } from '../services/subjectService.js';
-import { clearSeoBuildCache } from './publicSeoController.js';
+import { noteSeoChange } from '../services/seoChangeService.js';
 
 /** Fields returned to the public site for one subject page. */
 const PUBLIC_PAGE_FIELDS = ['name', 'slug', 'seoTitle', 'metaDescription', 'h1', 'intro', 'content', 'imageUrl', 'imageAlt'];
@@ -119,7 +119,7 @@ export async function updateAdminSubject(req, res, next) {
     try {
       result = await updateSubject(req.params.name, req.body ?? {}, { adminId: req.user._id });
     } finally {
-      clearSeoBuildCache();
+      noteSeoChange(`subject page ${req.params.name}`);
     }
     try {
       await AdminAuditLog.create({

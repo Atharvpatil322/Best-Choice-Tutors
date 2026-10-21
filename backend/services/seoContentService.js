@@ -188,7 +188,7 @@ async function collectSitemapEntries() {
           .sort({ publishedAt: -1 })
           .lean()
       : Promise.resolve([]),
-    PageSeo.find().select('path updatedAt').lean(),
+    PageSeo.find().select('path updatedAt noindex').lean(),
     settings.sitemapIncludePseo
       ? PseoPage.find({ isActive: true }).select('path updatedAt').lean()
       : Promise.resolve([]),
@@ -217,6 +217,7 @@ async function collectSitemapEntries() {
   // Page-level SEO overrides may describe landing pages not present in the
   // fixed list (for example campaign or subject pages added by the SEO team).
   for (const config of seoConfigs) {
+    if (config.noindex) continue;
     entries.push({
       path: config.path,
       lastmod: toSitemapDate(config.updatedAt),
@@ -235,6 +236,10 @@ async function collectSitemapEntries() {
   }
 
   const excluded = new Set((settings.sitemapExcludePaths || []).map((p) => p.replace(/\/+$/, '')));
+  // A page hidden from search results must not be advertised to crawlers.
+  for (const config of seoConfigs) {
+    if (config.noindex) excluded.add(config.path.replace(/\/+$/, '') || '/');
+  }
 
   const seen = new Set();
   return entries.filter((entry) => {
@@ -367,6 +372,16 @@ export async function buildLlmsTxt() {
 
   for (const route of PUBLIC_ROUTES) {
     sections.push(`- [${describeRoute(route.path)}](${SITE_URL}${route.path})`);
+  }
+
+  const generatedPages = settings.sitemapIncludePseo
+    ? await PseoPage.find({ isActive: true }).select('path title').sort({ path: 1 }).limit(200).lean()
+    : [];
+  if (generatedPages.length > 0) {
+    sections.push('', '## Tutors by subject and area', '');
+    for (const page of generatedPages) {
+      sections.push(`- [${page.title || page.path}](${SITE_URL}${page.path})`);
+    }
   }
 
   const subjects = await subjectRoutes();

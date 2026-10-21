@@ -18,6 +18,13 @@ import { generatePagesForTemplate, buildPagesForTemplate } from '../services/pse
 import { getSeoSettings } from '../services/seoContentService.js';
 import { buildSeoHead } from '../services/seoHtmlService.js';
 import { missingOrganizationFields } from '../services/seoSchemaBuilders.js';
+import { SITE_URL } from '../services/seoSchemaBuilders.js';
+import { noteSeoChange } from '../services/seoChangeService.js';
+import { publishNow, isPublishConfigured, isPublishPending } from '../services/sitePublishService.js';
+import { collectBuildPaths } from './publicSeoController.js';
+import PageSeo from '../models/PageSeo.js';
+import Blog from '../models/Blog.js';
+import Subject from '../models/Subject.js';
 
 /**
  * Reject the request unless the caller is an administrator.
@@ -313,6 +320,7 @@ export async function updateSettings(req, res, next) {
     settings.updatedBy = req.user._id;
     await settings.save();
     await audit(req, 'SEO_SETTINGS_UPDATED', 'SeoSetting', settings._id);
+    noteSeoChange('SEO settings');
 
     return res.status(200).json({ message: 'SEO settings updated', settings });
   } catch (err) {
@@ -351,6 +359,101 @@ export async function getSchemaPreview(req, res, next) {
 
 /* ----------------------------------------------------------------- redirects */
 
+const REDIRECT_STATUSES = [301, 302, 307, 308];
+const REDIRECT_MATCH_TYPES = ['exact', 'prefix', 'regex'];
+const SITE_HOST = new URL(SITE_URL).host.replace(/^www\./, '');
+
+/** Raised for a redirect that cannot be saved as entered. */
+class RedirectRuleError extends Error {}
+
+/**
+ * The site path a redirect target lands on, or null for another site.
+ * Query, fragment and trailing slash are dropped, so "/a/?x=1" is "/a".
+ *
+ * @param {string} target
+ * @returns {string|null}
+ */
+function sitePathOf(target) {
+  let path = String(target || '');
+  if (/^https?:\/\//i.test(path)) {
+    let url;
+    try {
+      url = new URL(path);
+    } catch {
+      return null;
+    }
+    if (url.host.replace(/^www\./, '') !== SITE_HOST) return null;
+    path = url.pathname;
+  }
+  if (!path.startsWith('/')) return null;
+  path = path.split(/[?#]/)[0];
+  return path.length > 1 ? path.replace(/\/+$/, '') : path;
+}
+
+/**
+ * Follow a target through existing exact redirects to the page it finally
+ * reaches, so a new rule never adds a hop to a chain, and refuse a rule whose
+ * chain would lead back to its own source.
+ *
+ * @param {string} source
+ * @param {string} target
+ * @param {*} [excludeId] - The rule being edited, ignored while following.
+ * @returns {Promise<string>} The final target.
+ */
+async function finalTarget(source, target, excludeId) {
+  const seen = new Set([sitePathOf(source)]);
+  let current = target;
+  for (let hop = 0; hop < 10; hop += 1) {
+    const path = sitePathOf(current);
+    if (!path) return current;
+    if (seen.has(path)) {
+      throw new RedirectRuleError('This redirect would create a loop back to its own source.');
+    }
+    seen.add(path);
+    const next = await Redirect.findOne({
+      sourcePath: path,
+      matchType: 'exact',
+      isActive: true,
+      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+    })
+      .select('targetUrl')
+      .lean();
+    if (!next) return current;
+    current = next.targetUrl;
+  }
+  throw new RedirectRuleError('The target already passes through too many redirects.');
+}
+
+/**
+ * Point rules that led to `source` straight at its final target, so adding
+ * this rule never leaves visitors on a two-step chain.
+ *
+ * @param {string} source
+ * @param {string} target
+ * @param {*} ruleId
+ */
+async function flattenIncoming(source, target, ruleId) {
+  const incoming = await Redirect.find({ _id: { $ne: ruleId }, isActive: true }).select('sourcePath targetUrl').lean();
+  const updates = incoming
+    .filter((rule) => sitePathOf(rule.targetUrl) === sitePathOf(source) && rule.sourcePath !== sitePathOf(target))
+    .map((rule) => ({ updateOne: { filter: { _id: rule._id }, update: { $set: { targetUrl: target } } } }));
+  if (updates.length) await Redirect.bulkWrite(updates);
+}
+
+/**
+ * Validate the status and match type of a redirect.
+ *
+ * @param {{ statusCode?: *, matchType?: * }} input
+ */
+function checkRedirectOptions({ statusCode, matchType }) {
+  if (statusCode !== undefined && !REDIRECT_STATUSES.includes(Number(statusCode))) {
+    throw new RedirectRuleError('Status must be 301, 302, 307 or 308');
+  }
+  if (matchType !== undefined && !REDIRECT_MATCH_TYPES.includes(matchType)) {
+    throw new RedirectRuleError('Match must be exact, prefix or regex');
+  }
+}
+
 /** GET /api/admin/seo-tools/redirects — list redirects, newest first. */
 export async function listRedirects(req, res, next) {
   if (!requireAdmin(req, res)) return;
@@ -367,8 +470,9 @@ export async function createRedirect(req, res, next) {
   if (!requireAdmin(req, res)) return;
   try {
     const { sourcePath, targetUrl, statusCode, matchType, note, isActive } = req.body ?? {};
+    checkRedirectOptions({ statusCode, matchType });
     const source = matchType === 'regex' ? String(sourcePath ?? '').trim() : normalisePath(sourcePath);
-    const target = normalisePath(targetUrl);
+    let target = normalisePath(targetUrl);
 
     if (!source || !target) {
       return res.status(400).json({ message: 'Source path and target URL are required' });
@@ -376,6 +480,7 @@ export async function createRedirect(req, res, next) {
     if (source === target) {
       return res.status(400).json({ message: 'Source and target cannot be the same — this would loop' });
     }
+    if ((matchType ?? 'exact') === 'exact') target = await finalTarget(source, target);
     if (matchType === 'regex') {
       try {
         new RegExp(source);
@@ -392,7 +497,7 @@ export async function createRedirect(req, res, next) {
     const redirect = await Redirect.create({
       sourcePath: source,
       targetUrl: target,
-      statusCode: statusCode ?? 301,
+      statusCode: Number(statusCode ?? 301),
       matchType: matchType ?? 'exact',
       note: note ?? '',
       isActive: isActive === undefined ? true : !!isActive,
@@ -401,10 +506,13 @@ export async function createRedirect(req, res, next) {
 
     // A redirect now exists for this path, so it is no longer an unresolved miss.
     await NotFoundLog.updateOne({ path: source }, { $set: { isResolved: true } });
+    if (redirect.matchType === 'exact' && redirect.isActive) await flattenIncoming(source, target, redirect._id);
     await audit(req, 'SEO_REDIRECT_CREATED', 'Redirect', redirect._id, { sourcePath: source });
+    noteSeoChange('redirects');
 
     return res.status(201).json({ message: 'Redirect created successfully', redirect });
   } catch (err) {
+    if (err instanceof RedirectRuleError) return res.status(400).json({ message: err.message });
     if (err.code === 11000) {
       return res.status(409).json({ message: 'A redirect already exists for that source path' });
     }
@@ -420,24 +528,36 @@ export async function updateRedirect(req, res, next) {
     if (!redirect) return res.status(404).json({ message: 'Redirect not found' });
 
     const { sourcePath, targetUrl, statusCode, matchType, note, isActive } = req.body ?? {};
+    checkRedirectOptions({ statusCode, matchType });
     if (matchType !== undefined) redirect.matchType = matchType;
     if (sourcePath !== undefined) {
       redirect.sourcePath =
         redirect.matchType === 'regex' ? String(sourcePath).trim() : normalisePath(sourcePath);
     }
     if (targetUrl !== undefined) redirect.targetUrl = normalisePath(targetUrl);
-    if (statusCode !== undefined) redirect.statusCode = statusCode;
+    if (statusCode !== undefined) redirect.statusCode = Number(statusCode);
     if (note !== undefined) redirect.note = note;
     if (isActive !== undefined) redirect.isActive = !!isActive;
 
     if (redirect.sourcePath === redirect.targetUrl) {
       return res.status(400).json({ message: 'Source and target cannot be the same — this would loop' });
     }
+    if (redirect.matchType === 'exact' && redirect.isActive) {
+      redirect.targetUrl = await finalTarget(redirect.sourcePath, redirect.targetUrl, redirect._id);
+    }
 
     await redirect.save();
+    if (redirect.matchType === 'exact' && redirect.isActive) {
+      await flattenIncoming(redirect.sourcePath, redirect.targetUrl, redirect._id);
+    }
     await audit(req, 'SEO_REDIRECT_UPDATED', 'Redirect', redirect._id);
+    noteSeoChange('redirects');
     return res.status(200).json({ message: 'Redirect updated successfully', redirect });
   } catch (err) {
+    if (err instanceof RedirectRuleError) return res.status(400).json({ message: err.message });
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'A redirect already exists for that source path' });
+    }
     next(err);
   }
 }
@@ -451,6 +571,7 @@ export async function deleteRedirect(req, res, next) {
     await audit(req, 'SEO_REDIRECT_DELETED', 'Redirect', redirect._id, {
       sourcePath: redirect.sourcePath,
     });
+    noteSeoChange('redirects');
     return res.status(200).json({ message: 'Redirect deleted successfully' });
   } catch (err) {
     next(err);
@@ -504,6 +625,22 @@ export async function clearNotFound(req, res, next) {
 
 /* --------------------------------------------------------------------- PSEO */
 
+/** Template fields an admin may set; anything else in a request is ignored. */
+const TEMPLATE_FIELDS = [
+  'name', 'pathPattern', 'titlePattern', 'descriptionPattern', 'headingPattern',
+  'introPattern', 'subjects', 'locations', 'isActive',
+];
+
+/**
+ * The template fields present in a request body.
+ *
+ * @param {Object} body
+ * @returns {Object}
+ */
+function pickTemplateFields(body = {}) {
+  return Object.fromEntries(TEMPLATE_FIELDS.filter((field) => body[field] !== undefined).map((field) => [field, body[field]]));
+}
+
 /** GET /api/admin/seo-tools/pseo/templates — list templates. */
 export async function listPseoTemplates(req, res, next) {
   if (!requireAdmin(req, res)) return;
@@ -538,7 +675,7 @@ export async function createPseoTemplate(req, res, next) {
     }
 
     const template = await PseoTemplate.create({
-      ...req.body,
+      ...pickTemplateFields(req.body),
       createdBy: req.user._id,
     });
     await audit(req, 'SEO_PSEO_TEMPLATE_CREATED', 'PseoTemplate', template._id, { name });
@@ -552,7 +689,13 @@ export async function createPseoTemplate(req, res, next) {
 export async function updatePseoTemplate(req, res, next) {
   if (!requireAdmin(req, res)) return;
   try {
-    const template = await PseoTemplate.findByIdAndUpdate(req.params.id, req.body, {
+    const update = pickTemplateFields(req.body);
+    if (update.pathPattern !== undefined && !String(update.pathPattern).includes('{subject}')) {
+      return res
+        .status(400)
+        .json({ message: 'Path pattern must include {subject} so each page has a unique URL' });
+    }
+    const template = await PseoTemplate.findByIdAndUpdate(req.params.id, { $set: update }, {
       new: true,
       runValidators: true,
     });
@@ -574,6 +717,7 @@ export async function deletePseoTemplate(req, res, next) {
     await audit(req, 'SEO_PSEO_TEMPLATE_DELETED', 'PseoTemplate', template._id, {
       pagesRemoved: removed.deletedCount,
     });
+    noteSeoChange('generated pages');
     return res
       .status(200)
       .json({ message: `Template and ${removed.deletedCount} generated page(s) deleted` });
@@ -601,6 +745,7 @@ export async function generatePseoPages(req, res, next) {
   try {
     const result = await generatePagesForTemplate(req.params.id);
     await audit(req, 'SEO_PSEO_PAGES_GENERATED', 'PseoTemplate', req.params.id, result);
+    noteSeoChange('generated pages');
     return res.status(200).json({
       message: `Generated ${result.created} new, updated ${result.updated}, skipped ${result.skipped} customised`,
       ...result,
@@ -652,6 +797,8 @@ export async function updatePseoPage(req, res, next) {
       runValidators: true,
     });
     if (!pseoPage) return res.status(404).json({ message: 'Page not found' });
+    await audit(req, 'SEO_PSEO_PAGE_UPDATED', 'PseoPage', pseoPage._id, { path: pseoPage.path });
+    noteSeoChange('generated pages');
     return res.status(200).json({ message: 'Page updated successfully', page: pseoPage });
   } catch (err) {
     next(err);
@@ -664,6 +811,8 @@ export async function deletePseoPage(req, res, next) {
   try {
     const pseoPage = await PseoPage.findByIdAndDelete(req.params.id);
     if (!pseoPage) return res.status(404).json({ message: 'Page not found' });
+    await audit(req, 'SEO_PSEO_PAGE_DELETED', 'PseoPage', pseoPage._id, { path: pseoPage.path });
+    noteSeoChange('generated pages');
     return res.status(200).json({ message: 'Page deleted successfully' });
   } catch (err) {
     next(err);
@@ -696,12 +845,155 @@ export async function getSeoDashboard(req, res, next) {
       .select('path hits lastSeenAt')
       .lean();
 
+    const [health, publish] = await Promise.all([seoHealth(), publishStatus()]);
+
     return res.status(200).json({
       redirects: { total: redirects, active: activeRedirects },
       notFound: { total: notFound, unresolved },
       pseo: { templates, pages: pseoPages, active: activePseo },
       topMisses,
+      health,
+      publish,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/* ------------------------------------------------------------ health check */
+
+/** Recommended limits Google tends to truncate beyond. */
+const TITLE_MAX = 60;
+const DESCRIPTION_MAX = 160;
+
+/**
+ * Search listing problems across every page the admin controls: missing or
+ * over-long titles and descriptions, titles used twice, hidden pages, and the
+ * Organization fields still empty.
+ *
+ * @returns {Promise<Object>}
+ */
+async function seoHealth() {
+  const [configs, subjects, blogs, settings] = await Promise.all([
+    PageSeo.find().select('path title description noindex').lean(),
+    Subject.find().select('name slug seoTitle metaDescription').lean(),
+    Blog.find({ status: 'PUBLISHED' }).select('slug title excerpt seoTitle metaDescription').lean(),
+    getSeoSettings(),
+  ]);
+
+  // The title and description each page will actually show.
+  const listings = [
+    ...blogs.map((blog) => ({
+      path: `/blog/${blog.slug}`,
+      title: blog.seoTitle || `${blog.title} | Best Choice Tutors`,
+      description: blog.metaDescription || blog.excerpt || '',
+    })),
+    ...subjects.map((subject) => ({
+      path: `/tutors/subject/${subject.slug}`,
+      title: subject.seoTitle || `${subject.name} Tutors | Best Choice Tutors`,
+      description: subject.metaDescription,
+      defaultDescription: !subject.metaDescription,
+    })),
+  ];
+  for (const config of configs) {
+    const existing = listings.find((item) => item.path === config.path);
+    if (existing) {
+      if (config.title) existing.title = config.title;
+      if (config.description) {
+        existing.description = config.description;
+        existing.defaultDescription = false;
+      }
+    } else {
+      listings.push({ path: config.path, title: config.title, description: config.description });
+    }
+  }
+
+  const issues = [];
+  const byTitle = new Map();
+  for (const item of listings) {
+    if (!item.title) issues.push({ path: item.path, problem: 'No page title' });
+    else if (item.title.length > TITLE_MAX) {
+      issues.push({ path: item.path, problem: `Title is ${item.title.length} characters (aim for ${TITLE_MAX} or fewer)` });
+    }
+    if (!item.description || item.defaultDescription) {
+      issues.push({ path: item.path, problem: 'No meta description of its own' });
+    } else if (item.description.length > DESCRIPTION_MAX) {
+      issues.push({
+        path: item.path,
+        problem: `Description is ${item.description.length} characters (aim for ${DESCRIPTION_MAX} or fewer)`,
+      });
+    }
+    if (item.title) {
+      const key = item.title.trim().toLowerCase();
+      byTitle.set(key, [...(byTitle.get(key) || []), item.path]);
+    }
+  }
+  for (const paths of byTitle.values()) {
+    if (paths.length > 1) {
+      for (const path of paths) issues.push({ path, problem: `Same title as ${paths.filter((p) => p !== path).join(', ')}` });
+    }
+  }
+
+  return {
+    issues: issues.slice(0, 100),
+    issueCount: issues.length,
+    pagesChecked: listings.length,
+    hiddenPages: configs.filter((config) => config.noindex).map((config) => config.path),
+    organizationMissing: missingOrganizationFields(settings.toObject().organization || {}),
+  };
+}
+
+/* ---------------------------------------------------------------- publishing */
+
+/**
+ * Whether a deploy hook is set, the last publish, and how many SEO records
+ * changed since then.
+ *
+ * @returns {Promise<Object>}
+ */
+async function publishStatus() {
+  const settings = await getSeoSettings();
+  const last = settings.publish?.requestedAt || null;
+  const since = last ? { updatedAt: { $gt: last } } : {};
+  const [pages, redirects, subjects, blogs, settingsChanged] = await Promise.all([
+    PageSeo.countDocuments(since),
+    Redirect.countDocuments(since),
+    Subject.countDocuments(since),
+    Blog.countDocuments(since),
+    last ? SeoSetting.countDocuments({ singleton: 'global', updatedAt: { $gt: last } }) : 1,
+  ]);
+  return {
+    configured: isPublishConfigured(),
+    pending: isPublishPending(),
+    last: last ? { at: last, ok: settings.publish.ok, message: settings.publish.message, reason: settings.publish.reason } : null,
+    changesSinceLast: pages + redirects + subjects + blogs + settingsChanged,
+  };
+}
+
+/**
+ * POST /api/admin/seo-tools/publish
+ * Rebuild the public site now, so recent SEO edits go live.
+ */
+export async function publishSite(req, res, next) {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const result = await publishNow('published from the SEO dashboard');
+    await audit(req, 'SEO_SITE_PUBLISHED', 'SeoSetting', (await getSeoSettings())._id, { ok: result.ok });
+    return res.status(result.ok || !result.configured ? 200 : 502).json({ ...result, publish: await publishStatus() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/seo-tools/known-paths
+ * Every public page the site publishes, for path suggestions in the editors.
+ */
+export async function listKnownPaths(req, res, next) {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const { pages } = await collectBuildPaths();
+    return res.status(200).json({ paths: pages.map((page) => page.path) });
   } catch (err) {
     next(err);
   }

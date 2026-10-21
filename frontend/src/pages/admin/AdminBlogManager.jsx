@@ -60,8 +60,14 @@ function AdminBlogManager() {
     imageUrl: '',
     imageAlt: '',
     status: 'DRAFT',
+    seoTitle: '',
+    metaDescription: '',
+    slug: '',
   });
   const [saving, setSaving] = useState(false);
+  // The post as loaded, to tell whether its URL handle changed.
+  const [loadedPost, setLoadedPost] = useState(null);
+  const [createRedirect, setCreateRedirect] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   // Local preview of a newly picked image, so the admin sees what will be
@@ -129,7 +135,12 @@ function AdminBlogManager() {
       imageUrl: '',
       imageAlt: '',
       status: 'DRAFT',
+      seoTitle: '',
+      metaDescription: '',
+      slug: '',
     };
+    setLoadedPost(null);
+    setCreateRedirect(true);
     setFormData(emptyForm);
     formSnapshotRef.current = JSON.stringify(emptyForm);
     setImageFile(null);
@@ -174,8 +185,13 @@ function AdminBlogManager() {
         imageUrl: full.imageUrl || '',
         imageAlt: full.imageAlt || '',
         status: full.status || 'DRAFT',
+        seoTitle: full.seoTitle || '',
+        metaDescription: full.metaDescription || '',
+        slug: full.slug || '',
       };
       setFormData(loaded);
+      setLoadedPost({ slug: full.slug, status: full.status });
+      setCreateRedirect(true);
       formSnapshotRef.current = JSON.stringify(loaded);
       setImageFile(null);
       setEditingId(full._id);
@@ -203,11 +219,20 @@ function AdminBlogManager() {
         const uploaded = await uploadBlogImageAdmin(imageFile);
         imageUrl = uploaded.imageUrl;
       }
-      const payload = { ...formData, imageUrl };
+      // The URL handle is only sent when it was changed; a new post gets its
+      // handle from the title on the server.
+      const { slug, ...fields } = formData;
+      const payload = { ...fields, imageUrl };
 
       if (editingId) {
+        const slugChanged = loadedPost && slug && slug !== loadedPost.slug;
+        if (slugChanged) Object.assign(payload, { slug, createRedirect });
         const data = await updateBlogAdmin(editingId, payload);
-        toast.success(data.message || 'Blog updated');
+        toast.success(
+          data.redirect
+            ? `Saved. ${data.redirect.sourcePath} now redirects to ${data.redirect.targetUrl}`
+            : data.message || 'Blog updated',
+        );
       } else {
         const data = await createBlogAdmin(payload);
         toast.success(data.message || 'Blog created');
@@ -486,6 +511,93 @@ function AdminBlogManager() {
                 <p className="text-xs text-slate-400 mt-1">
                   Read aloud by screen readers and used by search engines to understand the image.
                 </p>
+              </div>
+
+              {/* Search engine listing: page title, description and, for an
+                  existing post, the URL handle. */}
+              <div className="rounded-lg border border-slate-200 p-4 space-y-3">
+                <p className="text-sm font-semibold text-[#1A365D]">Search engine listing</p>
+                <div>
+                  <label className="flex items-center justify-between text-sm font-medium text-slate-700 mb-1">
+                    SEO title
+                    <span className={`text-xs ${formData.seoTitle.length > 70 ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {formData.seoTitle.length} of 70
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.seoTitle}
+                    onChange={(e) => setFormData((current) => ({ ...current, seoTitle: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                    placeholder={`${formData.title || 'Post title'} | Best Choice Tutors`}
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center justify-between text-sm font-medium text-slate-700 mb-1">
+                    Meta description
+                    <span className={`text-xs ${formData.metaDescription.length > 160 ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {formData.metaDescription.length} of 160
+                    </span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.metaDescription}
+                    onChange={(e) => setFormData((current) => ({ ...current, metaDescription: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                    placeholder={formData.excerpt || 'Blank uses the excerpt'}
+                  />
+                </div>
+                {editingId && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="blog-url-handle">
+                      URL handle
+                    </label>
+                    <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#4FD1C5]">
+                      <span className="px-3 flex items-center bg-slate-50 text-sm text-slate-500 whitespace-nowrap">
+                        /blog/
+                      </span>
+                      <input
+                        id="blog-url-handle"
+                        type="text"
+                        value={formData.slug}
+                        onChange={(e) =>
+                          setFormData((current) => ({
+                            ...current,
+                            slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'),
+                          }))
+                        }
+                        onBlur={() =>
+                          setFormData((current) => ({
+                            ...current,
+                            slug: current.slug.replace(/-+/g, '-').replace(/^-|-$/g, ''),
+                          }))
+                        }
+                        className="flex-1 min-w-0 px-3 py-2 text-sm outline-none"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Changing the title no longer changes the address; edit it here when you mean to.
+                    </p>
+                    {loadedPost?.status === 'PUBLISHED' && formData.slug && formData.slug !== loadedPost.slug && (
+                      <label className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={createRedirect}
+                          onChange={(e) => setCreateRedirect(e.target.checked)}
+                        />
+                        <span>
+                          Create a URL redirect from{' '}
+                          <span className="font-mono text-xs">/blog/{loadedPost.slug}</span> to{' '}
+                          <span className="font-mono text-xs">/blog/{formData.slug}</span>
+                          <span className="block text-xs text-slate-500 mt-0.5">
+                            Keeps links and search results pointing at the old address working.
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

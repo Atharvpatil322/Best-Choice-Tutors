@@ -3,6 +3,14 @@ import PseoPage from '../models/PseoPage.js';
 import Blog from '../models/Blog.js';
 import Redirect from '../models/Redirect.js';
 import { buildSeoHead } from '../services/seoHtmlService.js';
+import { resolveRouteStatus } from '../services/routeStatus.js';
+import { recordNotFound } from '../middlewares/seoTraffic.js';
+import {
+  getCachedPathList,
+  setCachedPathList,
+  getCachedHead,
+  setCachedHead,
+} from '../services/seoBuildCache.js';
 import { PUBLIC_ROUTES, isPublicPath, subjectRoutes } from '../services/seoContentService.js';
 
 /**
@@ -53,25 +61,7 @@ export async function getPseoPageByPath(req, res, next) {
   }
 }
 
-/**
- * How long the build endpoints reuse a computed answer. A build asks for
- * every page within seconds, so this mostly absorbs repeated or abusive
- * calls; an admin edit is still picked up by the next build.
- */
-const BUILD_CACHE_MS = 30 * 1000;
 const MAX_PATH_LENGTH = 300;
-
-let pathListCache = { at: 0, value: null };
-const headCache = new Map();
-
-/**
- * Forget cached build answers, after an edit that changes which pages exist
- * or what their heads say, so a build started straight after sees the edit.
- */
-export function clearSeoBuildCache() {
-  pathListCache = { at: 0, value: null };
-  headCache.clear();
-}
 
 /**
  * Every URL the static site publishes a file for, plus the permanent
@@ -85,10 +75,9 @@ export function clearSeoBuildCache() {
  *
  * @returns {Promise<{ pages: Array<{ path: string, kind: string }>, redirects: Array<{ from: string, to: string }> }>}
  */
-async function collectBuildPaths() {
-  if (pathListCache.value && Date.now() - pathListCache.at < BUILD_CACHE_MS) {
-    return pathListCache.value;
-  }
+export async function collectBuildPaths() {
+  const cached = getCachedPathList();
+  if (cached) return cached;
   const [blogs, redirects] = await Promise.all([
     Blog.find({ status: 'PUBLISHED' }).select('slug').lean(),
     Redirect.find({ isActive: true, matchType: 'exact', statusCode: { $in: [301, 308] } })
@@ -117,7 +106,7 @@ async function collectBuildPaths() {
     .filter((redirect) => STUB_SOURCE_PATTERN.test(redirect.from) && !seen.has(redirect.from) && redirect.to);
 
   const value = { pages, redirects: redirectPages };
-  pathListCache = { at: Date.now(), value };
+  setCachedPathList(value);
   return value;
 }
 
@@ -147,11 +136,10 @@ export async function getSeoHead(req, res, next) {
       return res.status(404).json({ message: 'Not a published page' });
     }
 
-    const cached = headCache.get(path);
-    let head = cached && Date.now() - cached.at < BUILD_CACHE_MS ? cached.value : null;
+    let head = getCachedHead(path);
     if (!head) {
       head = await buildSeoHead(path);
-      headCache.set(path, { at: Date.now(), value: head });
+      setCachedHead(path, head);
     }
     res.set('Cache-Control', 'no-store');
     return res.status(200).json(head);
@@ -169,6 +157,52 @@ export async function getSeoPaths(req, res, next) {
     const value = await collectBuildPaths();
     res.set('Cache-Control', 'no-store');
     return res.status(200).json(value);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Reports accepted per visitor per minute, so the log cannot be flooded.
+ * In memory: the API runs as a single instance.
+ */
+const NOT_FOUND_LIMIT_PER_MINUTE = 20;
+const notFoundReports = new Map();
+
+function allowReport(ip) {
+  const now = Date.now();
+  const recent = (notFoundReports.get(ip) || []).filter((at) => now - at < 60 * 1000);
+  if (recent.length >= NOT_FOUND_LIMIT_PER_MINUTE) {
+    notFoundReports.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  notFoundReports.set(ip, recent);
+  if (notFoundReports.size > 5000) notFoundReports.clear();
+  return true;
+}
+
+/**
+ * POST /api/public/not-found  { path, referrer }
+ *
+ * The live site is static, so the server never sees a visit to a missing
+ * page; the app reports it from the "page not found" screen instead. Only
+ * paths that really resolve to no page are recorded.
+ */
+export async function reportNotFound(req, res, next) {
+  try {
+    const raw = typeof req.body?.path === 'string' ? req.body.path.trim() : '';
+    // Behind the host's proxy every request shares its address, so the
+    // visitor's own address is taken from X-Forwarded-For when present.
+    const visitor = String(req.get('x-forwarded-for') || '').split(',')[0].trim() || req.ip;
+    if (!raw.startsWith('/') || raw.length > MAX_PATH_LENGTH || !allowReport(visitor)) {
+      return res.status(202).json({ recorded: false });
+    }
+    const path = raw.split(/[?#]/)[0];
+    if ((await resolveRouteStatus(path)) !== 404) return res.status(202).json({ recorded: false });
+    const referrer = typeof req.body?.referrer === 'string' ? req.body.referrer : '';
+    await recordNotFound(path, referrer, req.get('user-agent'));
+    return res.status(202).json({ recorded: true });
   } catch (err) {
     next(err);
   }

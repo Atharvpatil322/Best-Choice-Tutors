@@ -113,7 +113,7 @@ async function loadPageContext(path) {
     PageSeo.findOne({ path }).lean(),
     blogMatch
       ? Blog.findOne({ slug: blogMatch[1], status: 'PUBLISHED' })
-          .select('title excerpt author category publishedAt createdAt updatedAt imageUrl imageAlt slug')
+          .select('title excerpt seoTitle metaDescription author category publishedAt createdAt updatedAt imageUrl imageAlt slug')
           .lean()
       : null,
     PseoPage.findOne({ path, isActive: true }).select('title description heading subject').lean(),
@@ -192,11 +192,12 @@ export async function buildSeoHead(requestPath, options = {}) {
   // Precedence: an explicit admin override wins, then the record behind the
   // page (article, generated page, subject), then the site default.
   const recordTitle =
-    (blog && `${blog.title} | ${BRAND_NAME}`) ||
+    (blog && (blog.seoTitle || `${blog.title} | ${BRAND_NAME}`)) ||
     pseoPage?.title ||
     (subject && (subjectPage.seoTitle || `${subject} Tutors | ${BRAND_NAME}`)) ||
     null;
   const recordDescription =
+    blog?.metaDescription ||
     blog?.excerpt ||
     pseoPage?.description ||
     (subject ? subjectPage.metaDescription || SUBJECT_DESCRIPTION : null) ||
@@ -212,7 +213,10 @@ export async function buildSeoHead(requestPath, options = {}) {
   const canonicalUrl = absoluteUrl(config?.canonicalUrl) || `${SITE_URL}${path === '/' ? '/' : path}`;
   const ogTitle = config?.ogTitle || recordOgTitle || title;
   const ogDescription = config?.ogDescription || description;
-  const ogType = config?.ogType || (blog ? 'article' : 'website');
+  // Records saved before og:type could be left blank all say "website"; on a
+  // blog post that default is ignored, so posts are still marked as articles.
+  const configOgType = blog && config?.ogType === 'website' ? '' : config?.ogType;
+  const ogType = configOgType || (blog ? 'article' : 'website');
   const ownedImage = absoluteUrl(config?.ogImage) || absoluteUrl(blog?.imageUrl) || absoluteUrl(subjectPage?.imageUrl);
   const ogImage = ownedImage || DEFAULT_OG_IMAGE;
   const ogImageAlt = (blog?.imageUrl && blog?.imageAlt) || (subjectPage?.imageUrl && subjectPage?.imageAlt) || ogTitle;
@@ -230,7 +234,7 @@ export async function buildSeoHead(requestPath, options = {}) {
   add('canonical', `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />`, true);
   meta('property', 'og:title', ogTitle, titleOwned || Boolean(config?.ogTitle));
   meta('property', 'og:description', ogDescription, descriptionOwned || Boolean(config?.ogDescription));
-  meta('property', 'og:type', ogType, Boolean(config?.ogType || blog));
+  meta('property', 'og:type', ogType, Boolean(configOgType || blog));
   meta('property', 'og:url', `${SITE_URL}${path === '/' ? '/' : path}`, true);
   meta('property', 'og:site_name', BRAND_NAME, true);
   meta('property', 'og:image', ogImage, Boolean(ownedImage));
@@ -250,8 +254,13 @@ export async function buildSeoHead(requestPath, options = {}) {
     ['p:domain_verify', settings?.verification?.pinterest],
     ['yandex-verification', settings?.verification?.yandex],
   ];
+  // Added alongside any verification tag already in the site code - never in
+  // place of it - so changing a token here cannot drop an existing
+  // verification. The key matches only an identical tag, to avoid duplicates.
   for (const [metaName, token] of verificationTags) {
-    if (token) meta('name', metaName, token, true);
+    if (token) {
+      add(`exact:${metaName}:${token}`, `<meta name="${metaName}" content="${escapeHtml(token)}" />`, true);
+    }
   }
 
   // Structured-data types an admin has switched off are skipped entirely.
@@ -323,6 +332,15 @@ export function matcherForKey(key) {
       pattern: SCRIPT_TAG,
       // Only the opening tag is checked, never the script's content.
       matches: (tag) => hasAttribute(tag.slice(0, tag.indexOf('>') + 1), 'type', 'application/ld+json'),
+    };
+  }
+  if (key.startsWith('exact:')) {
+    // exact:<meta name>:<content> - only a tag with both the same name and value.
+    const [, name, ...rest] = key.split(':');
+    const content = rest.join(':');
+    return {
+      pattern: META_TAG,
+      matches: (tag) => hasAttribute(tag, 'name', name) && hasAttribute(tag, 'content', escapeHtml(content)),
     };
   }
   const [attr, ...rest] = key.split(':');

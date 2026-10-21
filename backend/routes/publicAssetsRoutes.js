@@ -5,6 +5,7 @@ import {
   getPseoPageByPath,
   getSeoHead,
   getSeoPaths,
+  reportNotFound,
 } from '../controllers/publicSeoController.js';
 import { getPublicPageContent } from '../controllers/pageContentController.js';
 import {
@@ -57,6 +58,8 @@ router.get('/subjects', publicCache(60, 300), getPublicSubjects);
 router.get('/subjects/:slug', getPublicSubjectPage);
 // Where an old address now lives, for the static site to forward visitors.
 router.get('/redirect', getPublicRedirect);
+// Visits to missing pages, reported by the app's not-found screen.
+router.post('/not-found', reportNotFound);
 
 // Public page copy, so components can render admin-edited content.
 router.get('/page-content/:pageKey', publicCache(60, 300), getPublicPageContent);

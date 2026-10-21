@@ -46,6 +46,12 @@ async function request(path, options = {}) {
 /** Counts for the SEO overview tab. */
 export const getSeoDashboard = () => request('/dashboard');
 
+/** Rebuild the public site now, so recent SEO edits go live. */
+export const publishSite = () => request('/publish', { method: 'POST' });
+
+/** Every public page path, for suggestions in the editors. */
+export const getKnownPaths = () => request('/known-paths');
+
 /* --------------------------------------------------------------- settings */
 
 /** Fetch site-wide SEO settings. */

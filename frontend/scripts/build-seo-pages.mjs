@@ -105,9 +105,27 @@ function matcherForKey(key) {
       matches: (tag) => hasAttribute(tag.slice(0, tag.indexOf('>') + 1), 'type', 'application/ld+json'),
     };
   }
+  if (key.startsWith('exact:')) {
+    const [, name, ...rest] = key.split(':');
+    const content = rest.join(':');
+    return {
+      pattern: META_TAG,
+      matches: (tag) => hasAttribute(tag, 'name', name) && hasAttribute(tag, 'content', escapeAttr(content)),
+    };
+  }
   const [attr, ...rest] = key.split(':');
   const name = rest.join(':');
   return { pattern: META_TAG, matches: (tag) => hasAttribute(tag, attr, name) };
+}
+
+/** Escape a value the way the API escapes attribute values. */
+function escapeAttr(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**

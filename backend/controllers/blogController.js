@@ -55,7 +55,7 @@ export async function getBlogBySlug(req, res, next) {
   try {
     const { slug } = req.params;
     const blog = await Blog.findOne({ slug, status: 'PUBLISHED' })
-      .select('title slug excerpt content author category imageUrl imageAlt publishedAt createdAt updatedAt')
+      .select('title slug excerpt seoTitle metaDescription content author category imageUrl imageAlt publishedAt createdAt updatedAt')
       .lean();
 
     if (!blog) {

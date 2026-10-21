@@ -8,6 +8,11 @@ import AdminAuditLog from '../models/AdminAuditLog.js';
 import mongoose from 'mongoose';
 import sharp from 'sharp';
 import { uploadImage } from '../services/s3Service.js';
+import { moveRedirects } from '../services/redirectMoveService.js';
+import { noteSeoChange } from '../services/seoChangeService.js';
+
+/** Lowercase words joined by single hyphens, e.g. "exam-tips-2026". */
+const BLOG_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const MAX_IMAGE_WIDTH = 1600;
 
@@ -80,7 +85,8 @@ export async function createBlog(req, res, next) {
       return res.status(403).json({ message: 'Access denied: Admin role required' });
     }
 
-    const { title, excerpt, content, author, category, imageUrl, imageAlt, status } = req.body;
+    const { title, excerpt, content, author, category, imageUrl, imageAlt, status, seoTitle, metaDescription } =
+      req.body;
 
     if (!title || !content) {
       return res.status(400).json({ message: 'Title and content are required' });
@@ -105,6 +111,8 @@ export async function createBlog(req, res, next) {
       category: category || 'General',
       imageUrl: imageUrl || null,
       imageAlt: imageAlt || null,
+      seoTitle: seoTitle ? String(seoTitle).trim() : '',
+      metaDescription: metaDescription ? String(metaDescription).trim() : '',
       status: status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
       publishedAt: status === 'PUBLISHED' ? new Date() : null,
       createdBy: req.user._id,
@@ -120,6 +128,7 @@ export async function createBlog(req, res, next) {
       metadata: { title: blog.title, slug: blog.slug, status: blog.status },
     });
 
+    if (blog.status === 'PUBLISHED') noteSeoChange('blog posts');
     return res.status(201).json({ message: 'Blog created successfully', blog });
   } catch (err) {
     next(err);
@@ -213,24 +222,32 @@ export async function updateBlog(req, res, next) {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    const { title, excerpt, content, author, category, imageUrl, imageAlt, status } = req.body;
+    const {
+      title, excerpt, content, author, category, imageUrl, imageAlt, status,
+      slug: requestedSlug, createRedirect, seoTitle, metaDescription,
+    } = req.body;
     const updateData = { updatedBy: req.user._id };
 
-    if (title !== undefined) {
-      updateData.title = title.trim();
-      // Only regenerate slug if title changed and blog was not already published with that slug
-      if (title.trim() !== existing.title) {
-        let slug = createSlug(title.trim());
-        let slugExists = await Blog.findOne({ slug, _id: { $ne: id } });
-        let counter = 1;
-        while (slugExists) {
-          slug = `${createSlug(title.trim())}-${counter}`;
-          slugExists = await Blog.findOne({ slug, _id: { $ne: id } });
-          counter++;
+    // Editing the title no longer changes the URL: a published post's address
+    // is part of its search listing and of every link to it. The URL changes
+    // only when the admin edits the URL handle itself.
+    if (title !== undefined) updateData.title = title.trim();
+    if (requestedSlug !== undefined) {
+      const slug = String(requestedSlug).trim().toLowerCase();
+      if (!slug || slug.length > 200 || !BLOG_SLUG_PATTERN.test(slug)) {
+        return res.status(400).json({
+          message: 'URL handle can only contain lowercase letters, numbers and single hyphens',
+        });
+      }
+      if (slug !== existing.slug) {
+        if (await Blog.exists({ slug, _id: { $ne: id } })) {
+          return res.status(409).json({ message: `Another post already uses /blog/${slug}` });
         }
         updateData.slug = slug;
       }
     }
+    if (seoTitle !== undefined) updateData.seoTitle = String(seoTitle).trim();
+    if (metaDescription !== undefined) updateData.metaDescription = String(metaDescription).trim();
     if (excerpt !== undefined) updateData.excerpt = excerpt.trim();
     if (content !== undefined) updateData.content = content;
     if (author !== undefined) updateData.author = author.trim();
@@ -248,6 +265,25 @@ export async function updateBlog(req, res, next) {
 
     const blog = await Blog.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true }).lean();
 
+    // A published post that moved leaves a redirect at its old address unless
+    // the admin opted out; a draft was never public, so it needs none.
+    let redirect = null;
+    if (updateData.slug && existing.status === 'PUBLISHED') {
+      try {
+        redirect = await moveRedirects(`/blog/${existing.slug}`, `/blog/${blog.slug}`, {
+          createRedirect: createRedirect !== false,
+          adminId: req.user._id,
+          note: 'Blog post URL changed',
+        });
+      } catch (redirectErr) {
+        return res.status(500).json({
+          message: `The post moved to /blog/${blog.slug}, but its redirects could not be updated (${redirectErr.message}).`,
+          blog,
+        });
+      }
+    }
+    if (existing.status === 'PUBLISHED' || blog.status === 'PUBLISHED') noteSeoChange('blog posts');
+
     await AdminAuditLog.create({
       adminId: req.user._id,
       action: blog.status === 'PUBLISHED' ? 'BLOG_PUBLISHED' : 'BLOG_UPDATED',
@@ -256,7 +292,7 @@ export async function updateBlog(req, res, next) {
       metadata: { title: blog.title, slug: blog.slug, status: blog.status },
     });
 
-    return res.status(200).json({ message: 'Blog updated successfully', blog });
+    return res.status(200).json({ message: 'Blog updated successfully', blog, redirect });
   } catch (err) {
     next(err);
   }
@@ -289,6 +325,7 @@ export async function deleteBlog(req, res, next) {
       entityId: blog._id,
       metadata: { title: blog.title, slug: blog.slug },
     });
+    if (blog.status === 'PUBLISHED') noteSeoChange('blog posts');
 
     return res.status(200).json({ message: 'Blog deleted successfully' });
   } catch (err) {

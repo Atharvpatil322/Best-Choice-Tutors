@@ -6,13 +6,21 @@
  * noindex because an error page should never appear in search results.
  */
 
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { reportNotFound } from '@/services/notFoundService';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
 import '@/styles/LandingPage.css';
 
 export default function NotFound() {
+  const { pathname } = useLocation();
+  // Logged for the admin 404 report, so broken links can be redirected.
+  useEffect(() => {
+    reportNotFound(pathname);
+  }, [pathname]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Seo

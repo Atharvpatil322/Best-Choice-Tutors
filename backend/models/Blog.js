@@ -21,6 +21,20 @@ const blogSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Excerpt cannot exceed 500 characters'],
     },
+    /** Search result title. Blank uses "<title> | Best Choice Tutors". */
+    seoTitle: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [120, 'SEO title cannot exceed 120 characters'],
+    },
+    /** Search result description. Blank uses the excerpt. */
+    metaDescription: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [320, 'Meta description cannot exceed 320 characters'],
+    },
     content: {
       type: String,
       required: [true, 'Content is required'],

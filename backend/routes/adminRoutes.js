@@ -171,6 +171,8 @@ router.get("/subjects", authenticate, getAdminSubjects);
 router.put("/subjects/:name", authenticate, updateAdminSubject);
 
 router.get("/seo-tools/dashboard", authenticate, seoTools.getSeoDashboard);
+router.post("/seo-tools/publish", authenticate, seoTools.publishSite);
+router.get("/seo-tools/known-paths", authenticate, seoTools.listKnownPaths);
 
 router.get("/seo-tools/settings", authenticate, seoTools.getSettings);
 router.patch("/seo-tools/settings", authenticate, seoTools.updateSettings);

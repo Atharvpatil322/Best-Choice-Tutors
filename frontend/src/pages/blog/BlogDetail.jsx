@@ -3,13 +3,14 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
 import { DecodedImage } from '@/components/DecodedImage';
 import { getBlogBySlug, getCachedBlogBySlug } from '@/services/blogService';
 import { isHtmlContent, sanitizeBlogHtml } from '@/utils/blogContent';
+import { findRedirect } from '@/services/subjectPageService';
 import { Calendar, Clock, User, ArrowLeft, Share2 } from 'lucide-react';
 import '@/styles/LandingPage.css';
 import '@/styles/BlogContent.css';
@@ -31,6 +32,7 @@ function getReadingTime(content) {
 
 export default function BlogDetail() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [blog, setBlog] = useState(() => getCachedBlogBySlug(slug)?.blog || null);
   const [loading, setLoading] = useState(() => !getCachedBlogBySlug(slug));
   const [error, setError] = useState(null);
@@ -46,13 +48,25 @@ export default function BlogDetail() {
       .then((data) => {
         setBlog(data.blog || null);
       })
-      .catch((err) => {
-        if (!cached) setError(err.message || 'Blog not found');
+      .catch(async (err) => {
+        if (cached) return;
+        // The post may have moved to a new address. The static site cannot
+        // answer with a redirect itself, so the app forwards the visitor.
+        const target = await findRedirect(`/blog/${slug}`).catch(() => null);
+        if (target && /^https?:\/\//i.test(target)) {
+          window.location.replace(target);
+          return;
+        }
+        if (target) {
+          navigate(target, { replace: true });
+          return;
+        }
+        setError(err.message || 'Blog not found');
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [slug]);
+  }, [slug, navigate]);
 
   const handleShare = () => {
     if (navigator.share) {
@@ -110,8 +124,8 @@ export default function BlogDetail() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
       <Seo
-        title={`${blog.title} | Best Choice Tutors`}
-        description={blog.excerpt}
+        title={blog.seoTitle || `${blog.title} | Best Choice Tutors`}
+        description={blog.metaDescription || blog.excerpt}
         ogTitle={blog.title}
         ogDescription={blog.excerpt}
         ogType="article"

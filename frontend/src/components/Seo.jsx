@@ -54,6 +54,9 @@ export function Seo({
 
   useEffect(() => {
     let canceled = false;
+    // Drop the previous page's override first, or a page without one would
+    // keep showing the last page's title.
+    setOverrideConfig(null);
 
     if (typeof window === 'undefined') return undefined;
     const load = async () => {
@@ -79,7 +82,10 @@ export function Seo({
   const finalOgTitle = effectiveConfig.ogTitle || ogTitle || finalTitle;
   const finalOgDescription = effectiveConfig.ogDescription || ogDescription || finalDescription;
   const finalOgImage = effectiveConfig.ogImage || ogImage;
-  const finalOgType = effectiveConfig.ogType || ogType;
+  // Older overrides saved "website" for every page; that default never turns
+  // an article (a blog post) into a website.
+  const configOgType = ogType === 'article' && effectiveConfig.ogType === 'website' ? '' : effectiveConfig.ogType;
+  const finalOgType = configOgType || ogType;
   // Either the page asks to be hidden, or an admin has flagged it in the SEO
   // panel. A page marked noindex still gets its other tags, so sharing a link
   // to it still looks right.

@@ -162,6 +162,14 @@ const seoSettingSchema = new mongoose.Schema(
       organization: { type: Boolean, default: true },
     },
 
+    /** Last request to rebuild the public site (see sitePublishService). */
+    publish: {
+      requestedAt: { type: Date, default: null },
+      ok: { type: Boolean, default: null },
+      message: { type: String, default: '' },
+      reason: { type: String, default: '' },
+    },
+
     /** Admin who last saved these settings. */
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,

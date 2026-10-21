@@ -6,7 +6,7 @@
  * previously required a code change and redeploy.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Gauge,
@@ -25,6 +25,10 @@ import {
   Save,
   RefreshCw,
   Eye,
+  Rocket,
+  Pencil,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,20 +38,26 @@ import { Badge } from '@/components/ui/badge';
 import AdminSeoManager from './AdminSeoManager';
 import {
   getSeoDashboard,
+  publishSite,
   getSeoSettings,
   updateSeoSettings,
   getSchemaPreview,
   listRedirects,
   createRedirect,
+  updateRedirect,
   deleteRedirect,
   listNotFound,
+  deleteNotFound,
   clearNotFound,
   listPseoTemplates,
   createPseoTemplate,
+  updatePseoTemplate,
   deletePseoTemplate,
   previewPseoTemplate,
   generatePseoPages,
   listPseoPages,
+  updatePseoPage,
+  deletePseoPage,
 } from '@/services/seoToolsService';
 
 const TABS = [
@@ -102,8 +112,27 @@ function DashboardTab() {
     };
   }, []);
 
+  const [publishing, setPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      const result = await publishSite();
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      setData((current) => (current ? { ...current, publish: result.publish } : current));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   if (loading) return <TabLoading />;
   if (!data) return null;
+
+  const publish = data.publish || {};
+  const health = data.health || { issues: [], issueCount: 0, hiddenPages: [], organizationMissing: [] };
 
   const tiles = [
     { label: 'Active redirects', value: data.redirects.active, sub: `${data.redirects.total} total` },
@@ -114,6 +143,35 @@ function DashboardTab() {
 
   return (
     <div className="space-y-6">
+      {/* The public site is a static build, so SEO edits go live when it is rebuilt. */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-[#1A365D]">Publish SEO changes</h3>
+          <p className="text-sm text-slate-600 mt-1">
+            {publish.configured
+              ? publish.pending
+                ? 'A site build starts automatically in a couple of minutes.'
+                : `${publish.changesSinceLast || 0} change(s) since the last build. Edits are published automatically a couple of minutes after you make them; publish now to skip the wait.`
+              : 'No deploy hook is set up yet, so SEO edits go live with the next site deploy. Ask the site owner to add RENDER_DEPLOY_HOOK_URL to the API service.'}
+          </p>
+          {publish.last && (
+            <p className="text-xs text-slate-400 mt-1">
+              Last build requested {new Date(publish.last.at).toLocaleString()}
+              {publish.last.ok === false ? ` - failed: ${publish.last.message}` : ''}
+            </p>
+          )}
+        </div>
+        <Button
+          type="button"
+          onClick={handlePublish}
+          disabled={publishing || !publish.configured}
+          className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white shrink-0"
+        >
+          {publishing ? <Loader2 size={16} className="animate-spin mr-1" /> : <Rocket size={16} className="mr-1" />}
+          Publish now
+        </Button>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded-xl border border-slate-200 bg-white p-5">
@@ -122,6 +180,43 @@ function DashboardTab() {
             <p className="mt-1 text-xs text-slate-400">{tile.sub}</p>
           </div>
         ))}
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-[#1A365D] mb-2">
+          Search listing health ({health.pagesChecked || 0} pages checked)
+        </h3>
+        {health.issueCount === 0 && health.organizationMissing.length === 0 ? (
+          <p className="text-sm text-slate-600 inline-flex items-center gap-1.5">
+            <CheckCircle2 size={16} className="text-emerald-600" /> No problems found.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
+            {health.organizationMissing.length > 0 && (
+              <div className="px-4 py-3 text-sm">
+                <span className="font-medium text-slate-700">Organization schema: </span>
+                <span className="text-slate-600">still missing {health.organizationMissing.join(', ')} (Schema tab).</span>
+              </div>
+            )}
+            {health.issues.map((issue, index) => (
+              <div key={`${issue.path}-${index}`} className="flex items-start gap-2 px-4 py-2.5 text-sm">
+                <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
+                <span className="font-mono text-slate-700 shrink-0">{issue.path}</span>
+                <span className="text-slate-600">{issue.problem}</span>
+              </div>
+            ))}
+            {health.issueCount > health.issues.length && (
+              <p className="px-4 py-2 text-xs text-slate-400">
+                and {health.issueCount - health.issues.length} more
+              </p>
+            )}
+          </div>
+        )}
+        {health.hiddenPages.length > 0 && (
+          <p className="text-xs text-slate-500 mt-2">
+            Hidden from search (noindex): {health.hiddenPages.join(', ')}
+          </p>
+        )}
       </div>
 
       <div>
@@ -175,18 +270,52 @@ function RedirectTab() {
     load();
   }, [load]);
 
+  // The rule being edited, if any; the form above the list doubles as the editor.
+  const [editingId, setEditingId] = useState(null);
+  const emptyRedirect = { sourcePath: '', targetUrl: '', statusCode: 301, matchType: 'exact', note: '' };
+
   const handleCreate = async (event) => {
     event.preventDefault();
     setSaving(true);
     try {
-      await createRedirect(form);
-      toast.success('Redirect created successfully');
-      setForm({ sourcePath: '', targetUrl: '', statusCode: 301, matchType: 'exact', note: '' });
+      const result = editingId ? await updateRedirect(editingId, form) : await createRedirect(form);
+      const finalTarget = result.redirect?.targetUrl;
+      toast.success(
+        finalTarget && finalTarget !== form.targetUrl.trim()
+          ? `Saved. ${form.targetUrl} already redirects on, so this points straight to ${finalTarget}.`
+          : editingId
+            ? 'Redirect updated'
+            : 'Redirect created successfully',
+      );
+      setForm(emptyRedirect);
+      setEditingId(null);
       await load();
     } catch (err) {
       toast.error(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEdit = (row) => {
+    setEditingId(row._id);
+    setForm({
+      sourcePath: row.sourcePath,
+      targetUrl: row.targetUrl,
+      statusCode: row.statusCode,
+      matchType: row.matchType,
+      note: row.note || '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleToggle = async (row) => {
+    try {
+      await updateRedirect(row._id, { isActive: !row.isActive });
+      toast.success(row.isActive ? 'Redirect paused' : 'Redirect turned on');
+      await load();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -261,17 +390,41 @@ function RedirectTab() {
           </div>
         </div>
 
-        <Button type="submit" disabled={saving} className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white">
-          {saving ? (
-            <>
-              <Loader2 size={16} className="animate-spin mr-1" /> Saving...
-            </>
-          ) : (
-            <>
-              <Plus size={16} className="mr-1" /> Add redirect
-            </>
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={saving} className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white">
+            {saving ? (
+              <>
+                <Loader2 size={16} className="animate-spin mr-1" /> Saving...
+              </>
+            ) : editingId ? (
+              <>
+                <Save size={16} className="mr-1" /> Update redirect
+              </>
+            ) : (
+              <>
+                <Plus size={16} className="mr-1" /> Add redirect
+              </>
+            )}
+          </Button>
+          {editingId && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingId(null);
+                setForm(emptyRedirect);
+              }}
+            >
+              Cancel edit
+            </Button>
           )}
-        </Button>
+        </div>
+        <p className="text-xs text-slate-500">
+          A target that already redirects is followed to its final page, so visitors never pass
+          through a chain, and a rule that would loop back is refused. Old blog and subject
+          addresses get a real redirect page at the next site build; any other address forwards
+          visitors as soon as the page loads.
+        </p>
       </form>
 
       <div>
@@ -292,6 +445,7 @@ function RedirectTab() {
                   <th className="px-4 py-2 font-medium">Status</th>
                   <th className="px-4 py-2 font-medium">Match</th>
                   <th className="px-4 py-2 font-medium">Hits</th>
+                  <th className="px-4 py-2 font-medium">Active</th>
                   <th className="px-4 py-2 font-medium" />
                 </tr>
               </thead>
@@ -303,7 +457,25 @@ function RedirectTab() {
                     <td className="px-4 py-2">{row.statusCode}</td>
                     <td className="px-4 py-2 capitalize">{row.matchType}</td>
                     <td className="px-4 py-2">{row.hits}</td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2">
+                      <label className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={!!row.isActive}
+                          onChange={() => handleToggle(row)}
+                          aria-label={`Redirect from ${row.sourcePath} is ${row.isActive ? 'on' : 'off'}`}
+                        />
+                        {row.isActive ? 'On' : 'Off'}
+                      </label>
+                    </td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(row)}
+                        className="text-xs text-[#1A365D] hover:underline inline-flex items-center gap-1 mr-3"
+                      >
+                        <Pencil size={14} /> Edit
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(row._id)}
@@ -380,8 +552,8 @@ function NotFoundTab() {
         <TabLoading />
       ) : rows.length === 0 ? (
         <p className="text-sm text-slate-500">
-          No missing pages recorded. Paths are logged automatically when a visitor or crawler
-          requests a URL that does not exist.
+          No missing pages recorded. A path is logged when a visitor opens an address that does
+          not exist on the site.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -392,6 +564,7 @@ function NotFoundTab() {
                 <th className="px-4 py-2 font-medium">Hits</th>
                 <th className="px-4 py-2 font-medium">Last seen</th>
                 <th className="px-4 py-2 font-medium">Referrer</th>
+                <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -404,6 +577,23 @@ function NotFoundTab() {
                   </td>
                   <td className="px-4 py-2 text-slate-500 truncate max-w-[16rem]">
                     {row.lastReferrer || '-'}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await deleteNotFound(row._id);
+                          await load();
+                        } catch (err) {
+                          toast.error(err.message);
+                        }
+                      }}
+                      className="text-xs text-slate-500 hover:text-red-600 inline-flex items-center gap-1"
+                      aria-label={`Remove ${row.path} from the log`}
+                    >
+                      <Trash2 size={14} /> Remove
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -473,6 +663,19 @@ function RobotTab() {
       {(settings, update, save, saving) => (
         <div className="space-y-4">
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Crawling</label>
+            <select
+              value={settings.robotsMode || 'auto'}
+              onChange={(event) => update({ robotsMode: event.target.value })}
+              className="w-full max-w-md px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+            >
+              <option value="auto">Automatic - allow on the live site, block on test copies</option>
+              <option value="allow">Always allow search engines</option>
+              <option value="block">Block all search engines (site in preview)</option>
+            </select>
+          </div>
+
+          <div>
             <p className="text-sm text-slate-500 mb-2">
               Override <code className="text-xs">/robots.txt</code> rules (blank = default rules).
             </p>
@@ -497,19 +700,35 @@ function RobotTab() {
           <Button
             type="button"
             disabled={saving}
-            onClick={() => save({ robotsOverride: settings.robotsOverride })}
+            onClick={() => save({ robotsMode: settings.robotsMode, robotsOverride: settings.robotsOverride })}
             className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white"
           >
             {saving ? <Loader2 size={16} className="animate-spin mr-1" /> : <Save size={16} className="mr-1" />}
             Save robots settings
           </Button>
 
-          <p className="text-xs text-slate-500">
-            Preview the result at <span className="font-mono">/robots.txt</span>.
-          </p>
         </div>
       )}
     </SettingsTab>
+  );
+}
+
+/**
+ * Excluded-paths box. Held as text while editing and split into a list only
+ * on save, so pressing Enter starts a new line instead of being stripped.
+ */
+function ExcludedPathsField({ value, onChange }) {
+  const [text, setText] = useState(() => (value || []).join('\n'));
+  return (
+    <Textarea
+      rows={5}
+      value={text}
+      onChange={(event) => {
+        setText(event.target.value);
+        onChange(linesToArray(event.target.value));
+      }}
+      placeholder="/terms"
+    />
   );
 }
 
@@ -541,15 +760,13 @@ function SitemapTab() {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Excluded paths (one per line)
             </label>
-            <Textarea
-              rows={5}
-              value={(settings.sitemapExcludePaths || []).join('\n')}
-              onChange={(event) => update({ sitemapExcludePaths: linesToArray(event.target.value) })}
-              placeholder="/terms"
+            <ExcludedPathsField
+              value={settings.sitemapExcludePaths}
+              onChange={(paths) => update({ sitemapExcludePaths: paths })}
             />
             <p className="text-xs text-slate-400 mt-1">
-              Private areas are always excluded automatically; this is for public pages you would
-              rather not list.
+              Private areas and pages marked "hide from search results" are always left out; this
+              is for other public pages you would rather not list.
             </p>
           </div>
 
@@ -570,7 +787,8 @@ function SitemapTab() {
           </Button>
 
           <p className="text-xs text-slate-500">
-            Preview the result at <span className="font-mono">/sitemap.xml</span>.
+            Preview the result at <span className="font-mono">/sitemap.xml</span> after the next site
+            build.
           </p>
         </div>
       )}
@@ -606,9 +824,9 @@ function LlmTab() {
           </Button>
 
           <p className="text-xs text-slate-500">
-            Blog posts, FAQs and benefits are added automatically. Preview at{' '}
-            <span className="font-mono">/llms.txt</span>. Note that llms.txt is a proposed
-            convention, not an adopted standard.
+            Pages, subject pages, generated pages, blog posts, FAQs and benefits are added
+            automatically. Preview at <span className="font-mono">/llms.txt</span> after the next
+            site build. llms.txt is a proposed convention; Google Search does not use it.
           </p>
         </div>
       )}
@@ -1056,8 +1274,9 @@ function VerificationTab() {
       {(settings, update, save, saving) => (
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Paste the token each service gives you. It is rendered as a verification meta tag on
-            every page, so no code change or redeploy is needed.
+            Paste the token each service gives you. It is added as a verification meta tag to every
+            page at the next site build, next to any verification tag already in the site code -
+            existing verifications keep working.
           </p>
           {VERIFICATION_FIELDS.map((field) => (
             <div key={field.key}>
@@ -1091,23 +1310,79 @@ function VerificationTab() {
 
 /* -------------------------------------------------------------------- PSEO */
 
+/** Starting values for a new generated-page template. */
+const NEW_PSEO_TEMPLATE = {
+  name: '',
+  pathPattern: '/{subject}-tutors-in-{location}',
+  titlePattern: '{Subject} Tutors in {Location} | Best Choice Tutors',
+  descriptionPattern:
+    'Find verified {subject} tutors in {location}. Compare profiles, prices and availability.',
+  headingPattern: '{Subject} Tutors in {Location}',
+  introPattern: '',
+  subjects: '',
+  locations: '',
+};
+
+/** Inline editor for one generated page's copy. */
+function PseoPageEditor({ page, onSaved, onCancel }) {
+  const [draft, setDraft] = useState({
+    title: page.title || '',
+    description: page.description || '',
+    heading: page.heading || '',
+    intro: page.intro || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const field = (key, label, multiline) => (
+    <label className="block">
+      <span className="block text-xs font-medium text-slate-600 mb-1">{label}</span>
+      {multiline ? (
+        <Textarea rows={2} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} />
+      ) : (
+        <Input value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} />
+      )}
+    </label>
+  );
+  const save = async () => {
+    setSaving(true);
+    try {
+      await updatePseoPage(page._id, draft);
+      toast.success('Page updated. It will keep these edits when the template is generated again.');
+      onSaved();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 p-3 bg-slate-50 rounded-lg">
+      {field('title', 'Page title')}
+      {field('heading', 'Heading')}
+      {field('description', 'Meta description', true)}
+      {field('intro', 'Intro', true)}
+      <div className="sm:col-span-2 flex gap-2">
+        <Button type="button" size="sm" disabled={saving} onClick={save} className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white">
+          {saving ? <Loader2 size={14} className="animate-spin mr-1" /> : <Save size={14} className="mr-1" />}
+          Save page
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function PseoTab() {
   const [templates, setTemplates] = useState([]);
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    pathPattern: '/{subject}-tutors-in-{location}',
-    titlePattern: '{Subject} Tutors in {Location} | Best Choice Tutors',
-    descriptionPattern:
-      'Find verified {subject} tutors in {location}. Compare profiles, prices and availability.',
-    headingPattern: '{Subject} Tutors in {Location}',
-    introPattern: '',
-    subjects: '',
-    locations: '',
-  });
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [editingPageId, setEditingPageId] = useState(null);
+  const [previews, setPreviews] = useState({});
+  const [form, setForm] = useState(NEW_PSEO_TEMPLATE);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1126,22 +1401,65 @@ function PseoTab() {
     load();
   }, [load]);
 
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingTemplateId(null);
+    setForm(NEW_PSEO_TEMPLATE);
+  };
+
   const handleCreate = async (event) => {
     event.preventDefault();
     setSaving(true);
     try {
-      await createPseoTemplate({
+      const payload = {
         ...form,
         subjects: linesToArray(form.subjects),
         locations: linesToArray(form.locations),
-      });
-      toast.success('Template created successfully');
-      setShowForm(false);
+      };
+      if (editingTemplateId) {
+        await updatePseoTemplate(editingTemplateId, payload);
+        toast.success('Template updated. Generate again to apply it to its pages.');
+      } else {
+        await createPseoTemplate(payload);
+        toast.success('Template created successfully');
+      }
+      closeForm();
       await load();
     } catch (err) {
       toast.error(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEditTemplate = (template) => {
+    setEditingTemplateId(template._id);
+    setForm({
+      ...NEW_PSEO_TEMPLATE,
+      ...template,
+      subjects: (template.subjects || []).join('\n'),
+      locations: (template.locations || []).join('\n'),
+    });
+    setShowForm(true);
+  };
+
+  const handleTogglePage = async (page) => {
+    try {
+      await updatePseoPage(page._id, { isActive: !page.isActive });
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeletePage = async (page) => {
+    if (!window.confirm(`Delete ${page.path}? Generating the template again would recreate it.`)) return;
+    try {
+      await deletePseoPage(page._id);
+      toast.success('Page deleted');
+      await load();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -1158,8 +1476,7 @@ function PseoTab() {
   const handlePreview = async (templateId) => {
     try {
       const result = await previewPseoTemplate(templateId);
-      const sample = result.sample.map((page) => page.path).join('\n');
-      window.alert(`Would generate ${result.total} page(s).\n\nFirst few:\n${sample}`);
+      setPreviews((current) => ({ ...current, [templateId]: result }));
     } catch (err) {
       toast.error(err.message);
     }
@@ -1191,7 +1508,10 @@ function PseoTab() {
         <h3 className="text-sm font-semibold text-[#1A365D]">Templates ({templates.length})</h3>
         <Button
           type="button"
-          onClick={() => setShowForm((current) => !current)}
+          onClick={() => {
+            if (showForm) closeForm();
+            else setShowForm(true);
+          }}
           className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white"
         >
           <Plus size={16} className="mr-1" /> New template
@@ -1233,6 +1553,22 @@ function PseoTab() {
               onChange={(event) => setForm({ ...form, descriptionPattern: event.target.value })}
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Heading pattern</label>
+            <Input
+              value={form.headingPattern}
+              onChange={(event) => setForm({ ...form, headingPattern: event.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Intro pattern</label>
+            <Textarea
+              rows={3}
+              value={form.introPattern}
+              onChange={(event) => setForm({ ...form, introPattern: event.target.value })}
+              placeholder="Looking for a {subject} tutor in {location}? Compare verified tutors..."
+            />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Subjects (one per line)</label>
@@ -1254,12 +1590,12 @@ function PseoTab() {
             </div>
           </div>
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+            <Button type="button" variant="outline" onClick={closeForm}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving} className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white">
               {saving ? <Loader2 size={16} className="animate-spin mr-1" /> : <Save size={16} className="mr-1" />}
-              Create template
+              {editingTemplateId ? 'Update template' : 'Create template'}
             </Button>
           </div>
         </form>
@@ -1284,6 +1620,9 @@ function PseoTab() {
                   <Button type="button" variant="outline" onClick={() => handlePreview(template._id)}>
                     <Eye size={14} className="mr-1" /> Preview
                   </Button>
+                  <Button type="button" variant="outline" onClick={() => handleEditTemplate(template)}>
+                    <Pencil size={14} className="mr-1" /> Edit
+                  </Button>
                   <Button
                     type="button"
                     onClick={() => handleGenerate(template._id)}
@@ -1300,6 +1639,16 @@ function PseoTab() {
                   </button>
                 </div>
               </div>
+              {previews[template._id] && (
+                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                  <p className="font-medium mb-1">Would generate {previews[template._id].total} page(s). First few:</p>
+                  <ul className="font-mono space-y-0.5">
+                    {previews[template._id].sample.map((page) => (
+                      <li key={page.path}>{page.path}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1317,11 +1666,13 @@ function PseoTab() {
                   <th className="px-4 py-2 font-medium">Path</th>
                   <th className="px-4 py-2 font-medium">Title</th>
                   <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2 font-medium" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pages.map((page) => (
-                  <tr key={page._id}>
+                  <Fragment key={page._id}>
+                  <tr>
                     <td className="px-4 py-2 font-mono text-slate-700">{page.path}</td>
                     <td className="px-4 py-2 text-slate-600 truncate max-w-[22rem]">{page.title}</td>
                     <td className="px-4 py-2">
@@ -1338,7 +1689,45 @@ function PseoTab() {
                         {page.isActive ? 'Live' : 'Hidden'}
                       </Badge>
                     </td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setEditingPageId(editingPageId === page._id ? null : page._id)}
+                        className="text-xs text-[#1A365D] hover:underline mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePage(page)}
+                        className="text-xs text-[#1A365D] hover:underline mr-3"
+                      >
+                        {page.isActive ? 'Hide' : 'Make live'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePage(page)}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
+                  {editingPageId === page._id && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-2">
+                        <PseoPageEditor
+                          page={page}
+                          onCancel={() => setEditingPageId(null)}
+                          onSaved={async () => {
+                            setEditingPageId(null);
+                            await load();
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

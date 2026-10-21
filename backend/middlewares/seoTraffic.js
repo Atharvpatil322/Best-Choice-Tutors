@@ -149,23 +149,34 @@ export function logNotFound() {
       const subject = /^\/tutors\/subject\/([^/]+)$/.exec(path);
       if (subject && (await subjectBySlug(subject[1]))) return next();
 
-      const now = new Date();
-      await NotFoundLog.findOneAndUpdate(
-        { path },
-        {
-          $inc: { hits: 1 },
-          $set: {
-            lastSeenAt: now,
-            lastReferrer: (req.get('referer') || '').slice(0, 500),
-            lastUserAgent: (req.get('user-agent') || '').slice(0, 300),
-          },
-          $setOnInsert: { firstSeenAt: now },
-        },
-        { upsert: true },
-      );
+      await recordNotFound(path, req.get('referer'), req.get('user-agent'));
     } catch (err) {
       console.error('404 logging failed:', err?.message);
     }
     return next();
   };
+}
+
+/**
+ * Count a visit to a path that matches no page.
+ *
+ * @param {string} path
+ * @param {string} [referrer]
+ * @param {string} [userAgent]
+ */
+export async function recordNotFound(path, referrer, userAgent) {
+  const now = new Date();
+  await NotFoundLog.findOneAndUpdate(
+    { path },
+    {
+      $inc: { hits: 1 },
+      $set: {
+        lastSeenAt: now,
+        lastReferrer: String(referrer || '').slice(0, 500),
+        lastUserAgent: String(userAgent || '').slice(0, 300),
+      },
+      $setOnInsert: { firstSeenAt: now },
+    },
+    { upsert: true },
+  );
 }

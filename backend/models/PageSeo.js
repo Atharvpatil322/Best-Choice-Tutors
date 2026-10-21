@@ -42,9 +42,10 @@ const pageSeoSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    /** Blank lets the page decide: article for blog posts, website elsewhere. */
     ogType: {
       type: String,
-      default: 'website',
+      default: '',
     },
     /**
      * Keeps this page out of search results. Emitted as
