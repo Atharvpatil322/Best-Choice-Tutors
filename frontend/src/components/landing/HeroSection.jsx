@@ -4,7 +4,7 @@ import { localImageUrl } from '@/utils/s3Assets';
 import {
   CANONICAL_SUBJECTS,
   SUBJECT_OTHER,
-  slugToSubject,
+  subjectFromName,
   tutorSearchPath,
 } from '@/constants/subjects';
 import { normalizeSubject } from '@/utils/subjectUtils';
@@ -114,7 +114,7 @@ export default function HeroSection() {
     // The subject becomes part of the path; only the other filters stay in the
     // query string. A free-text subject that matches no canonical one is
     // dropped, so the link never points at a subject page that cannot exist.
-    const subject = rawSubject ? slugToSubject(normalizeSubject(rawSubject)) : '';
+    const subject = rawSubject ? subjectFromName(normalizeSubject(rawSubject)) : '';
     if (filters.mode) params.set('mode', filters.mode);
     if (filters.price) {
       // Pass a concrete ceiling rather than the range key, so the results page

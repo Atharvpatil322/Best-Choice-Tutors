@@ -7,6 +7,11 @@ import {
   getSeoPaths,
 } from '../controllers/publicSeoController.js';
 import { getPublicPageContent } from '../controllers/pageContentController.js';
+import {
+  getPublicSubjects,
+  getPublicSubjectPage,
+  getPublicRedirect,
+} from '../controllers/subjectController.js';
 import { publicCache } from '../middlewares/publicCache.js';
 
 const router = express.Router();
@@ -46,6 +51,12 @@ router.get('/pseo', publicCache(300, 600), getPseoPageByPath);
 // Finished head tags per URL, and the list of URLs, for the frontend build.
 router.get('/seo-head', getSeoHead);
 router.get('/seo-paths', getSeoPaths);
+
+// Subject pages: current slugs for links, and one page's content.
+router.get('/subjects', publicCache(60, 300), getPublicSubjects);
+router.get('/subjects/:slug', publicCache(60, 300), getPublicSubjectPage);
+// Where an old address now lives, for the static site to forward visitors.
+router.get('/redirect', publicCache(60, 300), getPublicRedirect);
 
 // Public page copy, so components can render admin-edited content.
 router.get('/page-content/:pageKey', publicCache(60, 300), getPublicPageContent);

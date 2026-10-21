@@ -47,9 +47,14 @@ import {
   CANONICAL_SUBJECTS,
   SUBJECT_OTHER,
   slugToSubject,
+  subjectFromName,
   tutorSearchPath,
 } from '@/constants/subjects';
+import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
+import { getSubjectPage, findRedirect } from '@/services/subjectPageService';
+import { sanitizeBlogHtml } from '@/utils/blogContent';
 import '@/styles/LandingPage.css';
+import '@/styles/BlogContent.css';
 
 /** Subjects offered in the sidebar, excluding the free-text "Other" option. */
 const SUBJECT_OPTIONS = CANONICAL_SUBJECTS.filter((subject) => subject !== SUBJECT_OTHER);
@@ -425,7 +430,25 @@ export default function FindTutors() {
   // The subject lives in the path (/tutors/subject/english), so the URL reads
   // as a page rather than a query. Everything else stays a query parameter,
   // because those are transient filters rather than a place on the site.
+  // Subject slugs are editable in the admin panel, so they load from the API;
+  // `ready` says whether an unknown slug can be trusted to be unknown.
+  const { ready: slugsReady } = useSubjectSlugs();
   const pathSubject = slugToSubject(subjectSlug);
+
+  // Admin-written content for this subject page: heading, intro, body copy
+  // and search listing. Missing fields fall back to the built-in copy.
+  const [subjectPage, setSubjectPage] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setSubjectPage(null);
+    if (!pathSubject || !subjectSlug) return undefined;
+    getSubjectPage(subjectSlug.toLowerCase()).then((page) => {
+      if (!cancelled) setSubjectPage(page);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathSubject, subjectSlug]);
 
   // Links written before the move still arrive as /tutors?subject=English.
   // Rewrite them once so a page has a single address and old links keep working.
@@ -435,19 +458,43 @@ export default function FindTutors() {
     const query = new URLSearchParams(searchParams);
     query.delete('subject');
     const search = query.toString();
-    const target = tutorSearchPath(slugToSubject(legacySubject));
+    const target = tutorSearchPath(subjectFromName(legacySubject));
     navigate(`${target}${search ? `?${search}` : ''}`, { replace: true });
   }, [legacySubject, searchParams, navigate]);
 
-  // Keep one canonical URL per subject: an unknown slug falls back to the full
-  // list, and a slug that is merely miscased is corrected rather than served.
+  // Keep one canonical URL per subject: a slug that is merely miscased is
+  // corrected rather than served. A slug that matches no subject may be an old
+  // address an admin has moved, so the redirect list is asked first; only then
+  // does it fall back to the full list. Nothing is decided until the current
+  // slugs have loaded, or a renamed subject would bounce to the full list.
   useEffect(() => {
-    if (!subjectSlug) return;
-    const canonicalPath = tutorSearchPath(pathSubject);
-    if (canonicalPath === `/tutors/subject/${subjectSlug}`) return;
+    if (!subjectSlug || !slugsReady) return undefined;
+    let cancelled = false;
     const search = searchParams.toString();
-    navigate(`${canonicalPath}${search ? `?${search}` : ''}`, { replace: true });
-  }, [subjectSlug, pathSubject, searchParams, navigate]);
+    const go = (path) => {
+      if (!cancelled) navigate(`${path}${search ? `?${search}` : ''}`, { replace: true });
+    };
+
+    if (pathSubject) {
+      const canonicalPath = tutorSearchPath(pathSubject);
+      if (canonicalPath !== `/tutors/subject/${subjectSlug}`) go(canonicalPath);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    findRedirect(`/tutors/subject/${subjectSlug}`).then((target) => {
+      if (cancelled) return;
+      if (target && /^https?:\/\//i.test(target)) {
+        window.location.replace(target);
+        return;
+      }
+      go(target || '/tutors');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [subjectSlug, pathSubject, slugsReady, searchParams, navigate]);
 
   // Draft holds what the sidebar shows; applied is what the query actually uses,
   // so the results only change when "Apply Filters" is pressed.
@@ -641,11 +688,16 @@ export default function FindTutors() {
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
       <Seo
         title={
-          activeSubject
+          subjectPage?.seoTitle ||
+          (activeSubject
             ? `${activeSubject} Tutors | Best Choice Tutors`
-            : 'Find Your Perfect Tutor | Best Choice Tutors'
+            : 'Find Your Perfect Tutor | Best Choice Tutors')
         }
-        description="Browse verified tutors, compare profiles and rates, and book the right tutor for your learning goals."
+        description={
+          subjectPage?.metaDescription ||
+          'Browse verified tutors, compare profiles and rates, and book the right tutor for your learning goals.'
+        }
+        ogImage={subjectPage?.imageUrl || undefined}
       />
       <Header />
 
@@ -677,13 +729,19 @@ export default function FindTutors() {
                   )}
 
                   <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1A365D] tracking-tight leading-tight">
-                    Find Your <br className="hidden sm:block" />
-                    <span className="text-[#1A365D]">Perfect Tutor</span>
+                    {subjectPage?.h1 ? (
+                      subjectPage.h1
+                    ) : (
+                      <>
+                        Find Your <br className="hidden sm:block" />
+                        <span className="text-[#1A365D]">Perfect Tutor</span>
+                      </>
+                    )}
                   </h1>
 
                   <p className="mt-3 text-sm text-slate-600 max-w-md">
-                    Browse experienced tutors, compare their profiles, and find the right tutor for
-                    your learning goals.
+                    {subjectPage?.intro ||
+                      'Browse experienced tutors, compare their profiles, and find the right tutor for your learning goals.'}
                   </p>
 
                   <div className="mt-5 flex flex-wrap items-center gap-y-3">
@@ -885,6 +943,16 @@ export default function FindTutors() {
             </div>
           </div>
         )}
+
+        {/* Admin-written copy for this subject, below the results. */}
+        {subjectPage?.content ? (
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+            <div
+              className="blog-rich-content max-w-3xl text-slate-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: sanitizeBlogHtml(subjectPage.content) }}
+            />
+          </section>
+        ) : null}
 
         {/* Shared sections, reused as-is */}
         {/* Answers for the subject being browsed. The section hides itself

@@ -17,8 +17,7 @@
 import Blog from '../models/Blog.js';
 import PseoPage from '../models/PseoPage.js';
 import Redirect from '../models/Redirect.js';
-import { CANONICAL_SUBJECTS } from '../constants/subjects.js';
-import { subjectToSlug } from '../utils/subjectSlug.js';
+import { subjectBySlug } from './subjectService.js';
 
 /** Paths that exist exactly as written. */
 const EXACT_ROUTES = new Set([
@@ -41,8 +40,6 @@ const EXACT_ROUTES = new Set([
 /** Signed-in areas. Real routes, so they answer 200; robots.txt keeps them out. */
 const AUTHENTICATED_PREFIXES = ['/dashboard', '/tutor', '/admin', '/auth', '/reset-password'];
 
-const SUBJECT_SLUGS = new Set(CANONICAL_SUBJECTS.map(subjectToSlug));
-
 /**
  * @param {string} requestPath - Path portion of the request URL.
  * @returns {Promise<number>} 200 when the path resolves to a page, else 404.
@@ -54,7 +51,8 @@ export async function resolveRouteStatus(requestPath) {
   if (AUTHENTICATED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) return 200;
 
   const subject = path.match(/^\/tutors\/subject\/([^/]+)$/);
-  if (subject) return SUBJECT_SLUGS.has(subject[1].toLowerCase()) ? 200 : 404;
+  // A subject's old slug falls through to the redirect check below.
+  if (subject && (await subjectBySlug(subject[1]))) return 200;
 
   const blog = path.match(/^\/blog\/([^/]+)$/);
   if (blog) {

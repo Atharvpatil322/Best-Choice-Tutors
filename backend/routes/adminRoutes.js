@@ -1,5 +1,6 @@
 import express from "express";
 import * as seoTools from "../controllers/adminSeoToolsController.js";
+import { getAdminSubjects, updateAdminSubject } from "../controllers/subjectController.js";
 import * as pageContent from "../controllers/pageContentController.js";
 import { authenticate } from "../middlewares/auth.js";
 import { upload } from "../middlewares/upload.js";
@@ -164,6 +165,10 @@ router.get("/pages/registry", authenticate, pageContent.getPageRegistry);
 router.get("/pages/:pageKey", authenticate, pageContent.getAdminPageContent);
 router.put("/pages/:pageKey/:sectionKey", authenticate, pageContent.updatePageSection);
 router.delete("/pages/:pageKey/:sectionKey", authenticate, pageContent.resetPageSection);
+
+// Subject pages: slug, search listing and page copy per subject.
+router.get("/subjects", authenticate, getAdminSubjects);
+router.put("/subjects/:name", authenticate, updateAdminSubject);
 
 router.get("/seo-tools/dashboard", authenticate, seoTools.getSeoDashboard);
 

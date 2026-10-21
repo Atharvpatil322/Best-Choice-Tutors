@@ -5,11 +5,14 @@ import '../../styles/LandingPage.css';
 import { localImageUrl } from '@/utils/s3Assets';
 import { DecodedImage } from '@/components/DecodedImage';
 import { CANONICAL_SUBJECTS, tutorSearchPath } from '@/constants/subjects';
+import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
 import { isAuthenticated } from '@/lib/auth';
 
 const logoImage = localImageUrl('images/BCT_Logo.png');
 
 export default function Header() {
+  // Re-render when subject page URLs load, so menu links follow admin slug changes.
+  useSubjectSlugs();
   const [menuOpen, setMenuOpen] = useState(false);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
@@ -221,7 +224,7 @@ export default function Header() {
                 {CANONICAL_SUBJECTS.map((subject) => (
                   <Link
                     key={subject}
-                    to={`/?subject=${encodeURIComponent(subject)}`}
+                    to={tutorSearchPath(subject)}
                     className="header-subject-box"
                     onClick={() => { setMenuOpen(false); setSubjectsOpen(false); }}
                   >

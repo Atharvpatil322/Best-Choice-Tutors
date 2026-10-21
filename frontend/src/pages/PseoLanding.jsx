@@ -20,11 +20,14 @@ import Seo from '@/components/Seo';
 import NotFound from './NotFound';
 import { getPseoPage } from '@/services/seoToolsService';
 import { tutorSearchPath } from '@/constants/subjects';
+import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
 import '@/styles/LandingPage.css';
 
 export default function PseoLanding() {
   const { pathname } = useLocation();
   const [page, setPage] = useState(undefined); // undefined = loading
+  // Re-render when subject page URLs load, so the browse link is current.
+  useSubjectSlugs();
   useEffect(() => {
     let cancelled = false;
     setPage(undefined);

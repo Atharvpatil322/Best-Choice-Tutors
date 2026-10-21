@@ -18,8 +18,7 @@ import PageSeo from '../models/PageSeo.js';
 import PopularSearch from '../models/PopularSearch.js';
 import PseoPage from '../models/PseoPage.js';
 import { getSeoSettings } from './seoContentService.js';
-import { CANONICAL_SUBJECTS } from '../constants/subjects.js';
-import { subjectToSlug } from '../utils/subjectSlug.js';
+import { subjectBySlug } from './subjectService.js';
 import {
   SITE_URL,
   BRAND_NAME,
@@ -44,8 +43,9 @@ const DEFAULT_KEYWORDS =
 const DEFAULT_OG_IMAGE = `${SITE_URL}/logo.png`;
 
 /**
- * Subject page copy. Matches what frontend/src/pages/tutor/FindTutors.jsx
- * renders, so the raw HTML and the rendered page agree.
+ * Default subject page description when the admin has not written one.
+ * Matches what frontend/src/pages/tutor/FindTutors.jsx renders, so the raw
+ * HTML and the rendered page agree.
  */
 const SUBJECT_DESCRIPTION =
   'Browse verified tutors, compare profiles and rates, and book the right tutor for your learning goals.';
@@ -60,18 +60,6 @@ const PAGE_LABELS = {
   '/blog': 'Blog',
   '/tutors': 'Find Tutors',
 };
-
-const SUBJECT_BY_SLUG = new Map(CANONICAL_SUBJECTS.map((name) => [subjectToSlug(name), name]));
-
-/**
- * Canonical subject name for a URL slug, or null.
- *
- * @param {string} slug
- * @returns {string|null}
- */
-export function subjectForSlug(slug) {
-  return SUBJECT_BY_SLUG.get(String(slug || '').toLowerCase()) || null;
-}
 
 export function normalizePath(rawPath) {
   if (!rawPath || typeof rawPath !== 'string') return '/';
@@ -117,7 +105,8 @@ function safeJson(data) {
 async function loadPageContext(path) {
   const blogMatch = /^\/blog\/([a-z0-9-]+)$/.exec(path);
   const subjectMatch = /^\/tutors\/subject\/([^/]+)$/.exec(path);
-  const subject = subjectMatch ? subjectForSlug(subjectMatch[1]) : null;
+  const subjectPage = subjectMatch ? await subjectBySlug(subjectMatch[1]) : null;
+  const subject = subjectPage?.name || null;
 
   const [settings, config, blog, pseoPage, popularSearches] = await Promise.all([
     getSeoSettings(),
@@ -150,7 +139,7 @@ async function loadPageContext(path) {
       .lean();
   }
 
-  return { settings, config, blog, pseoPage, subject, faqs, popularSearches };
+  return { settings, config, blog, pseoPage, subject, subjectPage, faqs, popularSearches };
 }
 
 /**
@@ -168,7 +157,7 @@ function breadcrumbTrail(path, ctx) {
     return [home, { name: 'Blog', path: '/blog' }, { name: ctx.blog.title, path }];
   }
   if (ctx.subject) {
-    return [home, { name: 'Find Tutors', path: '/tutors' }, { name: `${ctx.subject} Tutors`, path }];
+    return [home, { name: 'Find Tutors', path: '/tutors' }, { name: ctx.subjectPage.h1 || `${ctx.subject} Tutors`, path }];
   }
   if (ctx.pseoPage) {
     return [home, { name: ctx.pseoPage.heading || ctx.pseoPage.title || 'Tutors', path }];
@@ -196,7 +185,7 @@ function breadcrumbTrail(path, ctx) {
 export async function buildSeoHead(requestPath, options = {}) {
   const path = normalizePath(requestPath);
   const ctx = await loadPageContext(path);
-  const { settings, config, blog, pseoPage, subject } = ctx;
+  const { settings, config, blog, pseoPage, subject, subjectPage } = ctx;
   const organization =
     (typeof settings?.toObject === 'function' ? settings.toObject() : settings)?.organization ?? {};
 
@@ -205,10 +194,13 @@ export async function buildSeoHead(requestPath, options = {}) {
   const recordTitle =
     (blog && `${blog.title} | ${BRAND_NAME}`) ||
     pseoPage?.title ||
-    (subject && `${subject} Tutors | ${BRAND_NAME}`) ||
+    (subject && (subjectPage.seoTitle || `${subject} Tutors | ${BRAND_NAME}`)) ||
     null;
   const recordDescription =
-    blog?.excerpt || pseoPage?.description || (subject ? SUBJECT_DESCRIPTION : null) || null;
+    blog?.excerpt ||
+    pseoPage?.description ||
+    (subject ? subjectPage.metaDescription || SUBJECT_DESCRIPTION : null) ||
+    null;
   const recordOgTitle = blog?.title || null;
 
   const title = config?.title || recordTitle || DEFAULT_TITLE;
@@ -221,9 +213,9 @@ export async function buildSeoHead(requestPath, options = {}) {
   const ogTitle = config?.ogTitle || recordOgTitle || title;
   const ogDescription = config?.ogDescription || description;
   const ogType = config?.ogType || (blog ? 'article' : 'website');
-  const ownedImage = absoluteUrl(config?.ogImage) || absoluteUrl(blog?.imageUrl);
+  const ownedImage = absoluteUrl(config?.ogImage) || absoluteUrl(blog?.imageUrl) || absoluteUrl(subjectPage?.imageUrl);
   const ogImage = ownedImage || DEFAULT_OG_IMAGE;
-  const ogImageAlt = (blog?.imageUrl && blog?.imageAlt) || ogTitle;
+  const ogImageAlt = (blog?.imageUrl && blog?.imageAlt) || (subjectPage?.imageUrl && subjectPage?.imageAlt) || ogTitle;
   const robots = config?.noindex || options.noindex ? 'noindex, nofollow' : 'index, follow';
 
   const entries = [];

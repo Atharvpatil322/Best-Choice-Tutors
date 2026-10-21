@@ -37,6 +37,7 @@ const KNOWN_ROUTE_PATTERNS = [
   /^\/blog$/,
   /^\/blog\/[^/]+$/,
   /^\/tutors$/,
+  /^\/tutors\/subject\/[^/]+$/,
   /^\/(dashboard|tutor|admin)(\/.*)?$/,
 ];
 

@@ -3,7 +3,7 @@ import PseoPage from '../models/PseoPage.js';
 import Blog from '../models/Blog.js';
 import Redirect from '../models/Redirect.js';
 import { buildSeoHead } from '../services/seoHtmlService.js';
-import { PUBLIC_ROUTES, isPublicPath } from '../services/seoContentService.js';
+import { PUBLIC_ROUTES, isPublicPath, subjectRoutes } from '../services/seoContentService.js';
 
 /**
  * Paths whose redirects can be published as files: the static host reaches a
@@ -96,9 +96,8 @@ async function collectBuildPaths() {
     pages.push({ path: normalised, kind });
   };
 
-  for (const route of PUBLIC_ROUTES) {
-    addPage(route.path, route.path.startsWith('/tutors/subject/') ? 'subject' : 'static');
-  }
+  for (const route of PUBLIC_ROUTES) addPage(route.path, 'static');
+  for (const route of await subjectRoutes()) addPage(route.path, 'subject');
   for (const blog of blogs) {
     if (blog.slug) addPage(`/blog/${blog.slug}`, 'blog');
   }

@@ -16,8 +16,7 @@ import PageSeo from '../models/PageSeo.js';
 import Benefit from '../models/Benefit.js';
 import PseoPage from '../models/PseoPage.js';
 import SeoSetting from '../models/SeoSetting.js';
-import { CANONICAL_SUBJECTS } from '../constants/subjects.js';
-import { subjectToSlug } from '../utils/subjectSlug.js';
+import { listSubjects } from './subjectService.js';
 
 /** Public site origin. Overridable so staging advertises its own hostname. */
 const SITE_URL = (process.env.SITE_URL || 'https://bestchoicetutors.com').replace(/\/+$/, '');
@@ -36,13 +35,23 @@ export const PUBLIC_ROUTES = [
   { path: '/tutors', changefreq: 'daily', priority: '0.9' },
   { path: '/privacy', changefreq: 'yearly', priority: '0.3' },
   { path: '/terms', changefreq: 'yearly', priority: '0.3' },
-  // One entry per subject, matching the URLs the tutor search actually serves.
-  ...CANONICAL_SUBJECTS.map((subject) => ({
-    path: `/tutors/subject/${subjectToSlug(subject)}`,
+];
+
+/**
+ * Subject page routes, from the subject records so an admin's slug change is
+ * reflected everywhere URLs are listed.
+ *
+ * @returns {Promise<Array<{ path: string, name: string, changefreq: string, priority: string }>>}
+ */
+export async function subjectRoutes() {
+  const subjects = await listSubjects();
+  return subjects.map((subject) => ({
+    path: `/tutors/subject/${subject.slug}`,
+    name: subject.name,
     changefreq: 'weekly',
     priority: '0.8',
-  })),
-];
+  }));
+}
 
 /**
  * Path prefixes that must never be advertised to crawlers, either because they
@@ -188,7 +197,7 @@ async function collectSitemapEntries() {
   // No lastmod for these: their content is not tracked with a timestamp, and a
   // date that silently changes to "today" on every request teaches crawlers to
   // ignore the field. Omitting it is valid and honest.
-  const entries = PUBLIC_ROUTES.map((route) => ({
+  const entries = [...PUBLIC_ROUTES, ...(await subjectRoutes())].map((route) => ({
     path: route.path,
     lastmod: null,
     changefreq: route.changefreq,
@@ -360,6 +369,14 @@ export async function buildLlmsTxt() {
     sections.push(`- [${describeRoute(route.path)}](${SITE_URL}${route.path})`);
   }
 
+  const subjects = await subjectRoutes();
+  if (subjects.length > 0) {
+    sections.push('', '## Tutors by subject', '');
+    for (const route of subjects) {
+      sections.push(`- [${route.name} tutors](${SITE_URL}${route.path})`);
+    }
+  }
+
   if (activeBenefits.length > 0) {
     sections.push('', '## Why families choose us', '');
     for (const benefit of activeBenefits) {
@@ -398,6 +415,7 @@ function describeRoute(path) {
     '/how-it-works': 'How it works - finding and booking a tutor',
     '/contact': 'Contact and support',
     '/blog': 'Blog - tutoring guides and study advice',
+    '/tutors': 'Find a tutor - browse and filter verified tutors',
     '/privacy': 'Privacy policy',
     '/terms': 'Terms and conditions',
   };
