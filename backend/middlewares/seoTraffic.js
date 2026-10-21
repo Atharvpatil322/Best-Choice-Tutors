@@ -16,6 +16,7 @@
 import Redirect from '../models/Redirect.js';
 import NotFoundLog from '../models/NotFoundLog.js';
 import PseoPage from '../models/PseoPage.js';
+import { subjectBySlug } from '../services/subjectService.js';
 
 /** Paths handled by the API, sockets or the build output — never page routes. */
 const NON_PAGE_PREFIXES = ['/api', '/socket.io', '/assets', '/images'];
@@ -37,7 +38,6 @@ const KNOWN_ROUTE_PATTERNS = [
   /^\/blog$/,
   /^\/blog\/[^/]+$/,
   /^\/tutors$/,
-  /^\/tutors\/subject\/[^/]+$/,
   /^\/(dashboard|tutor|admin)(\/.*)?$/,
 ];
 
@@ -143,6 +143,11 @@ export function logNotFound() {
       // not declare it statically.
       const pseo = await PseoPage.exists({ path: path.toLowerCase(), isActive: true });
       if (pseo) return next();
+
+      // Subject pages are real only while a subject uses the slug; an old or
+      // mistyped one is a broken link worth logging.
+      const subject = /^\/tutors\/subject\/([^/]+)$/.exec(path);
+      if (subject && (await subjectBySlug(subject[1]))) return next();
 
       const now = new Date();
       await NotFoundLog.findOneAndUpdate(
