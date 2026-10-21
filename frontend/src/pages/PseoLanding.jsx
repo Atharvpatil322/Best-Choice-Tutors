@@ -20,12 +20,12 @@ import Seo from '@/components/Seo';
 import NotFound from './NotFound';
 import { getPseoPage } from '@/services/seoToolsService';
 import { tutorSearchPath } from '@/constants/subjects';
-import { findRedirect } from '@/services/subjectPageService';
+import { findRedirect, forwardVisitor } from '@/services/subjectPageService';
 import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
 import '@/styles/LandingPage.css';
 
 export default function PseoLanding() {
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState(undefined); // undefined = loading
   // Re-render when subject page URLs load, so the browse link is current.
@@ -44,13 +44,8 @@ export default function PseoLanding() {
         // cannot answer with a redirect itself, so the app forwards here.
         const target = await findRedirect(pathname).catch(() => null);
         if (cancelled) return;
-        if (target && /^https?:\/\//i.test(target)) {
-          window.location.replace(target);
-        } else if (target) {
-          navigate(`${target}${target.includes('?') ? '' : search}`, { replace: true });
-        } else {
-          setPage(null);
-        }
+        if (target) forwardVisitor(target, navigate);
+        else setPage(null);
       })
       .catch(() => !cancelled && setPage(null));
     return () => {

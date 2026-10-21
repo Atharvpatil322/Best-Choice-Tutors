@@ -113,9 +113,16 @@ async function runPublish(reason) {
   // Only a build that actually started moves the "published up to" point and
   // clears the waiting flag; after a failure the edits still count as
   // unpublished and are retried at the next scheduled build.
-  await recordPublish(
-    result.ok ? { ...attempt, 'publish.requestedAt': requestedAt, 'publish.pendingSince': null } : attempt,
-  );
+  await recordPublish(result.ok ? { ...attempt, 'publish.requestedAt': requestedAt } : attempt);
+  if (result.ok && !pendingTimer) {
+    // Cleared only if nothing newer is waiting: an edit saved while the hook
+    // was being called arms a new build, and its marker must survive.
+    await SeoSetting.updateOne(
+      { singleton: 'global', 'publish.pendingSince': { $lte: requestedAt } },
+      { $set: { 'publish.pendingSince': null } },
+      { timestamps: false },
+    ).catch((err) => console.error('Clearing pending publish failed:', err?.message));
+  }
   return { ...result, configured: true };
 }
 

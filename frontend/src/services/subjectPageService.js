@@ -63,6 +63,39 @@ export async function findRedirect(path) {
   return data.redirect?.targetUrl || null;
 }
 
+/** The public site's host, so an absolute link to it counts as this site. */
+const SITE_HOST = 'bestchoicetutors.com';
+
+/**
+ * Send the visitor on to a redirect target. On this site the visitor's own
+ * query string and fragment (campaign tags, say) are kept, without
+ * overriding any the target sets; they are not passed to another site.
+ *
+ * @param {string} target - Site path or absolute URL.
+ * @param {Function} navigate - React Router navigate.
+ */
+export function forwardVisitor(target, navigate) {
+  let url;
+  try {
+    url = new URL(target, window.location.origin);
+  } catch {
+    return;
+  }
+  const host = url.hostname.replace(/^www\./, '');
+  const sameSite = url.origin === window.location.origin || host === SITE_HOST;
+  if (sameSite) {
+    new URLSearchParams(window.location.search).forEach((value, key) => {
+      if (!url.searchParams.has(key)) url.searchParams.set(key, value);
+    });
+    if (!url.hash && window.location.hash) url.hash = window.location.hash;
+  }
+  if (url.origin !== window.location.origin) {
+    window.location.replace(url.toString());
+    return;
+  }
+  navigate(`${url.pathname}${url.search}${url.hash}`, { replace: true });
+}
+
 /**
  * Issue an authenticated admin request and unwrap the JSON body.
  *

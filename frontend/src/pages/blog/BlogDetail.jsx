@@ -10,7 +10,7 @@ import Seo from '@/components/Seo';
 import { DecodedImage } from '@/components/DecodedImage';
 import { getBlogBySlug, getCachedBlogBySlug } from '@/services/blogService';
 import { isHtmlContent, sanitizeBlogHtml } from '@/utils/blogContent';
-import { findRedirect } from '@/services/subjectPageService';
+import { findRedirect, forwardVisitor } from '@/services/subjectPageService';
 import { Calendar, Clock, User, ArrowLeft, Share2 } from 'lucide-react';
 import '@/styles/LandingPage.css';
 import '@/styles/BlogContent.css';
@@ -53,12 +53,8 @@ export default function BlogDetail() {
         // The post may have moved to a new address. The static site cannot
         // answer with a redirect itself, so the app forwards the visitor.
         const target = await findRedirect(`/blog/${slug}`).catch(() => null);
-        if (target && /^https?:\/\//i.test(target)) {
-          window.location.replace(target);
-          return;
-        }
         if (target) {
-          navigate(target, { replace: true });
+          forwardVisitor(target, navigate);
           return;
         }
         setError(err.message || 'Blog not found');

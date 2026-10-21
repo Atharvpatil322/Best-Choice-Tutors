@@ -235,17 +235,19 @@ async function collectSitemapEntries() {
     });
   }
 
-  // Compared in lower case, as page paths are, so "/Terms" excludes "/terms".
-  const excluded = new Set((settings.sitemapExcludePaths || []).map((p) => p.replace(/\/+$/, '').toLowerCase()));
+  // Compared in one form - lower case, no trailing slash, "/" for the
+  // homepage - so "/Terms" excludes "/terms" and "/" excludes the homepage.
+  const sitemapKey = (value) => (String(value).replace(/\/+$/, '') || '/').toLowerCase();
+  const excluded = new Set((settings.sitemapExcludePaths || []).map(sitemapKey));
   // A page hidden from search results must not be advertised to crawlers.
   for (const config of seoConfigs) {
-    if (config.noindex) excluded.add((config.path.replace(/\/+$/, '') || '/').toLowerCase());
+    if (config.noindex) excluded.add(sitemapKey(config.path));
   }
 
   const seen = new Set();
   return entries.filter((entry) => {
     if (!isPublicPath(entry.path)) return false;
-    if (excluded.has(entry.path.replace(/\/+$/, '').toLowerCase())) return false;
+    if (excluded.has(sitemapKey(entry.path))) return false;
     const normalized = entry.path === '/' ? '/' : entry.path.replace(/\/+$/, '');
     if (seen.has(normalized)) return false;
     seen.add(normalized);
