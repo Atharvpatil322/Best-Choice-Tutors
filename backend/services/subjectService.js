@@ -229,7 +229,21 @@ export class SubjectRedirectError extends Error {}
  * @param {{ adminId?: * }} [options]
  * @returns {Promise<{ subject: Object, previousSlug: string, redirect: Object|null }>}
  */
-export async function updateSubject(name, input = {}, { adminId } = {}) {
+/**
+ * Subject edits run one at a time. A rename is a record save followed by
+ * several redirect updates; two renames interleaving could each undo part of
+ * the other's redirects even though each record save is checked. The API runs
+ * as a single instance (render.yaml), so an in-process queue is enough.
+ */
+let editQueue = Promise.resolve();
+
+export function updateSubject(name, input = {}, options = {}) {
+  const run = editQueue.then(() => applySubjectUpdate(name, input, options));
+  editQueue = run.catch(() => {});
+  return run;
+}
+
+async function applySubjectUpdate(name, input = {}, { adminId } = {}) {
   await ensureSubjects();
   const subject = await Subject.findOne({ name });
   if (!subject) throw new SubjectValidationError(`Unknown subject: ${name}`);

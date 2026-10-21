@@ -11,6 +11,11 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:500
 /** One request per subject page per page load. */
 const pageCache = new Map();
 
+/** Forget cached subject pages, after an admin edits one in this tab. */
+export function clearSubjectPageCache() {
+  pageCache.clear();
+}
+
 /**
  * Content for one subject page, or null when no subject uses the slug.
  *

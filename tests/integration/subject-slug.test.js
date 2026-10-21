@@ -112,6 +112,16 @@ test('two saves of the same record cannot both win', { skip }, async () => {
   await assert.rejects(second.save(), (err) => err.name === 'VersionError');
 });
 
+test('renames sent at the same moment run in turn and leave a clean set of redirects', { skip }, async () => {
+  await Promise.all([
+    updateSubject('French', { slug: 'french-b' }),
+    updateSubject('French', { slug: 'french-c', expectedSlug: 'french-b' }),
+  ]);
+  assert.equal((await Subject.findOne({ name: 'French' }).lean()).slug, 'french-c');
+  assert.equal((await redirectFrom('/tutors/subject/french')).targetUrl, '/tutors/subject/french-c');
+  assert.equal((await redirectFrom('/tutors/subject/french-b')).targetUrl, '/tutors/subject/french-c');
+});
+
 test('a save from an editor opened before another admin moved the page is refused', { skip }, async () => {
   await updateSubject('History', { slug: 'history-tutors' });
   await assert.rejects(

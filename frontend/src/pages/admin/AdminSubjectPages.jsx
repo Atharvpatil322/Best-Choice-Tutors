@@ -17,9 +17,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import RichTextEditor from '@/components/admin/RichTextEditor';
-import { getAdminSubjects, updateAdminSubject } from '@/services/subjectPageService';
+import { getAdminSubjects, updateAdminSubject, clearSubjectPageCache } from '@/services/subjectPageService';
 import { uploadBlogImageAdmin } from '@/services/blogService';
-import { subjectToSlug } from '@/constants/subjects';
+import { subjectToSlug, setSubjectSlugs } from '@/constants/subjects';
 
 const SITE_HOST = 'bestchoicetutors.com';
 const PATH_PREFIX = '/tutors/subject/';
@@ -356,8 +356,12 @@ export default function AdminSubjectPages() {
   }, [load]);
 
   const handleSaved = (updated) => {
-    setSubjects((current) => current.map((subject) => (subject.name === updated.name ? updated : subject)));
+    const next = subjects.map((subject) => (subject.name === updated.name ? updated : subject));
+    setSubjects(next);
     setEditing(updated);
+    // Links and subject pages opened from this tab use the new address and copy.
+    setSubjectSlugs(next.map(({ name, slug }) => ({ name, slug })));
+    clearSubjectPageCache();
   };
 
   const editingSubject = editing && subjects.find((subject) => subject.name === editing.name);
