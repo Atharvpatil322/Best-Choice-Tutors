@@ -2214,72 +2214,6 @@ body.landing-page-active {
   margin: 0;
 }
 
-.footer-links-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-  justify-content: center;
-}
-
-.link-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.footer-column-title {
-  font-weight: 700;
-  color: var(--navy-primary);
-  font-size: 0.9375rem;
-  margin-bottom: 0.25rem;
-}
-
-.footer-popular-row {
-  border-top: 1px solid #e2e8f0;
-  padding: 1.25rem 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: center;
-}
-
-.footer-popular-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.625rem 1rem;
-}
-
-.footer-popular-search {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-  color: var(--navy-primary);
-  font-weight: 600;
-  font-size: 0.875rem;
-  line-height: 1.2;
-  transition: color 0.2s, transform 0.2s;
-}
-
-.footer-popular-search:hover {
-  color: var(--button-red);
-  transform: translateY(-1px);
-}
-
-.link-column a {
-  text-decoration: none;
-  color: var(--navy-primary);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  transition: color 0.2s;
-}
-
-.link-column a:hover {
-  color: var(--button-red);
-}
-
 .footer-socials {
   display: flex;
   gap: 0.75rem;
@@ -2325,6 +2259,124 @@ body.landing-page-active {
   color: var(--navy-primary);
 }
 
+/* Footer accordions: Quick Links, Why Choose Us, FAQ, Popular Searches, Blog.
+   Native <details>, so closed sections keep their links in the page. */
+.footer-accordions {
+  border-top: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.footer-accordion {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.footer-accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0.25rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--navy-primary);
+}
+
+.footer-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.footer-accordion-summary:hover {
+  color: var(--button-red);
+}
+
+.footer-accordion-summary:focus-visible {
+  outline: 2px solid var(--button-teal, #4fd1c5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.footer-accordion-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.footer-accordion[open] .footer-accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.footer-accordion-body {
+  padding: 0 0.25rem 1.25rem;
+  text-align: left;
+}
+
+.footer-accordion-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.625rem 1.5rem;
+}
+
+.footer-accordion-links--wide {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.footer-accordion-links a {
+  text-decoration: none;
+  color: var(--navy-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  transition: color 0.2s;
+}
+
+.footer-accordion-links a:hover,
+.footer-accordion-more {
+  color: var(--button-red);
+}
+
+.footer-accordion-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem 1.5rem;
+}
+
+.footer-accordion-points li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.footer-accordion-points strong,
+.footer-accordion-faqs dt {
+  color: var(--navy-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.footer-accordion-points span,
+.footer-accordion-faqs dd {
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.footer-accordion-faqs {
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.footer-accordion-faqs dd {
+  margin: 0.25rem 0 0;
+}
+
 @media (min-width: 1024px) {
   .footer-section {
     padding: 4rem 0 2rem;
@@ -2340,31 +2392,6 @@ body.landing-page-active {
 
   .footer-brand {
     max-width: 350px;
-  }
-
-  .footer-links-grid {
-    gap: 3rem;
-    justify-content: flex-end;
-  }
-
-  .link-column {
-    align-items: flex-start;
-  }
-
-  .footer-popular-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    text-align: left;
-  }
-
-  .footer-popular-row .footer-column-title {
-    margin-bottom: 0;
-    white-space: nowrap;
-  }
-
-  .footer-popular-list {
-    justify-content: flex-start;
   }
 
   .footer-bottom {

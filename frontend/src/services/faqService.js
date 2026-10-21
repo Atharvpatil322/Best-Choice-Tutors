@@ -3,6 +3,7 @@
  * Public and admin FAQ API calls.
  */
 
+import { sharedRequest } from "@/utils/sharedRequest";
 import { getAuthToken } from "./authService.js";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api").replace(/\/+$/, "");
@@ -25,16 +26,18 @@ function buildApiUrl(path) {
  * @param {string} [subject] - Canonical subject name, e.g. "English".
  * @returns {Promise<{ faqs: Array, subject: string|null }>}
  */
-export const getActiveFaqs = async (subject) => {
-  const query = subject ? `?subject=${encodeURIComponent(subject)}` : "";
-  const response = await fetch(buildApiUrl(`/faq${query}`), {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
+export const getActiveFaqs = (subject) =>
+  // Shared, so the FAQ section and the footer make one request per subject.
+  sharedRequest(`faqs:${subject || ""}`, async () => {
+    const query = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+    const response = await fetch(buildApiUrl(`/faq${query}`), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Failed to fetch FAQs");
+    return data;
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "Failed to fetch FAQs");
-  return data;
-};
 
 /**
  * Get all FAQs (admin only)

@@ -3,6 +3,7 @@
  * Public and admin popular search keywords API calls.
  */
 
+import { sharedRequest } from "@/utils/sharedRequest";
 import { getAuthToken } from "./authService.js";
 
 const API_BASE_URL =
@@ -40,12 +41,12 @@ const requestJson = async (paths, options, fallbackMessage) => {
  * GET /api/popular-searches
  * @returns {Promise<{ popularSearches: Array }>}
  */
-export const getActivePopularSearches = async () => {
-  return requestJson("/popular-searches", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  }, "Failed to fetch popular searches");
-};
+export const getActivePopularSearches = () =>
+  sharedRequest("popular-searches", () =>
+    requestJson("/popular-searches", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }, "Failed to fetch popular searches"));
 
 /**
  * Get all popular searches (admin only)

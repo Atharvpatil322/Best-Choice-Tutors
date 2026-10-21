@@ -3,6 +3,7 @@
  * Public and admin "Why Choose Us" benefit API calls.
  */
 
+import { sharedRequest } from "@/utils/sharedRequest";
 import { getAuthToken } from "./authService.js";
 
 const API_BASE_URL =
@@ -40,12 +41,13 @@ const requestJson = async (paths, options, fallbackMessage) => {
  * GET /api/benefits
  * @returns {Promise<{ benefits: Array }>}
  */
-export const getActiveBenefits = async () => {
-  return requestJson("/benefits", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  }, "Failed to fetch benefits");
-};
+export const getActiveBenefits = () =>
+  // Shared, so the Why Choose Us section and the footer make one request.
+  sharedRequest("benefits", () =>
+    requestJson("/benefits", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }, "Failed to fetch benefits"));
 
 /**
  * Get all benefits (admin only)
