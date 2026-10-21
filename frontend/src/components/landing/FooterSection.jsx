@@ -29,7 +29,10 @@ const QUICK_LINKS = [
 
 /** Blog posts listed in the footer. */
 const FOOTER_POST_COUNT = 5;
-/** Same page size as the blog list, so the two share one request. */
+/**
+ * Same page and size as the first page of /blog. The blog service keeps the
+ * answer, so opening the blog from the footer shows the list straight away.
+ */
 const BLOG_LIST_PARAMS = { page: 1, limit: 12 };
 
 /**
@@ -139,15 +142,17 @@ export default function FooterSection() {
           </div>
         </div>
 
-        <nav className="footer-accordions" aria-label="Footer">
+        <div className="footer-accordions">
           <FooterAccordion title="Quick Links">
-            <ul className="footer-accordion-links">
-              {QUICK_LINKS.map((link) => (
-                <li key={link.to}>
-                  <Link to={link.to}>{link.label}</Link>
-                </li>
-              ))}
-            </ul>
+            <nav aria-label="Quick links">
+              <ul className="footer-accordion-links">
+                {QUICK_LINKS.map((link) => (
+                  <li key={link.to}>
+                    <Link to={link.to}>{link.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           </FooterAccordion>
 
           {benefits.length > 0 && (
@@ -178,35 +183,39 @@ export default function FooterSection() {
 
           {popularSearches.length > 0 && (
             <FooterAccordion title="Popular Searches">
-              <ul className="footer-accordion-links">
-                {popularSearches.map((item) => (
-                  <li key={item._id || item.query}>
-                    {/* A search naming a subject opens that subject's page;
-                        anything else opens the full tutor list. */}
-                    <Link to={tutorSearchPath(subjectFromName(item.query))}>{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
+              <nav aria-label="Popular tutor searches">
+                <ul className="footer-accordion-links">
+                  {popularSearches.map((item) => (
+                    <li key={item._id || item.query}>
+                      {/* A search naming a subject opens that subject's page;
+                          anything else opens the full tutor list. */}
+                      <Link to={tutorSearchPath(subjectFromName(item.query))}>{item.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
             </FooterAccordion>
           )}
 
           {posts.length > 0 && (
             <FooterAccordion title="Blog">
-              <ul className="footer-accordion-links footer-accordion-links--wide">
-                {posts.map((post) => (
-                  <li key={post.slug}>
-                    <Link to={`/blog/${post.slug}`}>{post.title}</Link>
+              <nav aria-label="Latest articles">
+                <ul className="footer-accordion-links footer-accordion-links--wide">
+                  {posts.map((post) => (
+                    <li key={post.slug}>
+                      <Link to={`/blog/${post.slug}`}>{post.title}</Link>
+                    </li>
+                  ))}
+                  <li>
+                    <Link to="/blog" className="footer-accordion-more">
+                      All articles
+                    </Link>
                   </li>
-                ))}
-                <li>
-                  <Link to="/blog" className="footer-accordion-more">
-                    All articles
-                  </Link>
-                </li>
-              </ul>
+                </ul>
+              </nav>
             </FooterAccordion>
           )}
-        </nav>
+        </div>
 
         {/* Bottom Bar */}
         <div className="footer-bottom">

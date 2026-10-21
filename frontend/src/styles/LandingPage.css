@@ -2334,7 +2334,7 @@ body.landing-page-active {
 }
 
 .footer-accordion-links a:hover,
-.footer-accordion-more {
+.footer-accordion-links a.footer-accordion-more {
   color: var(--button-red);
 }
 
