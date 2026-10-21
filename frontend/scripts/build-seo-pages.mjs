@@ -19,8 +19,13 @@
  * The head is built by backend/services/seoHtmlService.js; applyHead below
  * mirrors its applySeoHead and must stay in step with it.
  *
- * Fail-soft throughout: if the API is unreachable the build still succeeds
- * with the pages as the prerenderer left them, and the reason is printed.
+ * The host rewrites every blog and subject URL to that page's file, so a
+ * build that published none would turn them all into 404s. Requests are
+ * retried, since the API may be restarting for the same deploy. If the page
+ * list still cannot be fetched the build fails, and the host keeps serving
+ * the previous deploy. A page whose head cannot be fetched still gets the
+ * plain app shell, so it loads normally. Set SEO_PAGES_OPTIONAL=1 to skip
+ * instead of failing.
  *
  * Origin comes from SEO_SOURCE_ORIGIN, else VITE_API_BASE_URL with any /api
  * suffix removed. Skipped entirely when neither is set.
@@ -31,8 +36,10 @@ import path from 'node:path';
 
 const DIST = path.resolve(process.cwd(), 'dist');
 const SHELL = path.join(DIST, 'spa-shell.html');
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 45000;
+const ATTEMPTS = 6;
 const CONCURRENCY = 6;
+const OPTIONAL = process.env.SEO_PAGES_OPTIONAL === '1';
 
 /** @returns {string} Origin serving the API, or '' to skip. */
 function resolveOrigin() {
@@ -46,37 +53,65 @@ function resolveOrigin() {
 /** Site origin used to make redirect targets absolute. */
 const SITE_ORIGIN = (process.env.SITE_URL || 'https://bestchoicetutors.com').replace(/\/+$/, '');
 
-async function getJson(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Pattern matching every copy of the tag an entry manages. Mirrors
- * patternForKey in backend/services/seoHtmlService.js.
+ * GET a JSON document, retrying with backoff. A 404 is final: it means the
+ * API does not publish that page, which retrying will not change.
  *
- * @param {string} key
- * @returns {RegExp}
+ * @param {string} url
+ * @returns {Promise<Object>}
  */
-function patternForKey(key) {
-  if (key === 'title') return /<title\b[^>]*>[\s\S]*?<\/title>/gi;
-  if (key === 'canonical') return /<link\b[^>]*\brel=["']canonical["'][^>]*>/gi;
-  if (key === 'jsonld') return /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi;
+async function getJson(url) {
+  let lastError;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (response.status === 404) throw Object.assign(new Error('HTTP 404'), { final: true });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } catch (err) {
+      lastError = err;
+      if (err.final || attempt === ATTEMPTS) break;
+      await wait(Math.min(2000 * 2 ** (attempt - 1), 20000));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError;
+}
+
+/* Tag matching. Mirrors matcherForKey and applySeoHead in
+   backend/services/seoHtmlService.js - keep the two in step. */
+
+const META_TAG = /<meta\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi;
+const LINK_TAG = /<link\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi;
+const TITLE_TAG = /<title\b[^>]*>[\s\S]*?<\/title>/gi;
+const SCRIPT_TAG = /<script\b(?:"[^"]*"|'[^']*'|[^'">])*>[\s\S]*?<\/script>/gi;
+
+function hasAttribute(tag, attr, value) {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\s${attr}\\s*=\\s*["']${escaped}["']`, 'i').test(tag);
+}
+
+function matcherForKey(key) {
+  if (key === 'title') return { pattern: TITLE_TAG, matches: () => true };
+  if (key === 'canonical') return { pattern: LINK_TAG, matches: (tag) => hasAttribute(tag, 'rel', 'canonical') };
+  if (key === 'jsonld') {
+    return {
+      pattern: SCRIPT_TAG,
+      matches: (tag) => hasAttribute(tag.slice(0, tag.indexOf('>') + 1), 'type', 'application/ld+json'),
+    };
+  }
   const [attr, ...rest] = key.split(':');
-  const name = rest.join(':').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`<meta\\b[^>]*\\b${attr}=["']${name}["'][^>]*>`, 'gi');
+  const name = rest.join(':');
+  return { pattern: META_TAG, matches: (tag) => hasAttribute(tag, attr, name) };
 }
 
 /**
- * Write head entries into a document. Mirrors applySeoHead in
- * backend/services/seoHtmlService.js.
+ * Write head entries into a document.
  *
  * @param {string} html
  * @param {Array<{ key: string, html: string, owned: boolean }>} entries
@@ -84,12 +119,18 @@ function patternForKey(key) {
  * @returns {string}
  */
 function applyHead(html, entries, prerendered) {
+  if (!/<\/head>/i.test(html)) return html;
   let result = html;
   for (const entry of entries) {
-    const pattern = patternForKey(entry.key);
-    const exists = new RegExp(pattern.source, 'i').test(result);
-    if (prerendered && exists && !entry.owned) continue;
-    result = result.replace(pattern, '');
+    const { pattern, matches } = matcherForKey(entry.key);
+    let found = false;
+    const stripped = result.replace(pattern, (tag) => {
+      if (!matches(tag)) return tag;
+      found = true;
+      return '';
+    });
+    if (prerendered && found && !entry.owned) continue;
+    result = stripped;
     if (entry.html) result = result.replace(/<\/head>/i, () => `${entry.html}\n</head>`);
   }
   return result;
@@ -110,6 +151,9 @@ function attr(value) {
  */
 function redirectPage(target) {
   const absolute = /^https?:\/\//i.test(target) ? target : `${SITE_ORIGIN}${target.startsWith('/') ? '' : '/'}${target}`;
+  // The visitor's query string and fragment only carry over within this site.
+  const keepQuery = absolute.startsWith(`${SITE_ORIGIN}/`) && !/[?#]/.test(absolute);
+  const destination = JSON.stringify(absolute).replace(/</g, '\\u003c');
   return [
     '<!doctype html>',
     '<html lang="en">',
@@ -118,7 +162,7 @@ function redirectPage(target) {
     '<title>Page moved</title>',
     `<link rel="canonical" href="${attr(absolute)}">`,
     `<meta http-equiv="refresh" content="0; url=${attr(absolute)}">`,
-    `<script>location.replace(${JSON.stringify(absolute).replace(/</g, '\\u003c')} + location.search + location.hash);</script>`,
+    `<script>location.replace(${destination}${keepQuery ? ' + location.search + location.hash' : ''});</script>`,
     '</head>',
     `<body><p>This page has moved to <a href="${attr(absolute)}">${attr(absolute)}</a>.</p></body>`,
     '</html>',
@@ -164,19 +208,18 @@ async function main() {
     return;
   }
 
-  let shell;
-  try {
-    shell = await fs.readFile(SHELL, 'utf8');
-  } catch {
-    console.warn('[seo-pages] dist/spa-shell.html missing; only prerendered pages will be patched.');
-  }
+  // The shell is required: without it no blog or subject page can be written.
+  const shell = await fs.readFile(SHELL, 'utf8');
 
   let list;
   try {
     list = await getJson(`${origin}/api/public/seo-paths`);
   } catch (err) {
-    console.warn(`[seo-pages] skipped: could not list pages (${err.message})`);
-    return;
+    if (OPTIONAL) {
+      console.warn(`[seo-pages] skipped: could not list pages (${err.message})`);
+      return;
+    }
+    throw new Error(`could not list pages from ${origin} (${err.message})`);
   }
 
   const counts = { patched: 0, written: 0, redirects: 0, failed: 0 };
@@ -184,18 +227,22 @@ async function main() {
   await runLimited(list.pages || [], async ({ path: sitePath }) => {
     const file = fileForPath(sitePath);
     if (!file) return;
+    const prerendered = await exists(file);
+    let entries = [];
     try {
       const head = await getJson(`${origin}/api/public/seo-head?path=${encodeURIComponent(sitePath)}`);
-      const prerendered = await exists(file);
-      if (!prerendered && !shell) return;
-      const base = prerendered ? await fs.readFile(file, 'utf8') : shell;
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(file, applyHead(base, head.entries || [], prerendered), 'utf8');
-      counts[prerendered ? 'patched' : 'written'] += 1;
+      entries = head.entries || [];
     } catch (err) {
       counts.failed += 1;
-      console.warn(`[seo-pages] ${sitePath}: left as built (${err.message})`);
+      console.warn(`[seo-pages] ${sitePath}: head unavailable, publishing the plain shell (${err.message})`);
+      // A prerendered page is already complete; otherwise the shell still has
+      // to exist at this path, or the host's rewrite would answer 404.
+      if (prerendered) return;
     }
+    const base = prerendered ? await fs.readFile(file, 'utf8') : shell;
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, applyHead(base, entries, prerendered), 'utf8');
+    if (entries.length) counts[prerendered ? 'patched' : 'written'] += 1;
   });
 
   for (const redirect of list.redirects || []) {
@@ -214,5 +261,12 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.warn('[seo-pages] skipped:', err.message);
+  if (OPTIONAL) {
+    console.warn('[seo-pages] skipped:', err.message);
+    return;
+  }
+  // Failing the build keeps the previous deploy live, which is better than
+  // publishing a site whose blog and subject URLs all answer 404.
+  console.error('[seo-pages] build failed:', err.message);
+  process.exit(1);
 });

@@ -54,19 +54,90 @@ export async function getPseoPageByPath(req, res, next) {
 }
 
 /**
+ * How long the build endpoints reuse a computed answer. A build asks for
+ * every page within seconds, so this mostly absorbs repeated or abusive
+ * calls; an admin edit is still picked up by the next build.
+ */
+const BUILD_CACHE_MS = 30 * 1000;
+const MAX_PATH_LENGTH = 300;
+
+let pathListCache = { at: 0, value: null };
+const headCache = new Map();
+
+/**
+ * Every URL the static site publishes a file for, plus the permanent
+ * redirects it can publish as forwarding pages.
+ *
+ * Pages are the fixed routes and published blog posts - not the sitemap,
+ * because a page left out of the sitemap still needs correct markup.
+ * Generated landing pages are not listed: they live at arbitrary top-level
+ * paths that the static host's rewrite rules cannot reach, so a file for
+ * them would never be served.
+ *
+ * @returns {Promise<{ pages: Array<{ path: string, kind: string }>, redirects: Array<{ from: string, to: string }> }>}
+ */
+async function collectBuildPaths() {
+  if (pathListCache.value && Date.now() - pathListCache.at < BUILD_CACHE_MS) {
+    return pathListCache.value;
+  }
+  const [blogs, redirects] = await Promise.all([
+    Blog.find({ status: 'PUBLISHED' }).select('slug').lean(),
+    Redirect.find({ isActive: true, matchType: 'exact', statusCode: { $in: [301, 308] } })
+      .select('sourcePath targetUrl')
+      .lean(),
+  ]);
+
+  const pages = [];
+  const seen = new Set();
+  const addPage = (path, kind) => {
+    const normalised = normalizePath(path).toLowerCase();
+    if (!isPublicPath(normalised) || seen.has(normalised)) return;
+    seen.add(normalised);
+    pages.push({ path: normalised, kind });
+  };
+
+  for (const route of PUBLIC_ROUTES) {
+    addPage(route.path, route.path.startsWith('/tutors/subject/') ? 'subject' : 'static');
+  }
+  for (const blog of blogs) {
+    if (blog.slug) addPage(`/blog/${blog.slug}`, 'blog');
+  }
+
+  // A live page always wins over a redirect left behind at the same path.
+  const redirectPages = redirects
+    .map((redirect) => ({ from: normalizePath(redirect.sourcePath).toLowerCase(), to: redirect.targetUrl }))
+    .filter((redirect) => STUB_SOURCE_PATTERN.test(redirect.from) && !seen.has(redirect.from) && redirect.to);
+
+  const value = { pages, redirects: redirectPages };
+  pathListCache = { at: Date.now(), value };
+  return value;
+}
+
+/**
  * GET /api/public/seo-head?path=/blog/my-post
  *
  * The finished head tags for one URL, for the frontend build to write into
- * the page it publishes. Not cached: the build must see the latest admin
- * edits, and only the build calls it.
+ * the page it publishes. Only URLs the build publishes are answered, so the
+ * endpoint cannot be used to run lookups for arbitrary paths.
  */
 export async function getSeoHead(req, res, next) {
   try {
-    const path = normalizePath(req.query.path || '/');
-    if (!isPublicPath(path)) {
-      return res.status(400).json({ message: 'Path is not a public page' });
+    const raw = typeof req.query.path === 'string' ? req.query.path : '/';
+    if (raw.length > MAX_PATH_LENGTH) {
+      return res.status(400).json({ message: 'Path is too long' });
     }
-    const head = await buildSeoHead(path);
+    const path = normalizePath(raw).toLowerCase();
+    const { pages } = await collectBuildPaths();
+    if (!pages.some((page) => page.path === path)) {
+      return res.status(404).json({ message: 'Not a published page' });
+    }
+
+    const cached = headCache.get(path);
+    let head = cached && Date.now() - cached.at < BUILD_CACHE_MS ? cached.value : null;
+    if (!head) {
+      head = await buildSeoHead(path);
+      headCache.set(path, { at: Date.now(), value: head });
+    }
     res.set('Cache-Control', 'no-store');
     return res.status(200).json(head);
   } catch (err) {
@@ -76,46 +147,13 @@ export async function getSeoHead(req, res, next) {
 
 /**
  * GET /api/public/seo-paths
- *
- * Every public URL the build should publish a file for, and the permanent
- * redirects it can publish as redirect pages. Pages come from the fixed
- * routes, published blog posts and active generated pages - not the sitemap,
- * because a page left out of the sitemap still needs correct markup.
+ * The URL list from collectBuildPaths, for the frontend build.
  */
 export async function getSeoPaths(req, res, next) {
   try {
-    const [blogs, pseoPages, redirects] = await Promise.all([
-      Blog.find({ status: 'PUBLISHED' }).select('slug').lean(),
-      PseoPage.find({ isActive: true }).select('path').lean(),
-      Redirect.find({ isActive: true, matchType: 'exact', statusCode: { $in: [301, 308] } })
-        .select('sourcePath targetUrl')
-        .lean(),
-    ]);
-
-    const pages = [];
-    const seen = new Set();
-    const addPage = (path, kind) => {
-      const normalised = normalizePath(path);
-      if (!isPublicPath(normalised) || seen.has(normalised)) return;
-      seen.add(normalised);
-      pages.push({ path: normalised, kind });
-    };
-
-    for (const route of PUBLIC_ROUTES) {
-      addPage(route.path, route.path.startsWith('/tutors/subject/') ? 'subject' : 'static');
-    }
-    for (const blog of blogs) {
-      if (blog.slug) addPage(`/blog/${blog.slug}`, 'blog');
-    }
-    for (const page of pseoPages) addPage(page.path, 'pseo');
-
-    // A live page always wins over a redirect left behind at the same path.
-    const redirectPages = redirects
-      .map((redirect) => ({ from: normalizePath(redirect.sourcePath), to: redirect.targetUrl }))
-      .filter((redirect) => STUB_SOURCE_PATTERN.test(redirect.from) && !seen.has(redirect.from) && redirect.to);
-
+    const value = await collectBuildPaths();
     res.set('Cache-Control', 'no-store');
-    return res.status(200).json({ pages, redirects: redirectPages });
+    return res.status(200).json(value);
   } catch (err) {
     next(err);
   }

@@ -203,7 +203,7 @@ export function buildWebSiteSchema(org = {}) {
     '@id': WEBSITE_ID,
     name: text(org.websiteName) || text(org.name) || BRAND_NAME,
     alternateName: text(org.websiteAlternateName),
-    url: `${SITE_URL}/`,
+    url: absoluteUrl(org.url) || `${SITE_URL}/`,
     inLanguage: 'en-GB',
     publisher: { '@id': ORGANIZATION_ID },
   });

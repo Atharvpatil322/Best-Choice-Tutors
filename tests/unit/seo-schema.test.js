@@ -192,6 +192,30 @@ test('dollar signs in content are inserted literally', () => {
   assert.match(html, /<title>Save \$& and \$1<\/title>/);
 });
 
+test('look-alike attributes and ">" inside values do not confuse the matcher', () => {
+  const html = [
+    '<html><head>',
+    '<meta data-name="description" content="keep me" />',
+    '<meta name="description" content="a > b, the old one" />',
+    '<meta property="og:image:alt" content="alt stays" />',
+    '</head><body></body></html>',
+  ].join('\n');
+  const result = applySeoHead(html, [
+    { key: 'name:description', html: '<meta name="description" content="new" />', owned: true },
+    { key: 'property:og:image', html: '<meta property="og:image" content="x.png" />', owned: true },
+  ]);
+  assert.match(result, /data-name="description" content="keep me"/);
+  assert.doesNotMatch(result, /the old one/);
+  assert.doesNotMatch(result, /b, the old one" \/>/);
+  assert.match(result, /og:image:alt" content="alt stays"/, 'og:image does not match og:image:alt');
+  assert.equal((result.match(/\sname="description"/g) || []).length, 1);
+});
+
+test('a document without </head> is returned unchanged', () => {
+  const html = '<title>Keep</title><p>no head close</p>';
+  assert.equal(applySeoHead(html, [{ key: 'title', html: '<title>New</title>', owned: true }]), html);
+});
+
 test('an empty owned JSON-LD entry removes structured data a type was switched off for', () => {
   const html = applySeoHead(SHELL, [{ key: 'jsonld', html: '', owned: true }], { prerendered: true });
   assert.doesNotMatch(html, /ld\+json/);

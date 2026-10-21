@@ -17,7 +17,7 @@
  * its tags per route.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /** Tags where Helmet's version should win, matched one-for-one. */
@@ -29,9 +29,42 @@ const SINGLETON_SELECTORS = [
   'meta[property="og:title"]',
   'meta[property="og:description"]',
   'meta[property="og:image"]',
+  'meta[property="og:image:alt"]',
   'meta[property="og:url"]',
   'meta[property="og:type"]',
+  'meta[property="og:site_name"]',
+  'meta[name="twitter:card"]',
 ];
+
+/**
+ * Server tags that describe one particular URL. They are correct only for
+ * the address the page was loaded at; after an in-app navigation they would
+ * keep describing that first page, so they are removed and Helmet's tags for
+ * the new route stand alone. Site-wide tags such as verification and the
+ * site name are left in place.
+ */
+const PAGE_SPECIFIC_SELECTORS = [
+  'meta[name="description"]',
+  'meta[name="keywords"]',
+  'meta[name="robots"]',
+  'link[rel="canonical"]',
+  'meta[property="og:title"]',
+  'meta[property="og:description"]',
+  'meta[property="og:image"]',
+  'meta[property="og:image:alt"]',
+  'meta[property="og:url"]',
+  'meta[property="og:type"]',
+  'script[type="application/ld+json"]',
+];
+
+/** Remove the server's copies of page-specific tags. */
+function dropServerPageTags() {
+  PAGE_SPECIFIC_SELECTORS.forEach((selector) => {
+    document.head.querySelectorAll(selector).forEach((el) => {
+      if (!el.hasAttribute('data-rh')) el.remove();
+    });
+  });
+}
 
 /**
  * Drop server copies of a tag when Helmet has rendered its own.
@@ -73,9 +106,16 @@ function dedupeStructuredData() {
 
 export default function DedupeServerSeo() {
   const { pathname } = useLocation();
+  // The address the HTML was served for. Server tags describe only this URL.
+  const initialPathRef = useRef(pathname);
 
   useEffect(() => {
+    const leftInitialPage = pathname !== initialPathRef.current;
     const sweep = () => {
+      if (leftInitialPage) {
+        dropServerPageTags();
+        return;
+      }
       SINGLETON_SELECTORS.forEach(dedupeSingleton);
       dedupeStructuredData();
     };

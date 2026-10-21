@@ -741,6 +741,14 @@ function FormSection({ title, description, children }) {
 function OrganizationEditor({ settings, update, save, saving, preview }) {
   const [draft, setDraft] = useState(() => toOrganizationDraft(settings.organization || {}));
 
+  // Re-seed from what the server stored after a save, so normalised values
+  // (an upper-cased country code, dropped blank list entries) are what the
+  // admin sees. Toggling a schema type leaves settings.organization untouched,
+  // so unsaved edits survive that.
+  useEffect(() => {
+    setDraft(toOrganizationDraft(settings.organization || {}));
+  }, [settings.organization]);
+
   const set = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
   const setNested = (group, field, value) =>
     setDraft((current) => ({ ...current, [group]: { ...current[group], [field]: value } }));

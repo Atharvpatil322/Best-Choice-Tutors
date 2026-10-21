@@ -92,8 +92,14 @@ class SettingsValidationError extends Error {}
  * @returns {string}
  */
 function cleanText(value) {
-  return String(value ?? '').trim();
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') throw new SettingsValidationError('Expected text, got a list or object');
+  return String(value).trim();
 }
+
+/** Most entries any one list may hold, and the longest each entry may be. */
+const MAX_LIST_ITEMS = 50;
+const MAX_LIST_ITEM_LENGTH = 300;
 
 /**
  * A list of trimmed, non-empty strings from an array or a newline-separated
@@ -103,12 +109,19 @@ function cleanText(value) {
  * @returns {string[]}
  */
 function cleanList(value) {
-  const list = Array.isArray(value) ? value : String(value ?? '').split('\n');
-  return list.map(cleanText).filter(Boolean);
+  const list = (Array.isArray(value) ? value : cleanText(value).split('\n')).map(cleanText).filter(Boolean);
+  if (list.length > MAX_LIST_ITEMS) throw new SettingsValidationError(`A list can hold at most ${MAX_LIST_ITEMS} entries`);
+  if (list.some((item) => item.length > MAX_LIST_ITEM_LENGTH)) {
+    throw new SettingsValidationError(`List entries cannot exceed ${MAX_LIST_ITEM_LENGTH} characters`);
+  }
+  return list;
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Accept an absolute http(s) URL or a site-relative path; blank stays blank.
+ * "//host/path" is refused: it is a link to another site, not a path.
  *
  * @param {string} label - Field name for the error message.
  * @param {unknown} value
@@ -117,7 +130,7 @@ function cleanList(value) {
 function cleanUrl(label, value) {
   const url = cleanText(value);
   if (!url) return '';
-  if (/^https?:\/\/[^\s]+$/i.test(url) || /^\/[^\s]*$/.test(url)) return url;
+  if (/^https?:\/\/[^\s]+$/i.test(url) || /^\/(?!\/)[^\s]*$/.test(url)) return url;
   throw new SettingsValidationError(`${label} must be a full https:// address or a path starting with /`);
 }
 
@@ -142,7 +155,7 @@ function cleanOrganization(input) {
   for (const field of ORGANIZATION_URL_FIELDS) {
     if (input[field] !== undefined) out[field] = cleanUrl(field, input[field]);
   }
-  if (out.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) {
+  if (out.email && !EMAIL_PATTERN.test(out.email)) {
     throw new SettingsValidationError('Email address is not valid');
   }
   if (input.onlineOnly !== undefined) out.onlineOnly = Boolean(input.onlineOnly);
@@ -169,6 +182,9 @@ function cleanOrganization(input) {
     if (!inRange(latitude, 90) || !inRange(longitude, 180)) {
       throw new SettingsValidationError('Latitude must be between -90 and 90, longitude between -180 and 180');
     }
+    if (Boolean(latitude) !== Boolean(longitude)) {
+      throw new SettingsValidationError('Enter both latitude and longitude, or neither');
+    }
     out.geo = { latitude, longitude };
   }
 
@@ -194,13 +210,19 @@ function cleanOrganization(input) {
 
   if (input.contactPoints !== undefined) {
     if (!Array.isArray(input.contactPoints)) throw new SettingsValidationError('Contact points must be a list');
-    out.contactPoints = input.contactPoints.slice(0, 10).map((point) => ({
-      contactType: cleanText(point?.contactType),
-      telephone: cleanText(point?.telephone),
-      email: cleanText(point?.email),
-      areaServed: cleanText(point?.areaServed),
-      availableLanguage: cleanList(point?.availableLanguage),
-    }));
+    out.contactPoints = input.contactPoints.slice(0, 10).map((point) => {
+      const cleaned = {
+        contactType: cleanText(point?.contactType),
+        telephone: cleanText(point?.telephone),
+        email: cleanText(point?.email),
+        areaServed: cleanText(point?.areaServed),
+        availableLanguage: cleanList(point?.availableLanguage),
+      };
+      if (cleaned.email && !EMAIL_PATTERN.test(cleaned.email)) {
+        throw new SettingsValidationError(`Contact point email "${cleaned.email}" is not valid`);
+      }
+      return cleaned;
+    });
   }
 
   if (input.openingHours !== undefined) {
@@ -210,9 +232,10 @@ function cleanOrganization(input) {
       const opens = cleanText(slot?.opens);
       const closes = cleanText(slot?.closes);
       const time = /^([01]\d|2[0-3]):[0-5]\d$/;
-      if ((opens && !time.test(opens)) || (closes && !time.test(closes))) {
+      if (!time.test(opens) || !time.test(closes)) {
         throw new SettingsValidationError('Opening and closing times must be HH:MM, for example 09:00');
       }
+      if (!days.length) throw new SettingsValidationError('Pick at least one day for each set of opening hours');
       return { days, opens, closes };
     });
   }

@@ -23,6 +23,7 @@ import { subjectToSlug } from '../utils/subjectSlug.js';
 import {
   SITE_URL,
   BRAND_NAME,
+  absoluteUrl,
   buildOrganizationSchema,
   buildWebSiteSchema,
   buildBreadcrumbSchema,
@@ -215,12 +216,13 @@ export async function buildSeoHead(requestPath, options = {}) {
   const description = config?.description || recordDescription || DEFAULT_DESCRIPTION;
   const descriptionOwned = Boolean(config?.description || recordDescription);
   const keywords = config?.keywords || DEFAULT_KEYWORDS;
-  const canonicalUrl = config?.canonicalUrl || `${SITE_URL}${path === '/' ? '/' : path}`;
+  // Both must be absolute: a relative canonical or share image is ignored.
+  const canonicalUrl = absoluteUrl(config?.canonicalUrl) || `${SITE_URL}${path === '/' ? '/' : path}`;
   const ogTitle = config?.ogTitle || recordOgTitle || title;
   const ogDescription = config?.ogDescription || description;
   const ogType = config?.ogType || (blog ? 'article' : 'website');
-  const ogImage = config?.ogImage || blog?.imageUrl || DEFAULT_OG_IMAGE;
-  const ogImageOwned = Boolean(config?.ogImage || blog?.imageUrl);
+  const ownedImage = absoluteUrl(config?.ogImage) || absoluteUrl(blog?.imageUrl);
+  const ogImage = ownedImage || DEFAULT_OG_IMAGE;
   const ogImageAlt = (blog?.imageUrl && blog?.imageAlt) || ogTitle;
   const robots = config?.noindex || options.noindex ? 'noindex, nofollow' : 'index, follow';
 
@@ -239,8 +241,11 @@ export async function buildSeoHead(requestPath, options = {}) {
   meta('property', 'og:type', ogType, Boolean(config?.ogType || blog));
   meta('property', 'og:url', `${SITE_URL}${path === '/' ? '/' : path}`, true);
   meta('property', 'og:site_name', BRAND_NAME, true);
-  meta('property', 'og:image', ogImage, ogImageOwned);
-  meta('property', 'og:image:alt', ogImageAlt, ogImageOwned);
+  meta('property', 'og:image', ogImage, Boolean(ownedImage));
+  // The alt text is only written alongside an image this head chose. With the
+  // fallback logo, a prerendered page may keep its own image, and an alt
+  // written for the logo would then describe the wrong picture.
+  if (ownedImage) meta('property', 'og:image:alt', ogImageAlt, true);
   // X reads og:title, og:description and og:image when its own tags are
   // absent, so only the card type is declared - repeating the copy would go
   // stale on pages whose title is not known here.
@@ -285,21 +290,52 @@ export async function buildSeoHead(requestPath, options = {}) {
 }
 
 /**
- * Pattern matching every existing copy of the tag an entry manages.
+ * Tag scanners. Attribute values are matched as quoted strings, so a ">"
+ * inside a value (which some serialisers leave unescaped) cannot end a tag
+ * early.
+ */
+const META_TAG = /<meta\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi;
+const LINK_TAG = /<link\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi;
+const TITLE_TAG = /<title\b[^>]*>[\s\S]*?<\/title>/gi;
+const SCRIPT_TAG = /<script\b(?:"[^"]*"|'[^']*'|[^'">])*>[\s\S]*?<\/script>/gi;
+
+/**
+ * Whether a tag carries attr="value". The attribute must follow whitespace,
+ * so data-name="description" is not mistaken for name="description".
+ *
+ * @param {string} tag
+ * @param {string} attr
+ * @param {string} value
+ * @returns {boolean}
+ */
+function hasAttribute(tag, attr, value) {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\s${attr}\\s*=\\s*["']${escaped}["']`, 'i').test(tag);
+}
+
+/**
+ * Which tags an entry manages: a scanner for the tag kind, and a test that
+ * picks out the copies belonging to this entry.
  *
  * Kept in step with frontend/scripts/build-seo-pages.mjs, which applies the
  * same entries at build time.
  *
  * @param {string} key
- * @returns {RegExp} Global, case-insensitive.
+ * @returns {{ pattern: RegExp, matches: (tag: string) => boolean }}
  */
-export function patternForKey(key) {
-  if (key === 'title') return /<title\b[^>]*>[\s\S]*?<\/title>/gi;
-  if (key === 'canonical') return /<link\b[^>]*\brel=["']canonical["'][^>]*>/gi;
-  if (key === 'jsonld') return /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi;
+export function matcherForKey(key) {
+  if (key === 'title') return { pattern: TITLE_TAG, matches: () => true };
+  if (key === 'canonical') return { pattern: LINK_TAG, matches: (tag) => hasAttribute(tag, 'rel', 'canonical') };
+  if (key === 'jsonld') {
+    return {
+      pattern: SCRIPT_TAG,
+      // Only the opening tag is checked, never the script's content.
+      matches: (tag) => hasAttribute(tag.slice(0, tag.indexOf('>') + 1), 'type', 'application/ld+json'),
+    };
+  }
   const [attr, ...rest] = key.split(':');
-  const name = rest.join(':').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`<meta\\b[^>]*\\b${attr}=["']${name}["'][^>]*>`, 'gi');
+  const name = rest.join(':');
+  return { pattern: META_TAG, matches: (tag) => hasAttribute(tag, attr, name) };
 }
 
 /**
@@ -309,7 +345,8 @@ export function patternForKey(key) {
  * so a page never ends up with two canonicals or two descriptions - whether
  * the copies came from index.html, from Helmet during prerendering, or both.
  * On a prerendered page, an entry that is not owned is skipped when the page
- * already has that tag.
+ * already has that tag. A document with no </head> is returned unchanged,
+ * rather than losing tags that could not be put back.
  *
  * @param {string} html
  * @param {Array<{ key: string, html: string, owned: boolean }>} entries
@@ -317,12 +354,18 @@ export function patternForKey(key) {
  * @returns {string}
  */
 export function applySeoHead(html, entries, options = {}) {
+  if (!/<\/head>/i.test(html)) return html;
   let result = html;
   for (const entry of entries) {
-    const pattern = patternForKey(entry.key);
-    const exists = new RegExp(pattern.source, 'i').test(result);
-    if (options.prerendered && exists && !entry.owned) continue;
-    result = result.replace(pattern, '');
+    const { pattern, matches } = matcherForKey(entry.key);
+    let found = false;
+    const stripped = result.replace(pattern, (tag) => {
+      if (!matches(tag)) return tag;
+      found = true;
+      return '';
+    });
+    if (options.prerendered && found && !entry.owned) continue;
+    result = stripped;
     if (entry.html) {
       // A function replacer, so "$&" or "$1" inside the markup is never
       // treated as a substitution pattern.

@@ -109,11 +109,16 @@ const ALLOWED_CRAWLERS = [
  * @returns {Promise<Object>} The SeoSetting document.
  */
 export async function getSeoSettings() {
-  let settings = await SeoSetting.findOne({ singleton: 'global' });
-  if (!settings) {
-    settings = await SeoSetting.create({ singleton: 'global' });
-  }
-  return settings;
+  const settings = await SeoSetting.findOne({ singleton: 'global' });
+  if (settings) return settings;
+  // Upsert rather than create: the build requests many pages at once, and
+  // several first requests racing to create the document would otherwise
+  // collide on the unique singleton key.
+  return SeoSetting.findOneAndUpdate(
+    { singleton: 'global' },
+    { $setOnInsert: { singleton: 'global' } },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
 }
 
 /**
