@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { jsonForScript } from '@/utils/jsonForScript';
 
 const SITE_URL = 'https://bestchoicetutors.com';
 const DEFAULT_TITLE = 'Best Choice Tutors - Expert Tutors. Real Results.';
@@ -108,7 +109,7 @@ export function Seo({
 
       {structuredData ? (
         <script type="application/ld+json" data-seo="schema-org">
-          {JSON.stringify(structuredData)}
+          {jsonForScript(structuredData)}
         </script>
       ) : null}
     </Helmet>

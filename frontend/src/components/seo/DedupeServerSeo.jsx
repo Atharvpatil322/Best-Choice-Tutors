@@ -19,6 +19,7 @@
 
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { jsonForScript } from '@/utils/jsonForScript';
 
 /** Tags where Helmet's version should win, matched one-for-one. */
 const SINGLETON_SELECTORS = [
@@ -105,7 +106,7 @@ function setRouteStructuredData(schemas) {
     const script = document.createElement('script');
     script.type = 'application/ld+json';
     script.setAttribute(ROUTE_SCHEMA_ATTR, '');
-    script.textContent = JSON.stringify(schema);
+    script.textContent = jsonForScript(schema);
     document.head.appendChild(script);
   });
 }
