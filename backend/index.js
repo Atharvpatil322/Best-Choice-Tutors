@@ -123,7 +123,12 @@ app.get("/health", (req, res) => {
 
 const frontendDist = path.join(__dirname, "../frontend/dist");
 const frontendIndexHtml = path.join(frontendDist, "index.html");
+// The un-prerendered app shell. dist/index.html is the prerendered homepage,
+// so serving it for other routes would give them the homepage's canonical,
+// headings and structured data until JavaScript replaced them.
+const frontendShellHtml = path.join(frontendDist, "spa-shell.html");
 const hasFrontendBuild = fs.existsSync(frontendIndexHtml);
+const fallbackHtml = fs.existsSync(frontendShellHtml) ? frontendShellHtml : frontendIndexHtml;
 
 /**
  * Locate the best HTML file to serve for a client route.
@@ -133,23 +138,24 @@ const hasFrontendBuild = fs.existsSync(frontendIndexHtml);
  * present, with dist/index.html as the fallback for every other route.
  *
  * @param {string} requestPath - Path from the incoming request.
- * @returns {Promise<string>} Absolute path to the HTML file to render.
+ * @returns {Promise<{ file: string, prerendered: boolean }>} HTML file to
+ *   render, and whether it was prerendered (and so carries its own copy).
  */
 const resolveHtmlFileForRoute = async (requestPath) => {
   const safeSegments = requestPath
     .split("/")
     .filter((segment) => segment && segment !== "." && segment !== "..");
-  if (safeSegments.length === 0) return frontendIndexHtml;
+  if (safeSegments.length === 0) return { file: frontendIndexHtml, prerendered: true };
 
   const prerendered = path.join(frontendDist, ...safeSegments, "index.html");
   // Guard against path traversal escaping the build directory.
-  if (!prerendered.startsWith(frontendDist)) return frontendIndexHtml;
+  if (!prerendered.startsWith(frontendDist)) return { file: fallbackHtml, prerendered: false };
 
   try {
     await fs.promises.access(prerendered, fs.constants.R_OK);
-    return prerendered;
+    return { file: prerendered, prerendered: true };
   } catch {
-    return frontendIndexHtml;
+    return { file: fallbackHtml, prerendered: false };
   }
 };
 
@@ -178,13 +184,16 @@ if (hasFrontendBuild) {
       return next();
     }
     try {
-      const htmlFile = await resolveHtmlFileForRoute(req.path);
-      const indexHtml = await fs.promises.readFile(htmlFile, "utf8");
+      const { file, prerendered } = await resolveHtmlFileForRoute(req.path);
+      const indexHtml = await fs.promises.readFile(file, "utf8");
       // A path matching no route answers 404 while still serving the app, so
       // the visitor sees the "page not found" screen and crawlers are told the
       // URL does not exist instead of indexing it.
       const status = await resolveRouteStatus(req.path);
-      const html = await renderSeoHtml(indexHtml, req.path, { noindex: status === 404 });
+      const html = await renderSeoHtml(indexHtml, req.path, {
+        noindex: status === 404,
+        prerendered,
+      });
       res.status(status);
       res.set("Content-Type", "text/html; charset=utf-8");
       res.set("Cache-Control", "no-store");

@@ -27,7 +27,7 @@ const SITE_URL = (process.env.SITE_URL || 'https://bestchoicetutors.com').replac
  * crawl priority and change cadence to advertise for each.
  * Kept in sync with the router definitions in frontend/src/App.jsx.
  */
-const PUBLIC_ROUTES = [
+export const PUBLIC_ROUTES = [
   { path: '/', changefreq: 'daily', priority: '1.0' },
   { path: '/about', changefreq: 'monthly', priority: '0.7' },
   { path: '/how-it-works', changefreq: 'monthly', priority: '0.8' },
@@ -138,7 +138,7 @@ function escapeXml(value) {
  * @param {string} path - Site-relative path beginning with a slash.
  * @returns {boolean} True when the path is public and indexable.
  */
-function isPublicPath(path) {
+export function isPublicPath(path) {
   if (typeof path !== 'string' || !path.startsWith('/')) return false;
   return !DISALLOWED_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`),

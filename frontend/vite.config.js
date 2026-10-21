@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs/promises'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
@@ -63,6 +64,33 @@ function devSeoHtml() {
   }
 }
 
+/**
+ * Keep a copy of the app shell before the prerenderer overwrites it.
+ *
+ * The prerender step replaces dist/index.html with the rendered homepage. The
+ * static host serves that file for every URL without a file of its own, which
+ * gave every such page the homepage's canonical, headings and structured data
+ * until JavaScript replaced them. spa-shell.html is the plain shell, served for
+ * those URLs instead and used by scripts/build-seo-pages.mjs as the base for
+ * the pages it writes. 404.html is the same shell, so a URL the host cannot
+ * find still loads the app.
+ *
+ * writeBundle runs before the prerenderer's closeBundle, so the copy is taken
+ * while index.html is still the shell.
+ */
+function keepSpaShell() {
+  return {
+    name: 'keep-spa-shell',
+    apply: 'build',
+    async writeBundle(options) {
+      const outDir = options.dir || path.resolve(__dirname, 'dist')
+      const shell = await fs.readFile(path.join(outDir, 'index.html'), 'utf8')
+      await fs.writeFile(path.join(outDir, 'spa-shell.html'), shell, 'utf8')
+      await fs.writeFile(path.join(outDir, '404.html'), shell, 'utf8')
+    },
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/',
@@ -70,6 +98,7 @@ export default defineConfig({
     react(),
     publicImagesCacheHeaders(),
     devSeoHtml(),
+    keepSpaShell(),
     vitePrerender({
       staticDir: path.resolve(__dirname, 'dist'),
       // Public routes worth serving as ready-made HTML. Each one must exist in

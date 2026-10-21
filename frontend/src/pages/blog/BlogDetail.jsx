@@ -7,7 +7,6 @@ import { useParams, Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { ArticleSchema } from '@/components/seo/index';
 import { DecodedImage } from '@/components/DecodedImage';
 import { getBlogBySlug, getCachedBlogBySlug } from '@/services/blogService';
 import { isHtmlContent, sanitizeBlogHtml } from '@/utils/blogContent';
@@ -117,16 +116,10 @@ export default function BlogDetail() {
         ogDescription={blog.excerpt}
         ogType="article"
         ogUrl={articleUrl}
+        ogImage={blog.imageUrl || undefined}
       />
-      <ArticleSchema
-        url={articleUrl}
-        headline={blog.title}
-        description={blog.excerpt}
-        imageUrl={blog.imageUrl || undefined}
-        authorName={blog.author || 'Best Choice Tutors'}
-        datePublished={blog.publishedAt || blog.createdAt}
-        dateModified={blog.updatedAt}
-      />
+      {/* BlogPosting and breadcrumb structured data are written into this
+          post's HTML at build time (backend/services/seoHtmlService.js). */}
       <Header />
 
       <main className="flex-1">

@@ -36,6 +36,7 @@ import {
   getSeoDashboard,
   getSeoSettings,
   updateSeoSettings,
+  getSchemaPreview,
   listRedirects,
   createRedirect,
   deleteRedirect,
@@ -616,50 +617,419 @@ function LlmTab() {
 }
 
 const SCHEMA_LABELS = {
-  faq: 'FAQ (homepage) - can show expandable questions in search results',
-  breadcrumb: 'Breadcrumb (all pages) - shows the page hierarchy under the result',
+  organization: 'Organization and WebSite (homepage) - business identity, logo and contact details',
   service: 'Service (homepage) - describes the tutoring offering',
-  article: 'Article (blog posts) - eligible for article rich results',
-  organization: 'Organization - business identity and logo',
+  faq: 'FAQ (homepage, tutor search, subject pages) - the questions shown on each page',
+  breadcrumb: 'Breadcrumb (all public pages) - shows the page hierarchy under the result',
+  article: 'Article (blog posts) - headline, image, dates and author for each post',
 };
 
+const ORGANIZATION_TYPE_OPTIONS = [
+  { value: 'EducationalOrganization', label: 'Educational organisation (recommended)' },
+  { value: 'OnlineBusiness', label: 'Online business' },
+  { value: 'Organization', label: 'Organisation' },
+  { value: 'LocalBusiness', label: 'Local business (needs a street address)' },
+];
+
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** Fields edited as one-per-line text and saved as lists. */
+const ORGANIZATION_LIST_FIELDS = ['sameAs', 'founders', 'areaServed', 'knowsAbout'];
+
+const SITE_URL = 'https://bestchoicetutors.com';
+
+/**
+ * Editable copy of the organization settings. Lists are held as text while
+ * editing and only split into arrays on save, so pressing Enter in a list box
+ * starts a new line instead of being stripped on the spot.
+ *
+ * @param {Object} [org]
+ * @returns {Object}
+ */
+function toOrganizationDraft(org = {}) {
+  const draft = {
+    type: 'EducationalOrganization',
+    name: '',
+    legalName: '',
+    alternateName: '',
+    slogan: '',
+    description: '',
+    url: '',
+    logo: '',
+    image: '',
+    email: '',
+    telephone: '',
+    onlineOnly: false,
+    priceRange: '',
+    foundingDate: '',
+    companyNumber: '',
+    vatID: '',
+    taxID: '',
+    websiteName: '',
+    websiteAlternateName: '',
+    ...org,
+    address: {
+      streetAddress: '',
+      addressLocality: '',
+      addressRegion: '',
+      postalCode: '',
+      addressCountry: '',
+      ...(org.address || {}),
+    },
+    geo: { latitude: '', longitude: '', ...(org.geo || {}) },
+    contactPoints: (org.contactPoints || []).map((point) => ({
+      contactType: point.contactType || '',
+      telephone: point.telephone || '',
+      email: point.email || '',
+      areaServed: point.areaServed || '',
+      availableLanguage: (point.availableLanguage || []).join(', '),
+    })),
+    openingHours: (org.openingHours || []).map((slot) => ({
+      days: slot.days || [],
+      opens: slot.opens || '',
+      closes: slot.closes || '',
+    })),
+  };
+  for (const field of ORGANIZATION_LIST_FIELDS) draft[field] = (org[field] || []).join('\n');
+  return draft;
+}
+
+/** Convert an editing draft back into the shape the API stores. */
+function fromOrganizationDraft(draft) {
+  const payload = {
+    ...draft,
+    contactPoints: draft.contactPoints.map((point) => ({
+      ...point,
+      availableLanguage: point.availableLanguage
+        .split(',')
+        .map((language) => language.trim())
+        .filter(Boolean),
+    })),
+  };
+  for (const field of ORGANIZATION_LIST_FIELDS) payload[field] = linesToArray(draft[field]);
+  return payload;
+}
+
+/** Labelled form row. */
+function FormField({ label, hint, children }) {
+  return (
+    <label className="block">
+      <span className="block text-sm font-medium text-slate-700 mb-1">{label}</span>
+      {children}
+      {hint && <span className="block text-xs text-slate-400 mt-1">{hint}</span>}
+    </label>
+  );
+}
+
+/** Titled group of fields. */
+function FormSection({ title, description, children }) {
+  return (
+    <section className="rounded-xl border border-slate-200 p-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold text-[#1A365D]">{title}</h3>
+        {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Organization editor with the structured data on/off switches and a preview
+ * of the homepage JSON-LD exactly as the next build will publish it.
+ */
+function OrganizationEditor({ settings, update, save, saving, preview }) {
+  const [draft, setDraft] = useState(() => toOrganizationDraft(settings.organization || {}));
+
+  const set = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
+  const setNested = (group, field, value) =>
+    setDraft((current) => ({ ...current, [group]: { ...current[group], [field]: value } }));
+  const setRow = (list, index, field, value) =>
+    setDraft((current) => ({
+      ...current,
+      [list]: current[list].map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+    }));
+  const addRow = (list, row) => setDraft((current) => ({ ...current, [list]: [...current[list], row] }));
+  const removeRow = (list, index) =>
+    setDraft((current) => ({ ...current, [list]: current[list].filter((_, i) => i !== index) }));
+
+  const text = (field, props = {}) => (
+    <Input value={draft[field] || ''} onChange={(event) => set(field, event.target.value)} {...props} />
+  );
+
+  const handleSave = () =>
+    save({ organization: fromOrganizationDraft(draft), schemaToggles: settings.schemaToggles });
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-slate-600">
+        These details are published as Organization structured data on the homepage, so search
+        engines can show the right name, logo and contact details. Leave a field blank rather than
+        guessing - blank fields are left out, never filled with placeholder text. Changes go live
+        with the next site build.
+      </p>
+
+      <FormSection title="Structured data types" description="Turn a type off only if it causes validation errors.">
+        <div className="space-y-2">
+          {Object.entries(SCHEMA_LABELS).map(([key, label]) => (
+            <label key={key} className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={settings.schemaToggles?.[key] !== false}
+                onChange={(event) =>
+                  update({ schemaToggles: { ...settings.schemaToggles, [key]: event.target.checked } })
+                }
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      </FormSection>
+
+      <FormSection title="Identity">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Organization type">
+            <select
+              value={draft.type}
+              onChange={(event) => set('type', event.target.value)}
+              className="w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
+            >
+              {ORGANIZATION_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Name" hint="Blank uses Best Choice Tutors.">{text('name', { placeholder: 'Best Choice Tutors' })}</FormField>
+          <FormField label="Registered company name">{text('legalName')}</FormField>
+          <FormField label="Other name" hint="An abbreviation or trading name, for example BCT.">{text('alternateName')}</FormField>
+          <FormField label="Slogan">{text('slogan')}</FormField>
+          <FormField label="Website address" hint="Blank uses https://bestchoicetutors.com.">{text('url', { placeholder: SITE_URL })}</FormField>
+          <FormField label="Logo" hint="Full URL or a path such as /logo.png. Square, at least 112px.">{text('logo', { placeholder: '/logo.png' })}</FormField>
+          <FormField label="Image" hint="A photo representing the business.">{text('image')}</FormField>
+          <FormField label="Founding date" hint="A year (2024) or a date (2024-01-31).">{text('foundingDate')}</FormField>
+          <FormField label="Price range" hint="For example £25-£60 per hour.">{text('priceRange')}</FormField>
+        </div>
+        <FormField label="Description">
+          <Textarea rows={3} value={draft.description} onChange={(event) => set('description', event.target.value)} />
+        </FormField>
+      </FormSection>
+
+      <FormSection title="Contact">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Email">{text('email', { type: 'email' })}</FormField>
+          <FormField label="Telephone" hint="International format, for example +44 20 1234 5678.">{text('telephone')}</FormField>
+        </div>
+        <div className="space-y-3">
+          {draft.contactPoints.map((point, index) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-5 items-end rounded-lg bg-slate-50 p-3">
+              <FormField label="Department">
+                <Input value={point.contactType} placeholder="customer support" onChange={(e) => setRow('contactPoints', index, 'contactType', e.target.value)} />
+              </FormField>
+              <FormField label="Telephone">
+                <Input value={point.telephone} onChange={(e) => setRow('contactPoints', index, 'telephone', e.target.value)} />
+              </FormField>
+              <FormField label="Email">
+                <Input value={point.email} onChange={(e) => setRow('contactPoints', index, 'email', e.target.value)} />
+              </FormField>
+              <FormField label="Languages" hint="Comma separated.">
+                <Input value={point.availableLanguage} placeholder="English" onChange={(e) => setRow('contactPoints', index, 'availableLanguage', e.target.value)} />
+              </FormField>
+              <Button type="button" variant="outline" size="sm" onClick={() => removeRow('contactPoints', index)} aria-label="Remove contact point">
+                <Trash2 size={16} />
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addRow('contactPoints', { contactType: '', telephone: '', email: '', areaServed: '', availableLanguage: '' })}
+          >
+            <Plus size={16} className="mr-1" />
+            Add contact point
+          </Button>
+        </div>
+      </FormSection>
+
+      <FormSection title="Location and hours" description="Only for a business with premises customers can visit.">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={draft.onlineOnly} onChange={(event) => set('onlineOnly', event.target.checked)} />
+          Online only - leave out the address, map position and opening hours
+        </label>
+        {!draft.onlineOnly && (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Street address">
+                <Input value={draft.address.streetAddress} onChange={(e) => setNested('address', 'streetAddress', e.target.value)} />
+              </FormField>
+              <FormField label="Town or city">
+                <Input value={draft.address.addressLocality} onChange={(e) => setNested('address', 'addressLocality', e.target.value)} />
+              </FormField>
+              <FormField label="County or region">
+                <Input value={draft.address.addressRegion} onChange={(e) => setNested('address', 'addressRegion', e.target.value)} />
+              </FormField>
+              <FormField label="Postcode">
+                <Input value={draft.address.postalCode} onChange={(e) => setNested('address', 'postalCode', e.target.value)} />
+              </FormField>
+              <FormField label="Country code" hint="Two letters, for example GB.">
+                <Input value={draft.address.addressCountry} maxLength={2} onChange={(e) => setNested('address', 'addressCountry', e.target.value.toUpperCase())} />
+              </FormField>
+              <div className="grid grid-cols-2 gap-2">
+                <FormField label="Latitude">
+                  <Input value={draft.geo.latitude} onChange={(e) => setNested('geo', 'latitude', e.target.value)} />
+                </FormField>
+                <FormField label="Longitude">
+                  <Input value={draft.geo.longitude} onChange={(e) => setNested('geo', 'longitude', e.target.value)} />
+                </FormField>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {draft.openingHours.map((slot, index) => (
+                <div key={index} className="rounded-lg bg-slate-50 p-3 space-y-2">
+                  <div className="flex flex-wrap gap-3">
+                    {WEEK_DAYS.map((day) => (
+                      <label key={day} className="flex items-center gap-1 text-xs text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={slot.days.includes(day)}
+                          onChange={(event) =>
+                            setRow(
+                              'openingHours',
+                              index,
+                              'days',
+                              event.target.checked ? [...slot.days, day] : slot.days.filter((d) => d !== day),
+                            )
+                          }
+                        />
+                        {day.slice(0, 3)}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <FormField label="Opens">
+                      <Input type="time" value={slot.opens} onChange={(e) => setRow('openingHours', index, 'opens', e.target.value)} />
+                    </FormField>
+                    <FormField label="Closes">
+                      <Input type="time" value={slot.closes} onChange={(e) => setRow('openingHours', index, 'closes', e.target.value)} />
+                    </FormField>
+                    <Button type="button" variant="outline" size="sm" onClick={() => removeRow('openingHours', index)} aria-label="Remove opening hours">
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => addRow('openingHours', { days: [], opens: '09:00', closes: '17:00' })}>
+                <Plus size={16} className="mr-1" />
+                Add opening hours
+              </Button>
+            </div>
+          </>
+        )}
+      </FormSection>
+
+      <FormSection title="Profiles and coverage" description="One per line.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Social profiles" hint="Full https:// links to Facebook, Instagram, LinkedIn and so on.">
+            <Textarea rows={4} className="font-mono text-xs" value={draft.sameAs} onChange={(e) => set('sameAs', e.target.value)} />
+          </FormField>
+          <FormField label="Founders">
+            <Textarea rows={4} value={draft.founders} onChange={(e) => set('founders', e.target.value)} />
+          </FormField>
+          <FormField label="Countries served" hint="For example United Kingdom.">
+            <Textarea rows={3} value={draft.areaServed} onChange={(e) => set('areaServed', e.target.value)} />
+          </FormField>
+          <FormField label="Topics of expertise" hint="For example GCSE Maths tutoring.">
+            <Textarea rows={3} value={draft.knowsAbout} onChange={(e) => set('knowsAbout', e.target.value)} />
+          </FormField>
+        </div>
+      </FormSection>
+
+      <FormSection title="Business identifiers">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <FormField label="Company registration number">{text('companyNumber')}</FormField>
+          <FormField label="VAT number">{text('vatID')}</FormField>
+          <FormField label="Tax reference">{text('taxID')}</FormField>
+        </div>
+      </FormSection>
+
+      <FormSection title="Website" description="The site name search engines show next to your results.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Site name" hint="Blank uses the organization name.">{text('websiteName')}</FormField>
+          <FormField label="Other site name">{text('websiteAlternateName')}</FormField>
+        </div>
+      </FormSection>
+
+      <Button type="button" disabled={saving} onClick={handleSave} className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white">
+        {saving ? <Loader2 size={16} className="animate-spin mr-1" /> : <Save size={16} className="mr-1" />}
+        Save schema settings
+      </Button>
+
+      <FormSection title="Homepage structured data preview" description="Exactly what the next build publishes on the homepage.">
+        {preview?.missing?.length > 0 && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+            <p className="font-semibold mb-1">Recommended fields still empty</p>
+            <ul className="list-disc ml-4 space-y-0.5">
+              {preview.missing.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <pre className="max-h-96 overflow-auto rounded-lg bg-slate-900 text-slate-100 text-xs p-3">
+          {preview ? JSON.stringify(preview.schemas, null, 2) : 'Loading preview...'}
+        </pre>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <a
+            href={`https://search.google.com/test/rich-results?url=${encodeURIComponent(`${SITE_URL}/`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-[#1A365D]"
+          >
+            Test the live homepage in Google Rich Results Test
+          </a>
+          <a
+            href={`https://validator.schema.org/#url=${encodeURIComponent(`${SITE_URL}/`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-[#1A365D]"
+          >
+            Validate on schema.org
+          </a>
+        </div>
+      </FormSection>
+    </div>
+  );
+}
+
 function SchemaTab() {
+  const [preview, setPreview] = useState(null);
+
+  const loadPreview = useCallback(() => {
+    getSchemaPreview()
+      .then(setPreview)
+      .catch(() => setPreview({ schemas: [], missing: [] }));
+  }, []);
+
+  useEffect(() => {
+    loadPreview();
+  }, [loadPreview]);
+
   return (
     <SettingsTab>
       {(settings, update, save, saving) => (
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Structured data helps search engines understand each page. Turn a type off only if it is
-            causing validation warnings.
-          </p>
-          <div className="space-y-2">
-            {Object.entries(SCHEMA_LABELS).map(([key, label]) => (
-              <label key={key} className="flex items-start gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={!!settings.schemaToggles?.[key]}
-                  onChange={(event) =>
-                    update({
-                      schemaToggles: { ...settings.schemaToggles, [key]: event.target.checked },
-                    })
-                  }
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </div>
-
-          <Button
-            type="button"
-            disabled={saving}
-            onClick={() => save({ schemaToggles: settings.schemaToggles })}
-            className="bg-[#4FD1C5] hover:bg-[#38B2AC] text-white"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin mr-1" /> : <Save size={16} className="mr-1" />}
-            Save schema settings
-          </Button>
-        </div>
+        <OrganizationEditor
+          settings={settings}
+          update={update}
+          save={async (payload) => {
+            await save(payload);
+            loadPreview();
+          }}
+          saving={saving}
+          preview={preview}
+        />
       )}
     </SettingsTab>
   );

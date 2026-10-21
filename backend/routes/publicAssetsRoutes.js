@@ -1,6 +1,11 @@
 import express from 'express';
 import { presignKey } from '../services/s3Service.js';
-import { getSeoConfigByPath, getPseoPageByPath } from '../controllers/publicSeoController.js';
+import {
+  getSeoConfigByPath,
+  getPseoPageByPath,
+  getSeoHead,
+  getSeoPaths,
+} from '../controllers/publicSeoController.js';
 import { getPublicPageContent } from '../controllers/pageContentController.js';
 import { publicCache } from '../middlewares/publicCache.js';
 
@@ -38,6 +43,9 @@ router.get('/assets/*', async (req, res) => {
 router.get('/seo', publicCache(300, 600), getSeoConfigByPath);
 // Content for a generated landing page, looked up by its path.
 router.get('/pseo', publicCache(300, 600), getPseoPageByPath);
+// Finished head tags per URL, and the list of URLs, for the frontend build.
+router.get('/seo-head', getSeoHead);
+router.get('/seo-paths', getSeoPaths);
 
 // Public page copy, so components can render admin-edited content.
 router.get('/page-content/:pageKey', publicCache(60, 300), getPublicPageContent);

@@ -16,6 +16,8 @@ import PseoPage from '../models/PseoPage.js';
 import AdminAuditLog from '../models/AdminAuditLog.js';
 import { generatePagesForTemplate, buildPagesForTemplate } from '../services/pseoService.js';
 import { getSeoSettings } from '../services/seoContentService.js';
+import { buildSeoHead } from '../services/seoHtmlService.js';
+import { missingOrganizationFields } from '../services/seoSchemaBuilders.js';
 
 /**
  * Reject the request unless the caller is an administrator.
@@ -69,6 +71,155 @@ function normalisePath(value) {
   return path;
 }
 
+/* -------------------------------------------------------------- organization */
+
+const ORGANIZATION_TYPES = ['EducationalOrganization', 'Organization', 'OnlineBusiness', 'LocalBusiness'];
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const ORGANIZATION_TEXT_FIELDS = [
+  'name', 'legalName', 'alternateName', 'slogan', 'description', 'email', 'telephone',
+  'priceRange', 'companyNumber', 'vatID', 'taxID', 'websiteName', 'websiteAlternateName',
+];
+const ORGANIZATION_URL_FIELDS = ['url', 'logo', 'image'];
+
+/** Raised for input an admin can correct; answered with 400 and the message. */
+class SettingsValidationError extends Error {}
+
+/**
+ * Trimmed string. Length limits are enforced by the model, so an oversized
+ * paste is rejected with its message rather than silently cut short.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function cleanText(value) {
+  return String(value ?? '').trim();
+}
+
+/**
+ * A list of trimmed, non-empty strings from an array or a newline-separated
+ * string.
+ *
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function cleanList(value) {
+  const list = Array.isArray(value) ? value : String(value ?? '').split('\n');
+  return list.map(cleanText).filter(Boolean);
+}
+
+/**
+ * Accept an absolute http(s) URL or a site-relative path; blank stays blank.
+ *
+ * @param {string} label - Field name for the error message.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function cleanUrl(label, value) {
+  const url = cleanText(value);
+  if (!url) return '';
+  if (/^https?:\/\/[^\s]+$/i.test(url) || /^\/[^\s]*$/.test(url)) return url;
+  throw new SettingsValidationError(`${label} must be a full https:// address or a path starting with /`);
+}
+
+/**
+ * Validate and normalise the organization block of a settings update. Only
+ * fields present in the input are returned, so a partial update leaves the
+ * rest untouched.
+ *
+ * @param {Object} input
+ * @returns {Object} Fields to assign onto settings.organization.
+ */
+function cleanOrganization(input) {
+  const out = {};
+
+  if (input.type !== undefined) {
+    if (!ORGANIZATION_TYPES.includes(input.type)) throw new SettingsValidationError('Unknown organization type');
+    out.type = input.type;
+  }
+  for (const field of ORGANIZATION_TEXT_FIELDS) {
+    if (input[field] !== undefined) out[field] = cleanText(input[field]);
+  }
+  for (const field of ORGANIZATION_URL_FIELDS) {
+    if (input[field] !== undefined) out[field] = cleanUrl(field, input[field]);
+  }
+  if (out.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) {
+    throw new SettingsValidationError('Email address is not valid');
+  }
+  if (input.onlineOnly !== undefined) out.onlineOnly = Boolean(input.onlineOnly);
+
+  if (input.address !== undefined) {
+    const address = input.address || {};
+    const country = cleanText(address.addressCountry).toUpperCase();
+    if (country && !/^[A-Z]{2}$/.test(country)) {
+      throw new SettingsValidationError('Country must be a two-letter code, for example GB');
+    }
+    out.address = {
+      streetAddress: cleanText(address.streetAddress),
+      addressLocality: cleanText(address.addressLocality),
+      addressRegion: cleanText(address.addressRegion),
+      postalCode: cleanText(address.postalCode),
+      addressCountry: country,
+    };
+  }
+
+  if (input.geo !== undefined) {
+    const latitude = cleanText(input.geo?.latitude);
+    const longitude = cleanText(input.geo?.longitude);
+    const inRange = (value, limit) => value === '' || (Number.isFinite(Number(value)) && Math.abs(Number(value)) <= limit);
+    if (!inRange(latitude, 90) || !inRange(longitude, 180)) {
+      throw new SettingsValidationError('Latitude must be between -90 and 90, longitude between -180 and 180');
+    }
+    out.geo = { latitude, longitude };
+  }
+
+  if (input.foundingDate !== undefined) {
+    const date = cleanText(input.foundingDate);
+    if (date && !/^\d{4}(-\d{2}(-\d{2})?)?$/.test(date)) {
+      throw new SettingsValidationError('Founding date must be a year (2024) or a date (2024-01-31)');
+    }
+    out.foundingDate = date;
+  }
+
+  for (const field of ['founders', 'areaServed', 'knowsAbout']) {
+    if (input[field] !== undefined) out[field] = cleanList(input[field]);
+  }
+  if (input.sameAs !== undefined) {
+    out.sameAs = cleanList(input.sameAs).map((url) => {
+      if (!/^https?:\/\/[^\s]+$/i.test(url)) {
+        throw new SettingsValidationError(`Social profile "${url}" must be a full https:// address`);
+      }
+      return url;
+    });
+  }
+
+  if (input.contactPoints !== undefined) {
+    if (!Array.isArray(input.contactPoints)) throw new SettingsValidationError('Contact points must be a list');
+    out.contactPoints = input.contactPoints.slice(0, 10).map((point) => ({
+      contactType: cleanText(point?.contactType),
+      telephone: cleanText(point?.telephone),
+      email: cleanText(point?.email),
+      areaServed: cleanText(point?.areaServed),
+      availableLanguage: cleanList(point?.availableLanguage),
+    }));
+  }
+
+  if (input.openingHours !== undefined) {
+    if (!Array.isArray(input.openingHours)) throw new SettingsValidationError('Opening hours must be a list');
+    out.openingHours = input.openingHours.slice(0, 14).map((slot) => {
+      const days = cleanList(slot?.days).filter((day) => WEEK_DAYS.includes(day));
+      const opens = cleanText(slot?.opens);
+      const closes = cleanText(slot?.closes);
+      const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+      if ((opens && !time.test(opens)) || (closes && !time.test(closes))) {
+        throw new SettingsValidationError('Opening and closing times must be HH:MM, for example 09:00');
+      }
+      return { days, opens, closes };
+    });
+  }
+
+  return out;
+}
+
 /* ------------------------------------------------------------------ settings */
 
 /**
@@ -102,6 +253,7 @@ export async function updateSettings(req, res, next) {
       llmsIntro,
       verification,
       schemaToggles,
+      organization,
     } = req.body ?? {};
 
     if (robotsMode !== undefined) settings.robotsMode = robotsMode;
@@ -128,11 +280,47 @@ export async function updateSettings(req, res, next) {
       }
     }
 
+    if (organization && typeof organization === 'object') {
+      const cleaned = cleanOrganization(organization);
+      for (const [key, value] of Object.entries(cleaned)) {
+        settings.set(`organization.${key}`, value);
+      }
+    }
+
     settings.updatedBy = req.user._id;
     await settings.save();
     await audit(req, 'SEO_SETTINGS_UPDATED', 'SeoSetting', settings._id);
 
     return res.status(200).json({ message: 'SEO settings updated', settings });
+  } catch (err) {
+    if (err instanceof SettingsValidationError) {
+      return res.status(400).json({ message: err.message });
+    }
+    if (err?.name === 'ValidationError') {
+      return res.status(400).json({ message: Object.values(err.errors)[0]?.message || 'Invalid settings' });
+    }
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/seo-tools/schema-preview
+ * The homepage structured data exactly as the next build will publish it,
+ * plus the recommended Organization fields still missing.
+ */
+export async function getSchemaPreview(req, res, next) {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const head = await buildSeoHead('/');
+    const jsonLdEntry = head.entries.find((entry) => entry.key === 'jsonld');
+    const schemas = [...(jsonLdEntry?.html || '').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(
+      (match) => JSON.parse(match[1]),
+    );
+    const settings = await getSeoSettings();
+    return res.status(200).json({
+      schemas,
+      missing: missingOrganizationFields(settings.toObject().organization || {}),
+    });
   } catch (err) {
     next(err);
   }

@@ -1,8 +1,9 @@
 /**
  * Dedupe Server SEO
  *
- * The Express layer injects meta, canonical and JSON-LD into index.html so a
- * crawler that does not run JavaScript still sees them. Once React hydrates,
+ * The build (or Express, when it serves the site) writes meta, canonical and
+ * JSON-LD into each page's HTML so a crawler that does not run JavaScript still
+ * sees them. Once React hydrates,
  * Helmet inserts its own copies, leaving two of each - and two canonicals is
  * worse than none, because a search engine may honour neither.
  *

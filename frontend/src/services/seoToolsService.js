@@ -58,6 +58,13 @@ export const getSeoSettings = () => request('/settings');
 export const updateSeoSettings = (payload) =>
   request('/settings', { method: 'PATCH', body: payload });
 
+/**
+ * Homepage structured data as the next build will publish it, plus the
+ * recommended Organization fields still missing.
+ * @returns {Promise<{ schemas: Object[], missing: string[] }>}
+ */
+export const getSchemaPreview = () => request('/schema-preview');
+
 /* -------------------------------------------------------------- redirects */
 
 export const listRedirects = () => request('/redirects');

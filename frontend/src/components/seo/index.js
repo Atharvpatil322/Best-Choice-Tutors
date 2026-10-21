@@ -1,12 +1,11 @@
 /**
  * SEO Components barrel export
+ *
+ * Page structured data (Organization, Service, FAQ, BlogPosting,
+ * BreadcrumbList) is written into the HTML at build time by
+ * backend/services/seoHtmlService.js, not rendered by these components.
  */
 
 export { default as Seo } from '../Seo';
-export { default as LocalBusinessSchema } from './LocalBusinessSchema';
-export { default as FAQSchema } from './FAQSchema';
-export { default as BreadcrumbSchema } from './BreadcrumbSchema';
-export { default as ServiceSchema } from './ServiceSchema';
-export { default as ArticleSchema } from './ArticleSchema';
 export { default as StructuredData } from './StructuredData';
 

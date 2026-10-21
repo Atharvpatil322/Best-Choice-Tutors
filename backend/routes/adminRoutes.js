@@ -169,6 +169,7 @@ router.get("/seo-tools/dashboard", authenticate, seoTools.getSeoDashboard);
 
 router.get("/seo-tools/settings", authenticate, seoTools.getSettings);
 router.patch("/seo-tools/settings", authenticate, seoTools.updateSettings);
+router.get("/seo-tools/schema-preview", authenticate, seoTools.getSchemaPreview);
 
 router.get("/seo-tools/redirects", authenticate, seoTools.listRedirects);
 router.post("/seo-tools/redirects", authenticate, seoTools.createRedirect);

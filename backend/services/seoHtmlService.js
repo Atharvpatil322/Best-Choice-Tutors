@@ -1,24 +1,78 @@
+/**
+ * SEO head service
+ *
+ * Works out every search-relevant tag for a URL - title, description,
+ * canonical, robots, Open Graph, Twitter, verification and JSON-LD - from the
+ * database, and writes those tags into an HTML document.
+ *
+ * It is the single source for page metadata in raw HTML. The frontend is
+ * served as a static site, so the build calls GET /api/public/seo-head for
+ * every public URL and writes the result into the files it publishes
+ * (frontend/scripts/build-seo-pages.mjs). When Express serves the build
+ * itself, renderSeoHtml applies the same head per request.
+ */
+
 import Blog from '../models/Blog.js';
 import FAQ from '../models/FAQ.js';
 import PageSeo from '../models/PageSeo.js';
 import PopularSearch from '../models/PopularSearch.js';
 import PseoPage from '../models/PseoPage.js';
 import { getSeoSettings } from './seoContentService.js';
+import { CANONICAL_SUBJECTS } from '../constants/subjects.js';
+import { subjectToSlug } from '../utils/subjectSlug.js';
+import {
+  SITE_URL,
+  BRAND_NAME,
+  buildOrganizationSchema,
+  buildWebSiteSchema,
+  buildBreadcrumbSchema,
+  buildServiceSchema,
+  buildBlogPostingSchema,
+  buildFaqSchema,
+} from './seoSchemaBuilders.js';
 
-const SITE_URL = 'https://bestchoicetutors.com';
 const DEFAULT_TITLE = 'Best Choice Tutors - Expert Tutors. Real Results.';
 const DEFAULT_DESCRIPTION =
   'Find expert tutors online and in-person for GCSE, A-Levels, university, languages and more. Safe payments, verified tutors, and flexible scheduling.';
+const DEFAULT_KEYWORDS =
+  'online tutors, GCSE tutors, A-Level tutors, university tutoring, language tutors, maths tutor, physics tutor, English tutor';
 /**
  * Fallback share image. Social platforms show a bare link with no preview when
  * a page has no image, so every page gets one even if none is configured.
  */
 const DEFAULT_OG_IMAGE = `${SITE_URL}/logo.png`;
 
-const DEFAULT_KEYWORDS =
-  'online tutors, GCSE tutors, A-Level tutors, university tutoring, language tutors, maths tutor, physics tutor, English tutor';
+/**
+ * Subject page copy. Matches what frontend/src/pages/tutor/FindTutors.jsx
+ * renders, so the raw HTML and the rendered page agree.
+ */
+const SUBJECT_DESCRIPTION =
+  'Browse verified tutors, compare profiles and rates, and book the right tutor for your learning goals.';
 
-function normalizePath(rawPath) {
+/** Breadcrumb labels for fixed pages. */
+const PAGE_LABELS = {
+  '/about': 'About Us',
+  '/contact': 'Contact',
+  '/how-it-works': 'How It Works',
+  '/privacy': 'Privacy Policy',
+  '/terms': 'Terms and Conditions',
+  '/blog': 'Blog',
+  '/tutors': 'Find Tutors',
+};
+
+const SUBJECT_BY_SLUG = new Map(CANONICAL_SUBJECTS.map((name) => [subjectToSlug(name), name]));
+
+/**
+ * Canonical subject name for a URL slug, or null.
+ *
+ * @param {string} slug
+ * @returns {string|null}
+ */
+export function subjectForSlug(slug) {
+  return SUBJECT_BY_SLUG.get(String(slug || '').toLowerCase()) || null;
+}
+
+export function normalizePath(rawPath) {
   if (!rawPath || typeof rawPath !== 'string') return '/';
   let path = rawPath.trim().split('?')[0].split('#')[0];
   if (!path) return '/';
@@ -38,6 +92,12 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Serialise JSON-LD so it can never close the surrounding script element.
+ *
+ * @param {Object} data
+ * @returns {string}
+ */
 function safeJson(data) {
   return JSON.stringify(data)
     .replace(/</g, '\\u003c')
@@ -48,382 +108,145 @@ function safeJson(data) {
 }
 
 /**
- * Replace an existing head tag, or insert it before </head> when absent.
+ * Load everything the head for one path depends on.
  *
- * Function replacers are used deliberately: a string replacement would treat
- * `$&`, `$'` and `$1` inside the markup as substitution patterns and splice
- * surrounding page HTML into the tag.
- *
- * @param {string} html - Document to modify.
- * @param {RegExp} tagRegex - Matches the existing tag, if present.
- * @param {string} tagMarkup - Fully-formed replacement tag.
- * @returns {string} Updated document.
+ * @param {string} path - Normalised path.
+ * @returns {Promise<Object>}
  */
-function upsertTag(html, tagRegex, tagMarkup) {
-  if (tagRegex.test(html)) {
-    return html.replace(tagRegex, () => tagMarkup);
-  }
-  return html.replace('</head>', () => `    ${tagMarkup}\n  </head>`);
-}
+async function loadPageContext(path) {
+  const blogMatch = /^\/blog\/([a-z0-9-]+)$/.exec(path);
+  const subjectMatch = /^\/tutors\/subject\/([^/]+)$/.exec(path);
+  const subject = subjectMatch ? subjectForSlug(subjectMatch[1]) : null;
 
-/**
- * Build BlogPosting structured data so article pages are eligible for rich
- * results. Returns null when the path is not a published blog post.
- *
- * @param {string} path - Normalised request path.
- * @returns {Promise<Object|null>} JSON-LD object, or null when not applicable.
- */
-async function findPublishedBlogForPath(path) {
-  const match = /^\/blog\/([a-z0-9-]+)$/.exec(path);
-  if (!match) return null;
-  return Blog.findOne({ slug: match[1], status: 'PUBLISHED' })
-    .select('title excerpt author publishedAt updatedAt imageUrl imageAlt slug')
-    .lean();
-}
-
-/**
- * Human-readable labels for path segments that do not read well when
- * mechanically title-cased (for example "faq" would become "Faq").
- */
-const BREADCRUMB_LABELS = {
-  blog: 'Blog',
-  about: 'About Us',
-  contact: 'Contact',
-  terms: 'Terms and Conditions',
-  privacy: 'Privacy Policy',
-  'how-it-works': 'How It Works',
-};
-
-/**
- * Build BreadcrumbList structured data for the current path so search results
- * can show the page's position in the site hierarchy instead of a bare URL.
- * Returns null for the homepage, where a single-item trail adds nothing.
- *
- * @param {string} path - Normalised request path.
- * @param {Object|null} blog - Published blog record when the path is an article.
- * @returns {Object|null} JSON-LD object, or null when not applicable.
- */
-function buildBreadcrumbSchema(path, blog) {
-  if (path === '/') return null;
-
-  const segments = path.split('/').filter(Boolean);
-  const items = [{ name: 'Home', url: `${SITE_URL}/` }];
-
-  let currentPath = '';
-  segments.forEach((segment, index) => {
-    currentPath += `/${segment}`;
-    const isLastSegment = index === segments.length - 1;
-    // An article's final crumb reads better as the post title than its slug.
-    const name =
-      isLastSegment && blog
-        ? blog.title
-        : BREADCRUMB_LABELS[segment] ||
-          segment.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-    items.push({ name, url: `${SITE_URL}${currentPath}` });
-  });
-
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: item.url,
-    })),
-  };
-}
-
-/**
- * Build Service structured data describing the tutoring offering, listing the
- * subjects currently advertised in the popular-search shortcuts so the schema
- * tracks what the site actually promotes.
- *
- * @param {Array<Object>} popularSearches - Active popular-search records.
- * @returns {Object} JSON-LD object.
- */
-function buildServiceSchema(popularSearches) {
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'Service',
-    serviceType: 'Tutoring',
-    name: 'Private Tutoring - Best Choice Tutors',
-    description:
-      'One-to-one online and in-person tutoring with verified, DBS-checked tutors for GCSE, A-Levels, university and language subjects.',
-    provider: {
-      '@type': 'EducationalOrganization',
-      name: 'Best Choice Tutors',
-      url: SITE_URL,
-    },
-    areaServed: { '@type': 'Country', name: 'United Kingdom' },
-    availableChannel: {
-      '@type': 'ServiceChannel',
-      serviceUrl: SITE_URL,
-      availableLanguage: { '@type': 'Language', name: 'English' },
-    },
-  };
-
-  const subjects = popularSearches
-    .map((entry) => entry.query || entry.label)
-    .filter(Boolean);
-
-  if (subjects.length > 0) {
-    schema.hasOfferCatalog = {
-      '@type': 'OfferCatalog',
-      name: 'Tutoring subjects',
-      itemListElement: subjects.map((subject) => ({
-        '@type': 'Offer',
-        itemOffered: { '@type': 'Service', name: `${subject} tutoring` },
-      })),
-    };
-  }
-
-  return schema;
-}
-
-/**
- * Build BlogPosting structured data from an already-loaded blog record.
- *
- * @param {Object|null} blog - Published blog document, or null.
- * @returns {Object|null} JSON-LD object, or null when no blog was supplied.
- */
-function buildBlogPostingSchema(blog) {
-  if (!blog) return null;
-
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: blog.title,
-    description: blog.excerpt || undefined,
-    author: { '@type': 'Organization', name: blog.author || 'Best Choice Tutors' },
-    publisher: {
-      '@type': 'Organization',
-      name: 'Best Choice Tutors',
-      logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
-    },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}/blog/${blog.slug}` },
-  };
-  if (blog.publishedAt) schema.datePublished = new Date(blog.publishedAt).toISOString();
-  if (blog.updatedAt) schema.dateModified = new Date(blog.updatedAt).toISOString();
-  if (blog.imageUrl) {
-    schema.image = blog.imageAlt
-      ? { '@type': 'ImageObject', url: blog.imageUrl, caption: blog.imageAlt }
-      : blog.imageUrl;
-  }
-  return schema;
-}
-
-function buildFAQSchema(faqs) {
-  if (!faqs.length) return null;
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map((faq) => ({
-      '@type': 'Question',
-      name: faq.question,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: faq.answer,
-      },
-    })),
-  };
-}
-
-/**
- * Remove SEO tags that react-helmet-async baked into the prerendered HTML.
- *
- * The build prerenders each route with a real browser, so Helmet's title,
- * description, Open Graph and JSON-LD tags end up in the saved file. This
- * function then injects its own, which would leave two of each - and duplicate
- * canonical or JSON-LD blocks are an indexing error, not a cosmetic one.
- *
- * Helmet marks everything it manages with `data-rh="true"`, so those tags are
- * stripped and the server-rendered set becomes the single source of truth.
- * Tags written directly in index.html carry no such marker and are preserved.
- *
- * @param {string} html - Document that may contain prerendered Helmet tags.
- * @returns {string} Document with Helmet-managed tags removed.
- */
-function stripHelmetTags(html) {
-  return html
-    .replace(/<script[^>]*\sdata-rh=["']true["'][^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<(meta|link)[^>]*\sdata-rh=["']true["'][^>]*\/?>/gi, '')
-    .replace(/<title[^>]*\sdata-rh=["']true["'][^>]*>[\s\S]*?<\/title>/gi, '');
-}
-
-/**
- * @param {string} indexHtml - The built index.html.
- * @param {string} requestPath - Path being served.
- * @param {Object} [options] - `noindex` marks the response as not indexable,
- *   used for paths that resolve to no page so an error screen is never listed.
- */
-export async function renderSeoHtml(indexHtml, requestPath, options = {}) {
-  const path = normalizePath(requestPath);
-  const [settings, config, faqs, blog, pseoPage, popularSearches] = await Promise.all([
+  const [settings, config, blog, pseoPage, popularSearches] = await Promise.all([
     getSeoSettings(),
     PageSeo.findOne({ path }).lean(),
-    path === '/'
-      ? // General FAQs only. Subject FAQs belong to the tutor search page, and
-        // including them here would describe the home page with answers it
-        // does not show.
-        FAQ.find({ isActive: true, subject: null })
-          .select('question answer order createdAt')
-          .sort({ order: 1, createdAt: -1 })
+    blogMatch
+      ? Blog.findOne({ slug: blogMatch[1], status: 'PUBLISHED' })
+          .select('title excerpt author category publishedAt createdAt updatedAt imageUrl imageAlt slug')
           .lean()
-      : Promise.resolve([]),
-    findPublishedBlogForPath(path),
-    PseoPage.findOne({ path, isActive: true }).select('title description heading').lean(),
+      : null,
+    PseoPage.findOne({ path, isActive: true }).select('title description heading subject').lean(),
     path === '/'
       ? PopularSearch.find({ isActive: true }).select('label query order').sort({ order: 1 }).lean()
-      : Promise.resolve([]),
+      : [],
   ]);
 
-  // Precedence: an explicit SEO override wins, then the article's own fields,
-  // then the site-wide defaults. Without the middle step every blog post would
-  // share the homepage title and description.
-  const title =
-    config?.title ||
-    (blog ? `${blog.title} | Best Choice Tutors` : null) ||
+  // FAQs are described only where FaqSection shows them: the general set on
+  // the homepage and the unfiltered tutor search, a subject's own set on its
+  // subject page and on generated pages for that subject.
+  const faqSubject = subject || (pseoPage?.subject ? pseoPage.subject : null);
+  let faqs = [];
+  if (path === '/' || path === '/tutors') {
+    faqs = await FAQ.find({ isActive: true, subject: null })
+      .select('question answer')
+      .sort({ order: 1, createdAt: -1 })
+      .lean();
+  } else if (faqSubject) {
+    faqs = await FAQ.find({ isActive: true, subject: faqSubject })
+      .select('question answer')
+      .sort({ order: 1, createdAt: -1 })
+      .lean();
+  }
+
+  return { settings, config, blog, pseoPage, subject, faqs, popularSearches };
+}
+
+/**
+ * Breadcrumb trail for a path. Blog posts and subject pages get readable
+ * names; the subject trail skips "/tutors/subject", which is not a page.
+ *
+ * @param {string} path
+ * @param {Object} ctx - From loadPageContext.
+ * @returns {Array<{ name: string, path: string }>}
+ */
+function breadcrumbTrail(path, ctx) {
+  const home = { name: 'Home', path: '/' };
+  if (path === '/') return [home];
+  if (ctx.blog) {
+    return [home, { name: 'Blog', path: '/blog' }, { name: ctx.blog.title, path }];
+  }
+  if (ctx.subject) {
+    return [home, { name: 'Find Tutors', path: '/tutors' }, { name: `${ctx.subject} Tutors`, path }];
+  }
+  if (ctx.pseoPage) {
+    return [home, { name: ctx.pseoPage.heading || ctx.pseoPage.title || 'Tutors', path }];
+  }
+  if (PAGE_LABELS[path]) return [home, { name: PAGE_LABELS[path], path }];
+
+  const last = path.split('/').filter(Boolean).pop() || '';
+  return [home, { name: last.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), path }];
+}
+
+/**
+ * Work out the head for a URL.
+ *
+ * Each entry carries the finished tag and an `owned` flag. Owned tags always
+ * replace whatever a page already has. The rest - title, description and Open
+ * Graph copy that fall back to site defaults - only fill gaps on pages the
+ * build prerendered, because those pages already carry their own written copy
+ * and the default would be worse.
+ *
+ * @param {string} requestPath
+ * @param {{ noindex?: boolean }} [options] - `noindex` marks a path that
+ *   resolves to no page.
+ * @returns {Promise<{ path: string, entries: Array<{ key: string, html: string, owned: boolean }> }>}
+ */
+export async function buildSeoHead(requestPath, options = {}) {
+  const path = normalizePath(requestPath);
+  const ctx = await loadPageContext(path);
+  const { settings, config, blog, pseoPage, subject } = ctx;
+  const organization =
+    (typeof settings?.toObject === 'function' ? settings.toObject() : settings)?.organization ?? {};
+
+  // Precedence: an explicit admin override wins, then the record behind the
+  // page (article, generated page, subject), then the site default.
+  const recordTitle =
+    (blog && `${blog.title} | ${BRAND_NAME}`) ||
     pseoPage?.title ||
-    DEFAULT_TITLE;
-  const description =
-    config?.description || blog?.excerpt || pseoPage?.description || DEFAULT_DESCRIPTION;
+    (subject && `${subject} Tutors | ${BRAND_NAME}`) ||
+    null;
+  const recordDescription =
+    blog?.excerpt || pseoPage?.description || (subject ? SUBJECT_DESCRIPTION : null) || null;
+  const recordOgTitle = blog?.title || null;
+
+  const title = config?.title || recordTitle || DEFAULT_TITLE;
+  const titleOwned = Boolean(config?.title || recordTitle);
+  const description = config?.description || recordDescription || DEFAULT_DESCRIPTION;
+  const descriptionOwned = Boolean(config?.description || recordDescription);
   const keywords = config?.keywords || DEFAULT_KEYWORDS;
-  const canonicalUrl = config?.canonicalUrl || `${SITE_URL}${path}`;
+  const canonicalUrl = config?.canonicalUrl || `${SITE_URL}${path === '/' ? '/' : path}`;
+  const ogTitle = config?.ogTitle || recordOgTitle || title;
   const ogDescription = config?.ogDescription || description;
-  const ogTitle = config?.ogTitle || title;
   const ogType = config?.ogType || (blog ? 'article' : 'website');
-  // Article images come from the post itself when the page has no override.
   const ogImage = config?.ogImage || blog?.imageUrl || DEFAULT_OG_IMAGE;
-  const ogImageAlt = blog?.imageAlt || ogTitle;
-  const ogUrl = `${SITE_URL}${path}`;
+  const ogImageOwned = Boolean(config?.ogImage || blog?.imageUrl);
+  const ogImageAlt = (blog?.imageUrl && blog?.imageAlt) || ogTitle;
+  const robots = config?.noindex || options.noindex ? 'noindex, nofollow' : 'index, follow';
 
-  // Drop Helmet's prerendered duplicates before injecting the canonical set.
-  let html = stripHelmetTags(indexHtml);
+  const entries = [];
+  const add = (key, html, owned) => entries.push({ key, html, owned });
+  const meta = (attr, name, content, owned) =>
+    add(`${attr}:${name}`, `<meta ${attr}="${name}" content="${escapeHtml(content)}" />`, owned);
 
-  html = upsertTag(html, /<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']description["'][^>]*>/i,
-    `<meta name="description" content="${escapeHtml(description)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']keywords["'][^>]*>/i,
-    `<meta name="keywords" content="${escapeHtml(keywords)}" />`,
-  );
-  // Emitted for every page, not only hidden ones: a crawler that reads no
-  // robots tag has to guess, and being explicit costs one line.
-  const robotsValue = config?.noindex || options.noindex ? 'noindex, nofollow' : 'index, follow';
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']robots["'][^>]*>/i,
-    `<meta name="robots" content="${robotsValue}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<link\s+rel=["']canonical["'][^>]*>/i,
-    `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:title["'][^>]*>/i,
-    `<meta property="og:title" content="${escapeHtml(ogTitle)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:description["'][^>]*>/i,
-    `<meta property="og:description" content="${escapeHtml(ogDescription)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:type["'][^>]*>/i,
-    `<meta property="og:type" content="${escapeHtml(ogType)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:url["'][^>]*>/i,
-    `<meta property="og:url" content="${escapeHtml(ogUrl)}" />`,
-  );
+  add('title', `<title>${escapeHtml(title)}</title>`, titleOwned);
+  meta('name', 'description', description, descriptionOwned);
+  meta('name', 'keywords', keywords, Boolean(config?.keywords));
+  meta('name', 'robots', robots, true);
+  add('canonical', `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />`, true);
+  meta('property', 'og:title', ogTitle, titleOwned || Boolean(config?.ogTitle));
+  meta('property', 'og:description', ogDescription, descriptionOwned || Boolean(config?.ogDescription));
+  meta('property', 'og:type', ogType, Boolean(config?.ogType || blog));
+  meta('property', 'og:url', `${SITE_URL}${path === '/' ? '/' : path}`, true);
+  meta('property', 'og:site_name', BRAND_NAME, true);
+  meta('property', 'og:image', ogImage, ogImageOwned);
+  meta('property', 'og:image:alt', ogImageAlt, ogImageOwned);
+  // X reads og:title, og:description and og:image when its own tags are
+  // absent, so only the card type is declared - repeating the copy would go
+  // stale on pages whose title is not known here.
+  meta('name', 'twitter:card', 'summary_large_image', true);
 
-  // Structured-data types an admin has switched off are skipped entirely.
-  // A missing toggle defaults to on, so existing sites keep their schema.
-  const toggles = settings?.schemaToggles ?? {};
-  const schemaEnabled = (type) => toggles[type] !== false;
-
-  // Breadcrumbs apply to every page except the homepage.
-  const breadcrumbSchema = schemaEnabled('breadcrumb') ? buildBreadcrumbSchema(path, blog) : null;
-  if (breadcrumbSchema) {
-    const breadcrumbScript = `<script type="application/ld+json" data-seo="breadcrumb">${safeJson(breadcrumbSchema)}</script>`;
-    html = upsertTag(
-      html,
-      /<script\s+type=["']application\/ld\+json["']\s+data-seo=["']breadcrumb["'][\s\S]*?<\/script>/i,
-      breadcrumbScript,
-    );
-  }
-
-  // Service schema describes the core offering and belongs on the homepage only.
-  if (path === '/' && schemaEnabled('service')) {
-    const serviceSchema = buildServiceSchema(popularSearches);
-    const serviceScript = `<script type="application/ld+json" data-seo="service">${safeJson(serviceSchema)}</script>`;
-    html = upsertTag(
-      html,
-      /<script\s+type=["']application\/ld\+json["']\s+data-seo=["']service["'][\s\S]*?<\/script>/i,
-      serviceScript,
-    );
-  }
-
-  const blogSchema = schemaEnabled('article') ? buildBlogPostingSchema(blog) : null;
-  if (blogSchema) {
-    const blogScript = `<script type="application/ld+json" data-seo="article">${safeJson(blogSchema)}</script>`;
-    html = upsertTag(
-      html,
-      /<script\s+type=["']application\/ld\+json["']\s+data-seo=["']article["'][\s\S]*?<\/script>/i,
-      blogScript,
-    );
-  }
-
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:image["'][^>]*>/i,
-    `<meta property="og:image" content="${escapeHtml(ogImage)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:image:alt["'][^>]*>/i,
-    `<meta property="og:image:alt" content="${escapeHtml(ogImageAlt)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+property=["']og:site_name["'][^>]*>/i,
-    '<meta property="og:site_name" content="Best Choice Tutors" />',
-  );
-
-  // Twitter reads its own namespace and ignores most Open Graph tags, so the
-  // card has to be declared separately or X shows a plain link.
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']twitter:card["'][^>]*>/i,
-    '<meta name="twitter:card" content="summary_large_image" />',
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']twitter:title["'][^>]*>/i,
-    `<meta name="twitter:title" content="${escapeHtml(ogTitle)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']twitter:description["'][^>]*>/i,
-    `<meta name="twitter:description" content="${escapeHtml(ogDescription)}" />`,
-  );
-  html = upsertTag(
-    html,
-    /<meta\s+name=["']twitter:image["'][^>]*>/i,
-    `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />`,
-  );
-
-  // Search-engine ownership verification, editable from the admin panel so a
-  // new property can be verified without a redeploy.
+  // Search-engine ownership verification, editable from the admin panel.
   const verificationTags = [
     ['google-site-verification', settings?.verification?.google],
     ['msvalidate.01', settings?.verification?.bing],
@@ -431,23 +254,93 @@ export async function renderSeoHtml(indexHtml, requestPath, options = {}) {
     ['yandex-verification', settings?.verification?.yandex],
   ];
   for (const [metaName, token] of verificationTags) {
-    if (!token) continue;
-    html = upsertTag(
-      html,
-      new RegExp(`<meta\\s+name=["']${metaName}["'][^>]*>`, 'i'),
-      `<meta name="${metaName}" content="${escapeHtml(token)}" />`,
-    );
+    if (token) meta('name', metaName, token, true);
   }
 
-  const faqSchema = schemaEnabled('faq') ? buildFAQSchema(faqs) : null;
-  if (faqSchema) {
-    const faqScript = `<script type="application/ld+json" data-seo="faq">${safeJson(faqSchema)}</script>`;
-    html = upsertTag(
-      html,
-      /<script\s+type=["']application\/ld\+json["']\s+data-seo=["']faq["'][\s\S]*?<\/script>/i,
-      faqScript,
-    );
+  // Structured-data types an admin has switched off are skipped entirely.
+  // A missing toggle defaults to on, so existing sites keep their schema.
+  const toggles = settings?.schemaToggles ?? {};
+  const enabled = (type) => toggles[type] !== false;
+  const schemas = [];
+  if (path === '/' && enabled('organization')) {
+    schemas.push(buildOrganizationSchema(organization), buildWebSiteSchema(organization));
   }
+  if (path === '/' && enabled('service')) {
+    const subjects = ctx.popularSearches.map((entry) => entry.query || entry.label).filter(Boolean);
+    schemas.push(buildServiceSchema(subjects));
+  }
+  if (blog && enabled('article')) schemas.push(buildBlogPostingSchema(blog, organization));
+  if (enabled('breadcrumb')) schemas.push(buildBreadcrumbSchema(breadcrumbTrail(path, ctx)));
+  if (enabled('faq')) schemas.push(buildFaqSchema(ctx.faqs));
 
-  return html;
+  const jsonLd = schemas
+    .filter(Boolean)
+    .map((schema) => `<script type="application/ld+json">${safeJson(schema)}</script>`)
+    .join('\n');
+  // Owned even when empty, so a switched-off type is also removed from a page
+  // that was prerendered with it.
+  add('jsonld', jsonLd, true);
+
+  return { path, entries };
+}
+
+/**
+ * Pattern matching every existing copy of the tag an entry manages.
+ *
+ * Kept in step with frontend/scripts/build-seo-pages.mjs, which applies the
+ * same entries at build time.
+ *
+ * @param {string} key
+ * @returns {RegExp} Global, case-insensitive.
+ */
+export function patternForKey(key) {
+  if (key === 'title') return /<title\b[^>]*>[\s\S]*?<\/title>/gi;
+  if (key === 'canonical') return /<link\b[^>]*\brel=["']canonical["'][^>]*>/gi;
+  if (key === 'jsonld') return /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi;
+  const [attr, ...rest] = key.split(':');
+  const name = rest.join(':').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`<meta\\b[^>]*\\b${attr}=["']${name}["'][^>]*>`, 'gi');
+}
+
+/**
+ * Write head entries into a document.
+ *
+ * Every existing copy of a managed tag is removed before the new one goes in,
+ * so a page never ends up with two canonicals or two descriptions - whether
+ * the copies came from index.html, from Helmet during prerendering, or both.
+ * On a prerendered page, an entry that is not owned is skipped when the page
+ * already has that tag.
+ *
+ * @param {string} html
+ * @param {Array<{ key: string, html: string, owned: boolean }>} entries
+ * @param {{ prerendered?: boolean }} [options]
+ * @returns {string}
+ */
+export function applySeoHead(html, entries, options = {}) {
+  let result = html;
+  for (const entry of entries) {
+    const pattern = patternForKey(entry.key);
+    const exists = new RegExp(pattern.source, 'i').test(result);
+    if (options.prerendered && exists && !entry.owned) continue;
+    result = result.replace(pattern, '');
+    if (entry.html) {
+      // A function replacer, so "$&" or "$1" inside the markup is never
+      // treated as a substitution pattern.
+      result = result.replace(/<\/head>/i, () => `${entry.html}\n</head>`);
+    }
+  }
+  return result;
+}
+
+/**
+ * Apply the head for a path to a document served by Express.
+ *
+ * @param {string} indexHtml - The HTML file being served.
+ * @param {string} requestPath - Path being served.
+ * @param {{ noindex?: boolean, prerendered?: boolean }} [options]
+ * @returns {Promise<string>}
+ */
+export async function renderSeoHtml(indexHtml, requestPath, options = {}) {
+  const head = await buildSeoHead(requestPath, options);
+  return applySeoHead(indexHtml, head.entries, options);
 }
