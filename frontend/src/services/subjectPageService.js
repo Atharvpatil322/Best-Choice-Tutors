@@ -8,7 +8,12 @@ import { getAuthToken } from './authService.js';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 
-/** One request per subject page per page load. */
+/**
+ * Subject pages fetched recently. Entries expire, so a tab left open still
+ * notices when an admin renames a subject; only definite answers (found, or
+ * 404) are kept - a failed request is retried next time.
+ */
+const PAGE_CACHE_MS = 60 * 1000;
 const pageCache = new Map();
 
 /** Forget cached subject pages, after an admin edits one in this tab. */
@@ -17,43 +22,45 @@ export function clearSubjectPageCache() {
 }
 
 /**
- * Content for one subject page, or null when no subject uses the slug.
+ * Content for one subject page.
+ *
+ * Resolves to the page, or to null only when the API confirms no subject uses
+ * the slug (404). Rejects when the answer is unknown - a network failure or a
+ * server error - so callers never mistake an outage for a removed page.
  *
  * @param {string} slug
  * @returns {Promise<Object|null>}
  */
 export function getSubjectPage(slug) {
   if (!slug) return Promise.resolve(null);
-  if (!pageCache.has(slug)) {
-    pageCache.set(
-      slug,
-      fetch(`${API_BASE_URL}/public/subjects/${encodeURIComponent(slug)}`)
-        .then((response) => (response.ok ? response.json() : { subject: null }))
-        .then((data) => data.subject || null)
-        .catch(() => {
-          pageCache.delete(slug);
-          return null;
-        }),
-    );
-  }
-  return pageCache.get(slug);
+  const cached = pageCache.get(slug);
+  if (cached && Date.now() - cached.at < PAGE_CACHE_MS) return cached.promise;
+
+  const promise = fetch(`${API_BASE_URL}/public/subjects/${encodeURIComponent(slug)}`).then(async (response) => {
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Subject page lookup failed (HTTP ${response.status})`);
+    const data = await response.json();
+    return data.subject || null;
+  });
+  pageCache.set(slug, { at: Date.now(), promise });
+  promise.catch(() => {
+    if (pageCache.get(slug)?.promise === promise) pageCache.delete(slug);
+  });
+  return promise;
 }
 
 /**
  * Where an old address now lives, if an admin moved it.
  *
  * @param {string} path - Site path, e.g. /tutors/subject/maths.
- * @returns {Promise<string|null>} Target URL or path, or null.
+ * @returns {Promise<string|null>} Target URL or path, or null when there is
+ *   no redirect. Rejects when the lookup itself fails.
  */
 export async function findRedirect(path) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/public/redirect?path=${encodeURIComponent(path)}`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.redirect?.targetUrl || null;
-  } catch {
-    return null;
-  }
+  const response = await fetch(`${API_BASE_URL}/public/redirect?path=${encodeURIComponent(path)}`);
+  if (!response.ok) throw new Error(`Redirect lookup failed (HTTP ${response.status})`);
+  const data = await response.json();
+  return data.redirect?.targetUrl || null;
 }
 
 /**

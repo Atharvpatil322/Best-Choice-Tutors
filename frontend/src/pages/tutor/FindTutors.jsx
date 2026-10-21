@@ -443,9 +443,12 @@ export default function FindTutors() {
     let cancelled = false;
     setSubjectPage(null);
     if (!pathSubject || !subjectSlug) return undefined;
-    getSubjectPage(subjectSlug.toLowerCase()).then((page) => {
-      if (!cancelled) setSubjectPage(page);
-    });
+    getSubjectPage(subjectSlug.toLowerCase())
+      .then((page) => {
+        if (!cancelled) setSubjectPage(page);
+      })
+      // Without the admin copy the page still works with its built-in text.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -502,7 +505,10 @@ export default function FindTutors() {
           return;
         }
         go(target || '/tutors');
-      });
+      })
+      // The lookup itself failed, so nothing is known about this URL: stay on
+      // it rather than send the visitor away from what may be a valid page.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
