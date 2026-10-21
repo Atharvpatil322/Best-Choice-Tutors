@@ -73,6 +73,15 @@ function AdminBlogManager() {
   // an earlier click must not overwrite the post the admin actually opened.
   const editRequestRef = useRef(0);
   const imageInputRef = useRef(null);
+  // The form as it was when opened, to tell whether the admin has changed it.
+  const formSnapshotRef = useRef('');
+
+  const isFormDirty = () =>
+    showForm && (Boolean(imageFile) || JSON.stringify(formData) !== formSnapshotRef.current);
+
+  /** Ask before throwing away edits the admin has not saved. */
+  const confirmDiscard = () =>
+    !isFormDirty() || window.confirm('You have unsaved changes. Discard them?');
 
   useEffect(() => {
     if (!imageFile) {
@@ -111,7 +120,7 @@ function AdminBlogManager() {
   }, [isAdmin, statusFilter]);
 
   const resetForm = () => {
-    setFormData({
+    const emptyForm = {
       title: '',
       excerpt: '',
       content: '',
@@ -120,7 +129,9 @@ function AdminBlogManager() {
       imageUrl: '',
       imageAlt: '',
       status: 'DRAFT',
-    });
+    };
+    setFormData(emptyForm);
+    formSnapshotRef.current = JSON.stringify(emptyForm);
     setImageFile(null);
     setEditingId(null);
     setShowForm(false);
@@ -139,6 +150,7 @@ function AdminBlogManager() {
    * record has arrived, so nothing can be saved half-loaded.
    */
   const handleEdit = async (blog) => {
+    if (!confirmDiscard()) return;
     const requestId = editRequestRef.current + 1;
     editRequestRef.current = requestId;
     setLoadingEditId(blog._id);
@@ -148,7 +160,7 @@ function AdminBlogManager() {
       if (!full) throw new Error('Blog not found');
 
       const rawContent = full.content || '';
-      setFormData({
+      const loaded = {
         title: full.title || '',
         excerpt: full.excerpt || '',
         // Older posts are markdown-ish text; the editor needs HTML or it
@@ -159,7 +171,9 @@ function AdminBlogManager() {
         imageUrl: full.imageUrl || '',
         imageAlt: full.imageAlt || '',
         status: full.status || 'DRAFT',
-      });
+      };
+      setFormData(loaded);
+      formSnapshotRef.current = JSON.stringify(loaded);
       setImageFile(null);
       setEditingId(full._id);
       setShowForm(true);
@@ -292,7 +306,14 @@ function AdminBlogManager() {
             Drafts
           </Button>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true); }} className="gap-2">
+        <Button
+          onClick={() => {
+            if (!confirmDiscard()) return;
+            resetForm();
+            setShowForm(true);
+          }}
+          className="gap-2"
+        >
           <Plus className="h-4 w-4" />
           New Blog Post
         </Button>
@@ -362,7 +383,7 @@ function AdminBlogManager() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Content *</label>
                 <RichTextEditor
                   value={formData.content}
-                  onChange={(html) => setFormData({ ...formData, content: html })}
+                  onChange={(html) => setFormData((current) => ({ ...current, content: html }))}
                   placeholder="Write your blog content here..."
                 />
                 <p className="text-xs text-slate-400 mt-1">
@@ -371,10 +392,10 @@ function AdminBlogManager() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+              <div role="group" aria-labelledby="blog-featured-image-label">
+                <span id="blog-featured-image-label" className="block text-sm font-medium text-slate-700 mb-1">
                   Featured Image
-                </label>
+                </span>
                 {/* The file input cannot show an image that is already saved,
                     which made editing look like it required a new upload. The
                     saved or newly picked image is shown instead, and the input
@@ -398,7 +419,7 @@ function AdminBlogManager() {
                       className="h-32 w-56 rounded-lg border border-slate-200 object-cover bg-slate-50"
                     />
                     <div className="flex flex-col gap-2">
-                      <span className="text-xs font-medium text-slate-600">
+                      <span className="text-xs font-medium text-slate-600" aria-live="polite">
                         {imageFile ? `New image: ${imageFile.name} (uploads on save)` : 'Current image'}
                       </span>
                       <div className="flex flex-wrap items-center gap-3">
@@ -416,7 +437,7 @@ function AdminBlogManager() {
                           <button
                             type="button"
                             onClick={() => setImageFile(null)}
-                            className="text-xs font-medium text-slate-600 hover:text-slate-800"
+                            className="text-xs font-medium text-slate-600 hover:text-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FD1C5]"
                           >
                             Keep current image
                           </button>
@@ -427,7 +448,7 @@ function AdminBlogManager() {
                             setFormData({ ...formData, imageUrl: '', imageAlt: '' });
                             setImageFile(null);
                           }}
-                          className="text-xs font-medium text-red-600 hover:text-red-700"
+                          className="text-xs font-medium text-red-600 hover:text-red-700 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FD1C5]"
                         >
                           Remove image
                         </button>
@@ -555,7 +576,7 @@ function AdminBlogManager() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEdit(blog)}
-                      disabled={loadingEditId !== null}
+                      disabled={loadingEditId !== null || saving}
                       title="Edit"
                     >
                       {loadingEditId === blog._id ? (

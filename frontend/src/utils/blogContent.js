@@ -27,8 +27,8 @@ export function isHtmlContent(content) {
 /**
  * Escape a stray "<" that does not start a tag, so text such as "grades < 5"
  * survives being parsed as HTML. Real inline tags are left alone: the public
- * page renders older posts' lines as HTML, and converting must not change what
- * readers already see.
+ * page renders older posts' paragraph lines as HTML, and converting must not
+ * change what readers already see.
  *
  * @param {string} text
  * @returns {string}
@@ -38,16 +38,58 @@ function escapeStrayAngles(text) {
 }
 
 /**
- * Apply the inline markers older posts use: **bold** and [text](url) links.
+ * Escape text completely. The public page shows older posts' headings and
+ * list items as plain text, so "<Enter>" or "&amp;" there must stay literal.
  *
  * @param {string} text
  * @returns {string}
  */
-function inlineMarkdownToHtml(text) {
-  return escapeStrayAngles(text)
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
+function escapeAll(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+/**
+ * Build a link, or keep the original text when the URL is unsafe. Quotes are
+ * escaped so a URL cannot break out of the attribute.
+ *
+ * @param {string} label
+ * @param {string} url
+ * @returns {string}
+ */
+function linkHtml(label, url) {
+  if (/^\s*(javascript|data|vbscript):/i.test(url)) return `[${label}](${url})`;
+  return `<a href="${url.replace(/"/g, '&quot;')}">${label}</a>`;
+}
+
+/**
+ * Apply the inline markers older posts use: [text](url) links and **bold**.
+ *
+ * Links are swapped for placeholders before bold is applied, so "**" inside a
+ * URL cannot turn into a <strong> tag in the middle of an href.
+ *
+ * Bold and links are also applied in headings and list items, where the
+ * public page used to show the markers literally - converting them is a
+ * deliberate fix, since authors clearly meant them as formatting.
+ *
+ * @param {string} text - Already escaped for its context.
+ * @returns {string}
+ */
+function inlineMarkdownToHtml(text) {
+  const links = [];
+  const withPlaceholders = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) => {
+    links.push(linkHtml(label, url));
+    return `\u0000${links.length - 1}\u0000`;
+  });
+  return withPlaceholders
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\u0000(\d+)\u0000/g, (_, index) => links[Number(index)]);
+}
+
+/** Inline conversion for lines the public page rendered as HTML. */
+const paragraphHtml = (text) => inlineMarkdownToHtml(escapeStrayAngles(text));
+
+/** Inline conversion for lines the public page rendered as plain text. */
+const plainTextHtml = (text) => inlineMarkdownToHtml(escapeAll(text));
 
 /**
  * Convert an older markdown-ish post into HTML the rich text editor can load.
@@ -76,7 +118,7 @@ export function markdownToHtml(content) {
   const addListItem = (tag, text) => {
     if (list && list.tag !== tag) closeList();
     if (!list) list = { tag, items: [] };
-    list.items.push(inlineMarkdownToHtml(text));
+    list.items.push(plainTextHtml(text));
   };
 
   content.split(/\r?\n/).forEach((rawLine) => {
@@ -84,10 +126,10 @@ export function markdownToHtml(content) {
 
     if (line.startsWith('### ')) {
       closeList();
-      blocks.push(`<h3>${inlineMarkdownToHtml(line.slice(4))}</h3>`);
+      blocks.push(`<h3>${plainTextHtml(line.slice(4))}</h3>`);
     } else if (line.startsWith('## ')) {
       closeList();
-      blocks.push(`<h2>${inlineMarkdownToHtml(line.slice(3))}</h2>`);
+      blocks.push(`<h2>${plainTextHtml(line.slice(3))}</h2>`);
     } else if (line.startsWith('- ') || line.startsWith('* ')) {
       addListItem('ul', line.slice(2));
     } else if (/^\d+\.\s/.test(line)) {
@@ -96,7 +138,7 @@ export function markdownToHtml(content) {
       closeList();
     } else {
       closeList();
-      blocks.push(`<p>${inlineMarkdownToHtml(line)}</p>`);
+      blocks.push(`<p>${paragraphHtml(line)}</p>`);
     }
   });
   closeList();

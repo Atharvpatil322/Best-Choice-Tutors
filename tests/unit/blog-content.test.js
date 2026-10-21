@@ -44,8 +44,23 @@ test('a whole bold line becomes a bold paragraph', () => {
   assert.equal(markdownToHtml('**Key point**'), '<p><strong>Key point</strong></p>');
 });
 
-test('escapes a stray "<" but keeps real inline tags', () => {
+test('paragraphs keep real inline tags but escape a stray "<"', () => {
+  // The public page renders older paragraph lines as HTML.
   assert.equal(markdownToHtml('grades < 5 are <em>low</em>'), '<p>grades &lt; 5 are <em>low</em></p>');
+});
+
+test('headings and list items stay plain text, as the public page showed them', () => {
+  assert.equal(markdownToHtml('## Q&amp;A <b>'), '<h2>Q&amp;amp;A &lt;b&gt;</h2>');
+  assert.equal(markdownToHtml('- Press <Enter> to continue'), '<ul><li><p>Press &lt;Enter&gt; to continue</p></li></ul>');
+});
+
+test('"**" inside a link URL does not become bold', () => {
+  assert.equal(markdownToHtml('[t](http://x/**a**)'), '<p><a href="http://x/**a**">t</a></p>');
+});
+
+test('unsafe link schemes are left as text and quotes cannot break the href', () => {
+  assert.equal(markdownToHtml('[x](javascript:alert(1))'), '<p>[x](javascript:alert(1))</p>');
+  assert.equal(markdownToHtml('[x](a"onmouseover="y)'), '<p><a href="a&quot;onmouseover=&quot;y">x</a></p>');
 });
 
 test('handles Windows line endings and empty input', () => {
