@@ -180,6 +180,11 @@ function armTimer(delayMs = AUTO_PUBLISH_DELAY_MS) {
 
 /**
  * At start-up, re-arm a build that was waiting when the API last stopped.
+ *
+ * The retry count is not kept across restarts, on purpose: changing the API's
+ * environment (fixing a broken deploy hook URL, say) restarts it, and that is
+ * exactly when unpublished edits should be tried again. A restart costs at
+ * most one extra hook call.
  */
 export async function resumePendingPublish() {
   if (!isPublishConfigured()) return;
