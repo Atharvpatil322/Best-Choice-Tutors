@@ -168,6 +168,8 @@ const seoSettingSchema = new mongoose.Schema(
       ok: { type: Boolean, default: null },
       message: { type: String, default: '' },
       reason: { type: String, default: '' },
+      /** Set while an automatic build waits for its quiet period. */
+      pendingSince: { type: Date, default: null },
     },
 
     /** Admin who last saved these settings. */

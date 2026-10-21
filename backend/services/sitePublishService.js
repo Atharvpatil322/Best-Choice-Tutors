@@ -23,6 +23,7 @@ const HOOK_TIMEOUT_MS = 15 * 1000;
 
 let pendingTimer = null;
 let pendingReasons = new Set();
+let inFlight = null;
 
 /** Whether a deploy hook is configured. */
 export function isPublishConfigured() {
@@ -54,13 +55,27 @@ async function recordPublish(result) {
  * @param {string} reason - What prompted the build, shown on the dashboard.
  * @returns {Promise<{ ok: boolean, configured: boolean, message: string }>}
  */
-export async function publishNow(reason) {
+export function publishNow(reason) {
+  // A second request while one is running (a double click, or the timer
+  // firing during a manual publish) shares the first instead of starting a
+  // second deploy.
+  if (inFlight) return inFlight;
+  inFlight = runPublish(reason).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runPublish(reason) {
   if (pendingTimer) {
     clearTimeout(pendingTimer);
     pendingTimer = null;
   }
   const reasons = [...pendingReasons, reason].filter(Boolean);
   pendingReasons = new Set();
+  // Stamped before the call: an edit made while the hook is being called may
+  // not be in this build, so it must count as unpublished.
+  const requestedAt = new Date();
 
   if (!isPublishConfigured()) {
     return {
@@ -82,16 +97,19 @@ export async function publishNow(reason) {
       ? { ok: true, message: 'Site build started. Changes are live in a few minutes.' }
       : { ok: false, message: `The deploy hook answered HTTP ${response.status}.` };
   } catch (err) {
-    result = { ok: false, message: `The deploy hook could not be reached (${err.message}).` };
+    // Only the error's type: a malformed hook URL puts the URL - which holds
+    // a secret key - into the message.
+    result = { ok: false, message: `The deploy hook could not be reached (${err.name}).` };
   } finally {
     clearTimeout(timer);
   }
 
   await recordPublish({
-    requestedAt: new Date(),
+    requestedAt,
     ok: result.ok,
     message: result.message,
     reason: [...new Set(reasons)].join(', ').slice(0, 500),
+    pendingSince: null,
   });
   return { ...result, configured: true };
 }
@@ -106,6 +124,17 @@ export async function publishNow(reason) {
 export function schedulePublish(reason) {
   if (!isPublishConfigured()) return;
   if (reason) pendingReasons.add(reason);
+  armTimer();
+  // Remembered in the database too, so a restart within the quiet period
+  // (every deploy restarts the API) does not lose the build.
+  SeoSetting.updateOne(
+    { singleton: 'global', 'publish.pendingSince': null },
+    { $set: { 'publish.pendingSince': new Date() } },
+    { timestamps: false },
+  ).catch((err) => console.error('Recording pending publish failed:', err?.message));
+}
+
+function armTimer() {
   if (pendingTimer) clearTimeout(pendingTimer);
   pendingTimer = setTimeout(() => {
     pendingTimer = null;
@@ -113,6 +142,22 @@ export function schedulePublish(reason) {
   }, AUTO_PUBLISH_DELAY_MS);
   // Never keep the process alive just to publish.
   pendingTimer.unref?.();
+}
+
+/**
+ * At start-up, re-arm a build that was waiting when the API last stopped.
+ */
+export async function resumePendingPublish() {
+  if (!isPublishConfigured()) return;
+  try {
+    const settings = await SeoSetting.findOne({ singleton: 'global' }).select('publish').lean();
+    if (settings?.publish?.pendingSince) {
+      pendingReasons.add('edits made before a restart');
+      armTimer();
+    }
+  } catch (err) {
+    console.error('Resuming pending publish failed:', err?.message);
+  }
 }
 
 /** Whether an automatic build is waiting for the quiet period to end. */

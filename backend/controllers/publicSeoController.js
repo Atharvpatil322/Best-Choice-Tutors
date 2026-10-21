@@ -167,18 +167,34 @@ export async function getSeoPaths(req, res, next) {
  * In memory: the API runs as a single instance.
  */
 const NOT_FOUND_LIMIT_PER_MINUTE = 20;
+/**
+ * Cap on reports from everyone together. The per-visitor key comes from a
+ * header a client can forge, so this is what actually bounds the work an
+ * unauthenticated caller can cause.
+ */
+const NOT_FOUND_GLOBAL_LIMIT_PER_MINUTE = 300;
 const notFoundReports = new Map();
+let globalReports = [];
 
-function allowReport(ip) {
+function allowReport(visitor) {
   const now = Date.now();
-  const recent = (notFoundReports.get(ip) || []).filter((at) => now - at < 60 * 1000);
+  const fresh = (times) => times.filter((at) => now - at < 60 * 1000);
+  globalReports = fresh(globalReports);
+  if (globalReports.length >= NOT_FOUND_GLOBAL_LIMIT_PER_MINUTE) return false;
+  const recent = fresh(notFoundReports.get(visitor) || []);
   if (recent.length >= NOT_FOUND_LIMIT_PER_MINUTE) {
-    notFoundReports.set(ip, recent);
+    notFoundReports.set(visitor, recent);
     return false;
   }
   recent.push(now);
-  notFoundReports.set(ip, recent);
-  if (notFoundReports.size > 5000) notFoundReports.clear();
+  globalReports.push(now);
+  notFoundReports.set(visitor, recent);
+  // Forget visitors with nothing recent, rather than resetting everyone.
+  if (notFoundReports.size > 5000) {
+    for (const [key, times] of notFoundReports) {
+      if (!fresh(times).length) notFoundReports.delete(key);
+    }
+  }
   return true;
 }
 
@@ -192,9 +208,11 @@ function allowReport(ip) {
 export async function reportNotFound(req, res, next) {
   try {
     const raw = typeof req.body?.path === 'string' ? req.body.path.trim() : '';
-    // Behind the host's proxy every request shares its address, so the
-    // visitor's own address is taken from X-Forwarded-For when present.
-    const visitor = String(req.get('x-forwarded-for') || '').split(',')[0].trim() || req.ip;
+    // Behind the host's proxy every request shares its address. The last
+    // X-Forwarded-For entry is the one the host's own proxy added; earlier
+    // entries are whatever the client sent.
+    const forwarded = String(req.get('x-forwarded-for') || '').split(',').map((part) => part.trim()).filter(Boolean);
+    const visitor = forwarded[forwarded.length - 1] || req.ip;
     if (!raw.startsWith('/') || raw.length > MAX_PATH_LENGTH || !allowReport(visitor)) {
       return res.status(202).json({ recorded: false });
     }

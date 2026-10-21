@@ -111,6 +111,9 @@ export function applyRedirects() {
       Redirect.updateOne(
         { _id: match.redirect._id },
         { $inc: { hits: 1 }, $set: { lastHitAt: new Date() } },
+        // A hit is not an edit: leaving updatedAt alone keeps the SEO
+        // dashboard's "changed since the last build" count honest.
+        { timestamps: false },
       ).catch(() => {});
 
       const query = req.originalUrl.includes('?')
@@ -164,8 +167,15 @@ export function logNotFound() {
  * @param {string} [referrer]
  * @param {string} [userAgent]
  */
+/** Distinct missing paths kept at most; new ones are dropped beyond this. */
+const MAX_LOGGED_PATHS = 5000;
+
 export async function recordNotFound(path, referrer, userAgent) {
   const now = new Date();
+  // Repeat visits to a logged path always count; a new path is only added
+  // while the log is below its cap, so it cannot be filled without limit.
+  const known = await NotFoundLog.exists({ path });
+  if (!known && (await NotFoundLog.estimatedDocumentCount()) >= MAX_LOGGED_PATHS) return;
   await NotFoundLog.findOneAndUpdate(
     { path },
     {

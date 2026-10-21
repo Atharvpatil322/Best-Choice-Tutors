@@ -30,6 +30,7 @@ import { runDbsExpiryCheck } from "./services/dbsExpiryService.js";
 import { logTransactionalEmailStatus } from "./services/emailService.js";
 import { renderSeoHtml } from "./services/seoHtmlService.js";
 import { resolveRouteStatus } from "./services/routeStatus.js";
+import { resumePendingPublish } from "./services/sitePublishService.js";
 import fs from "node:fs";
 import path from "path";
 
@@ -249,6 +250,9 @@ httpServer.listen(PORT, HOST, () => {
   console.log(`Server running on port ${PORT}`);
   runCompletionCheck();
   setInterval(runCompletionCheck, COMPLETION_CHECK_INTERVAL_MS);
+
+  // A site build that was waiting when the API last stopped is re-armed.
+  resumePendingPublish();
 
   // Start the weekly DBS expiry job immediately, then keep it running.
   runDbsExpiryCheckSafe();

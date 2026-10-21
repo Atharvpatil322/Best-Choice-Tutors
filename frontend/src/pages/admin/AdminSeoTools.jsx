@@ -151,7 +151,9 @@ function DashboardTab() {
             {publish.configured
               ? publish.pending
                 ? 'A site build starts automatically in a couple of minutes.'
-                : `${publish.changesSinceLast || 0} change(s) since the last build. Edits are published automatically a couple of minutes after you make them; publish now to skip the wait.`
+                : publish.changesSinceLast > 0
+                  ? `${publish.changesSinceLast} change(s) are not on the live site yet. Publish now to build it.`
+                  : 'Everything is published. Edits go live automatically a couple of minutes after you make them.'
               : 'No deploy hook is set up yet, so SEO edits go live with the next site deploy. Ask the site owner to add RENDER_DEPLOY_HOOK_URL to the API service.'}
           </p>
           {publish.last && (

@@ -235,16 +235,17 @@ async function collectSitemapEntries() {
     });
   }
 
-  const excluded = new Set((settings.sitemapExcludePaths || []).map((p) => p.replace(/\/+$/, '')));
+  // Compared in lower case, as page paths are, so "/Terms" excludes "/terms".
+  const excluded = new Set((settings.sitemapExcludePaths || []).map((p) => p.replace(/\/+$/, '').toLowerCase()));
   // A page hidden from search results must not be advertised to crawlers.
   for (const config of seoConfigs) {
-    if (config.noindex) excluded.add(config.path.replace(/\/+$/, '') || '/');
+    if (config.noindex) excluded.add((config.path.replace(/\/+$/, '') || '/').toLowerCase());
   }
 
   const seen = new Set();
   return entries.filter((entry) => {
     if (!isPublicPath(entry.path)) return false;
-    if (excluded.has(entry.path.replace(/\/+$/, ''))) return false;
+    if (excluded.has(entry.path.replace(/\/+$/, '').toLowerCase())) return false;
     const normalized = entry.path === '/' ? '/' : entry.path.replace(/\/+$/, '');
     if (seen.has(normalized)) return false;
     seen.add(normalized);

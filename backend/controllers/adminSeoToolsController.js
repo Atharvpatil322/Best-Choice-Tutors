@@ -433,11 +433,46 @@ async function finalTarget(source, target, excludeId) {
  * @param {*} ruleId
  */
 async function flattenIncoming(source, target, ruleId) {
-  const incoming = await Redirect.find({ _id: { $ne: ruleId }, isActive: true }).select('sourcePath targetUrl').lean();
+  // Exact rules only: a prefix rule ending at `source` also carries the rest
+  // of the path along (/old/article -> /section/article), which an exact rule
+  // on `source` would never match, so rewriting it would change where those
+  // deeper addresses go.
+  const incoming = await Redirect.find({ _id: { $ne: ruleId }, isActive: true, matchType: 'exact' })
+    .select('sourcePath targetUrl')
+    .lean();
   const updates = incoming
     .filter((rule) => sitePathOf(rule.targetUrl) === sitePathOf(source) && rule.sourcePath !== sitePathOf(target))
-    .map((rule) => ({ updateOne: { filter: { _id: rule._id }, update: { $set: { targetUrl: target } } } }));
+    .map((rule) => ({
+      updateOne: { filter: { _id: rule._id }, update: { $set: { targetUrl: withQueryOf(rule.targetUrl, target) } } },
+    }));
   if (updates.length) await Redirect.bulkWrite(updates);
+}
+
+/**
+ * The flattened destination for a rule that pointed at an address now
+ * redirecting on: the new target, keeping the query string and fragment the
+ * rule's own target carried (a campaign tag, say). Where both set the same
+ * parameter, the rule's own value wins, as it did over two hops.
+ *
+ * @param {string} previousTarget - The incoming rule's old target.
+ * @param {string} nextTarget - Where that address now leads.
+ * @returns {string}
+ */
+function withQueryOf(previousTarget, nextTarget) {
+  const base = 'http://placeholder.invalid';
+  let previous;
+  let next;
+  try {
+    previous = new URL(previousTarget, base);
+    next = new URL(nextTarget, base);
+  } catch {
+    return nextTarget;
+  }
+  if (!previous.search && !previous.hash) return nextTarget;
+  previous.searchParams.forEach((value, key) => next.searchParams.set(key, value));
+  if (previous.hash) next.hash = previous.hash;
+  const absolute = /^https?:\/\//i.test(nextTarget);
+  return absolute ? next.toString() : `${next.pathname}${next.search}${next.hash}`;
 }
 
 /**
@@ -445,6 +480,18 @@ async function flattenIncoming(source, target, ruleId) {
  *
  * @param {{ statusCode?: *, matchType?: * }} input
  */
+/**
+ * Refuse "//host/path" and "/\host/path": browsers treat both as another
+ * site, though they look like paths on this one.
+ *
+ * @param {string} value
+ */
+function checkNotProtocolRelative(value) {
+  if (/^\/[\/\\]/.test(String(value || ''))) {
+    throw new RedirectRuleError('Use a path on this site (starting with a single /) or a full https:// address');
+  }
+}
+
 function checkRedirectOptions({ statusCode, matchType }) {
   if (statusCode !== undefined && !REDIRECT_STATUSES.includes(Number(statusCode))) {
     throw new RedirectRuleError('Status must be 301, 302, 307 or 308');
@@ -480,6 +527,8 @@ export async function createRedirect(req, res, next) {
     if (source === target) {
       return res.status(400).json({ message: 'Source and target cannot be the same — this would loop' });
     }
+    checkNotProtocolRelative(source);
+    checkNotProtocolRelative(target);
     if ((matchType ?? 'exact') === 'exact') target = await finalTarget(source, target);
     if (matchType === 'regex') {
       try {
@@ -541,6 +590,15 @@ export async function updateRedirect(req, res, next) {
 
     if (redirect.sourcePath === redirect.targetUrl) {
       return res.status(400).json({ message: 'Source and target cannot be the same — this would loop' });
+    }
+    checkNotProtocolRelative(redirect.sourcePath);
+    checkNotProtocolRelative(redirect.targetUrl);
+    if (redirect.matchType === 'regex') {
+      try {
+        new RegExp(redirect.sourcePath);
+      } catch {
+        return res.status(400).json({ message: 'Source is not a valid regular expression' });
+      }
     }
     if (redirect.matchType === 'exact' && redirect.isActive) {
       redirect.targetUrl = await finalTarget(redirect.sourcePath, redirect.targetUrl, redirect._id);
@@ -903,20 +961,32 @@ async function seoHealth() {
         existing.description = config.description;
         existing.defaultDescription = false;
       }
+      if (config.noindex) existing.hidden = true;
     } else {
-      listings.push({ path: config.path, title: config.title, description: config.description });
+      // A fixed page's override: the page keeps its own title and description
+      // for anything the override leaves blank, so only what is set is checked.
+      listings.push({
+        path: config.path,
+        title: config.title,
+        description: config.description,
+        overrideOnly: true,
+        hidden: config.noindex,
+      });
     }
   }
 
   const issues = [];
   const byTitle = new Map();
   for (const item of listings) {
-    if (!item.title) issues.push({ path: item.path, problem: 'No page title' });
-    else if (item.title.length > TITLE_MAX) {
+    // Pages hidden from search have no listing to improve.
+    if (item.hidden) continue;
+    if (!item.title) {
+      if (!item.overrideOnly) issues.push({ path: item.path, problem: 'No page title' });
+    } else if (item.title.length > TITLE_MAX) {
       issues.push({ path: item.path, problem: `Title is ${item.title.length} characters (aim for ${TITLE_MAX} or fewer)` });
     }
     if (!item.description || item.defaultDescription) {
-      issues.push({ path: item.path, problem: 'No meta description of its own' });
+      if (!item.overrideOnly) issues.push({ path: item.path, problem: 'No meta description of its own' });
     } else if (item.description.length > DESCRIPTION_MAX) {
       issues.push({
         path: item.path,
@@ -959,12 +1029,13 @@ async function publishStatus() {
     PageSeo.countDocuments(since),
     Redirect.countDocuments(since),
     Subject.countDocuments(since),
-    Blog.countDocuments(since),
-    last ? SeoSetting.countDocuments({ singleton: 'global', updatedAt: { $gt: last } }) : 1,
+    // Drafts are not on the site, so editing one is not an unpublished change.
+    Blog.countDocuments({ ...since, status: 'PUBLISHED' }),
+    last ? SeoSetting.countDocuments({ singleton: 'global', updatedAt: { $gt: last } }) : 0,
   ]);
   return {
     configured: isPublishConfigured(),
-    pending: isPublishPending(),
+    pending: isPublishPending() || Boolean(settings.publish?.pendingSince),
     last: last ? { at: last, ok: settings.publish.ok, message: settings.publish.message, reason: settings.publish.reason } : null,
     changesSinceLast: pages + redirects + subjects + blogs + settingsChanged,
   };
@@ -979,7 +1050,8 @@ export async function publishSite(req, res, next) {
   try {
     const result = await publishNow('published from the SEO dashboard');
     await audit(req, 'SEO_SITE_PUBLISHED', 'SeoSetting', (await getSeoSettings())._id, { ok: result.ok });
-    return res.status(result.ok || !result.configured ? 200 : 502).json({ ...result, publish: await publishStatus() });
+    // Always 200 with ok set, so the dashboard can show the outcome either way.
+    return res.status(200).json({ ...result, publish: await publishStatus() });
   } catch (err) {
     next(err);
   }

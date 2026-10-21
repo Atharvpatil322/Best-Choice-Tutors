@@ -232,7 +232,9 @@ export async function updateBlog(req, res, next) {
     // is part of its search listing and of every link to it. The URL changes
     // only when the admin edits the URL handle itself.
     if (title !== undefined) updateData.title = title.trim();
-    if (requestedSlug !== undefined) {
+    // Resending the post's current slug is not a change, whatever its shape:
+    // posts created before this check may have slugs it would refuse.
+    if (requestedSlug !== undefined && String(requestedSlug).trim() !== existing.slug) {
       const slug = String(requestedSlug).trim().toLowerCase();
       if (!slug || slug.length > 200 || !BLOG_SLUG_PATTERN.test(slug)) {
         return res.status(400).json({
@@ -268,7 +270,9 @@ export async function updateBlog(req, res, next) {
     // A published post that moved leaves a redirect at its old address unless
     // the admin opted out; a draft was never public, so it needs none.
     let redirect = null;
-    if (updateData.slug && existing.status === 'PUBLISHED') {
+    // Only while the post stays public: a redirect to a post just moved back
+    // to draft would lead to a missing page.
+    if (updateData.slug && existing.status === 'PUBLISHED' && blog.status === 'PUBLISHED') {
       try {
         redirect = await moveRedirects(`/blog/${existing.slug}`, `/blog/${blog.slug}`, {
           createRedirect: createRedirect !== false,
@@ -294,6 +298,7 @@ export async function updateBlog(req, res, next) {
 
     return res.status(200).json({ message: 'Blog updated successfully', blog, redirect });
   } catch (err) {
+    if (err?.code === 11000) return res.status(409).json({ message: 'Another post already uses that URL' });
     next(err);
   }
 }
