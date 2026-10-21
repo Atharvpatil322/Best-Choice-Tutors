@@ -56,7 +56,9 @@ const subjectSchema = new mongoose.Schema(
     order: { type: Number, default: 0 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
-  { timestamps: true, collection: 'subjects' },
+  // optimisticConcurrency: a save fails if the record changed since it was
+  // read, so two admins cannot both move the same page.
+  { timestamps: true, collection: 'subjects', optimisticConcurrency: true },
 );
 
 subjectSchema.index({ order: 1 });

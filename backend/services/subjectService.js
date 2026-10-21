@@ -142,16 +142,20 @@ function cleanImageUrl(value) {
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** This site's host, with or without "www.", over http or https. */
+const SITE_ORIGIN_PATTERN = `https?://(?:www\\.)?${escapeRegExp(new URL(SITE_URL).host.replace(/^www\./, ''))}`;
+
 /**
- * Pattern matching any spelling of a redirect target that lands on a path:
- * relative or absolute (any host, http or https), with or without a trailing
- * slash, in any letter case, with an optional query or fragment captured.
+ * Pattern matching any spelling of a redirect target that lands on a path on
+ * this site: relative or absolute on this site's own host, with or without a
+ * trailing slash, in any letter case, with an optional query or fragment
+ * captured. A target on another site is never matched.
  *
  * @param {string} path
  * @returns {RegExp}
  */
 function targetPattern(path) {
-  return new RegExp(`^(?:https?://[^/]+)?${escapeRegExp(path)}/?([?#].*)?$`, 'i');
+  return new RegExp(`^(?:${SITE_ORIGIN_PATTERN})?${escapeRegExp(path)}/?([?#].*)?$`, 'i');
 }
 
 /**
@@ -259,7 +263,17 @@ export async function updateSubject(name, input = {}, { adminId } = {}) {
   }
 
   subject.updatedBy = adminId || null;
-  await subject.save();
+  try {
+    // The schema uses optimistic concurrency, so this save fails if another
+    // request saved the record after it was read - checked atomically, unlike
+    // the expectedSlug comparison above.
+    await subject.save();
+  } catch (err) {
+    if (err?.name === 'VersionError') {
+      throw new SubjectConflictError('This page was changed by someone else just now. Reload and try again.');
+    }
+    throw err;
+  }
 
   try {
     if (subject.slug !== previousSlug) {

@@ -97,6 +97,21 @@ test('redirects aimed at any spelling of the old address move, keeping their que
   );
 });
 
+test('a redirect to another site with the same path is never touched', { skip }, async () => {
+  await Redirect.create({ sourcePath: '/partner', targetUrl: 'https://partner.example.com/tutors/subject/drama' });
+  await updateSubject('Drama', { slug: 'drama-tutors' });
+  assert.equal((await redirectFrom('/partner')).targetUrl, 'https://partner.example.com/tutors/subject/drama');
+});
+
+test('two saves of the same record cannot both win', { skip }, async () => {
+  const first = await Subject.findOne({ name: 'Spanish' });
+  const second = await Subject.findOne({ name: 'Spanish' });
+  first.slug = 'spanish-a';
+  await first.save();
+  second.slug = 'spanish-b';
+  await assert.rejects(second.save(), (err) => err.name === 'VersionError');
+});
+
 test('a save from an editor opened before another admin moved the page is refused', { skip }, async () => {
   await updateSubject('History', { slug: 'history-tutors' });
   await assert.rejects(
