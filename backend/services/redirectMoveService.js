@@ -9,6 +9,7 @@
  */
 
 import Redirect from '../models/Redirect.js';
+import PageSeo from '../models/PageSeo.js';
 import { SITE_URL } from './seoSchemaBuilders.js';
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -88,3 +89,25 @@ export async function moveRedirects(oldPath, newPath, { createRedirect, adminId,
   return redirect;
 }
 
+
+/**
+ * Move a page-level SEO override to the page's new address. A canonical that
+ * named the old address is repointed; one aimed anywhere else is kept. When
+ * the new address already has its own override, that one wins and the old one
+ * is left for the admin to tidy up.
+ *
+ * @param {string} oldPath
+ * @param {string} newPath
+ */
+export async function movePageSeo(oldPath, newPath) {
+  const [oldSeo, newSeo] = await Promise.all([
+    PageSeo.findOne({ path: oldPath }),
+    PageSeo.exists({ path: newPath }),
+  ]);
+  if (!oldSeo || newSeo) return;
+  oldSeo.path = newPath;
+  if (oldSeo.canonicalUrl && targetPattern(oldPath).test(oldSeo.canonicalUrl)) {
+    oldSeo.canonicalUrl = `${SITE_URL}${newPath}`;
+  }
+  await oldSeo.save();
+}

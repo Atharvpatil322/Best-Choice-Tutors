@@ -410,10 +410,13 @@ async function finalTarget(source, target, excludeId) {
       throw new RedirectRuleError('This redirect would create a loop back to its own source.');
     }
     seen.add(path);
+    // Only permanent hops are skipped: a temporary redirect is meant to be
+    // undone, and folding it into a rule would make it permanent.
     const next = await Redirect.findOne({
       sourcePath: path,
       matchType: 'exact',
       isActive: true,
+      statusCode: { $in: [301, 308] },
       ...(excludeId ? { _id: { $ne: excludeId } } : {}),
     })
       .select('targetUrl')
@@ -439,7 +442,12 @@ async function flattenIncoming(source, target, ruleId) {
   // of the path along (/old/article -> /section/article), which an exact rule
   // on `source` would never match, so rewriting it would change where those
   // deeper addresses go.
-  const incoming = await Redirect.find({ _id: { $ne: ruleId }, isActive: true, matchType: 'exact' })
+  const incoming = await Redirect.find({
+    _id: { $ne: ruleId },
+    isActive: true,
+    matchType: 'exact',
+    statusCode: { $in: [301, 308] },
+  })
     .select('sourcePath targetUrl')
     .lean();
   const updates = incoming
@@ -531,7 +539,8 @@ export async function createRedirect(req, res, next) {
     }
     checkNotProtocolRelative(source);
     checkNotProtocolRelative(target);
-    if ((matchType ?? 'exact') === 'exact') target = await finalTarget(source, target);
+    const permanent = [301, 308].includes(Number(statusCode ?? 301));
+    if ((matchType ?? 'exact') === 'exact' && permanent) target = await finalTarget(source, target);
     if (matchType === 'regex') {
       try {
         new RegExp(source);
@@ -557,7 +566,9 @@ export async function createRedirect(req, res, next) {
 
     // A redirect now exists for this path, so it is no longer an unresolved miss.
     await NotFoundLog.updateOne({ path: source }, { $set: { isResolved: true } });
-    if (redirect.matchType === 'exact' && redirect.isActive) await flattenIncoming(source, target, redirect._id);
+    if (redirect.matchType === 'exact' && redirect.isActive && [301, 308].includes(redirect.statusCode)) {
+      await flattenIncoming(source, target, redirect._id);
+    }
     await audit(req, 'SEO_REDIRECT_CREATED', 'Redirect', redirect._id, { sourcePath: source });
     noteSeoChange('redirects');
 
@@ -602,12 +613,13 @@ export async function updateRedirect(req, res, next) {
         return res.status(400).json({ message: 'Source is not a valid regular expression' });
       }
     }
-    if (redirect.matchType === 'exact' && redirect.isActive) {
+    const permanent = [301, 308].includes(redirect.statusCode);
+    if (redirect.matchType === 'exact' && redirect.isActive && permanent) {
       redirect.targetUrl = await finalTarget(redirect.sourcePath, redirect.targetUrl, redirect._id);
     }
 
     await redirect.save();
-    if (redirect.matchType === 'exact' && redirect.isActive) {
+    if (redirect.matchType === 'exact' && redirect.isActive && permanent) {
       await flattenIncoming(redirect.sourcePath, redirect.targetUrl, redirect._id);
     }
     await audit(req, 'SEO_REDIRECT_UPDATED', 'Redirect', redirect._id);

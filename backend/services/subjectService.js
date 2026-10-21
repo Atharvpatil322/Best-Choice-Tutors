@@ -16,8 +16,7 @@ import Subject, { SUBJECT_SLUG_PATTERN } from '../models/Subject.js';
 import PageSeo from '../models/PageSeo.js';
 import { CANONICAL_SUBJECTS } from '../constants/subjects.js';
 import { subjectToSlug } from '../utils/subjectSlug.js';
-import { SITE_URL } from './seoSchemaBuilders.js';
-import { moveRedirects, targetPattern } from './redirectMoveService.js';
+import { moveRedirects, movePageSeo } from './redirectMoveService.js';
 
 export const SUBJECT_PATH_PREFIX = '/tutors/subject/';
 
@@ -223,19 +222,7 @@ async function applySubjectUpdate(name, input = {}, { adminId } = {}) {
           note: 'Subject page URL changed',
         });
         // Page-level SEO overrides keyed to the old address follow the page.
-        const [oldSeo, newSeo] = await Promise.all([
-          PageSeo.findOne({ path: oldPath }),
-          PageSeo.exists({ path: newPath }),
-        ]);
-        if (oldSeo && !newSeo) {
-          oldSeo.path = newPath;
-          // A canonical that named the old address would now point at a
-          // redirect; a canonical aimed anywhere else is kept as chosen.
-          if (oldSeo.canonicalUrl && targetPattern(oldPath).test(oldSeo.canonicalUrl)) {
-            oldSeo.canonicalUrl = `${SITE_URL}${newPath}`;
-          }
-          await oldSeo.save();
-        }
+        await movePageSeo(oldPath, newPath);
       } catch (err) {
         throw new SubjectRedirectError(
           `The page moved to ${newPath}, but its redirects could not be updated (${err.message}). ` +

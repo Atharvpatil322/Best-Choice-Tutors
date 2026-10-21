@@ -8,7 +8,7 @@ import AdminAuditLog from '../models/AdminAuditLog.js';
 import mongoose from 'mongoose';
 import sharp from 'sharp';
 import { uploadImage } from '../services/s3Service.js';
-import { moveRedirects } from '../services/redirectMoveService.js';
+import { moveRedirects, movePageSeo } from '../services/redirectMoveService.js';
 import { noteSeoChange } from '../services/seoChangeService.js';
 
 /** Lowercase words joined by single hyphens, e.g. "exam-tips-2026". */
@@ -279,6 +279,7 @@ export async function updateBlog(req, res, next) {
           adminId: req.user._id,
           note: 'Blog post URL changed',
         });
+        await movePageSeo(`/blog/${existing.slug}`, `/blog/${blog.slug}`);
       } catch (redirectErr) {
         return res.status(500).json({
           message: `The post moved to /blog/${blog.slug}, but its redirects could not be updated (${redirectErr.message}).`,
