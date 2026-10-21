@@ -283,7 +283,7 @@ const router = createBrowserRouter([
           { path: 'support/:ticketId', element: <Suspense fallback={<RouteFallback />}><AdminSupportTicketDetail /></Suspense> },
         ],
       },
-      // Blog routes as top-level public pages (outside AppRootLayout to avoid AuthNavigationGuard conflicts)
+      // Blog routes: public pages inside the root layout.
       {
         path: '/blog',
         element: <Suspense fallback={<RouteFallback />}><BlogList /></Suspense>,
