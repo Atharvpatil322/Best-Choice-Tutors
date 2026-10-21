@@ -65,6 +65,15 @@ let pathListCache = { at: 0, value: null };
 const headCache = new Map();
 
 /**
+ * Forget cached build answers, after an edit that changes which pages exist
+ * or what their heads say, so a build started straight after sees the edit.
+ */
+export function clearSeoBuildCache() {
+  pathListCache = { at: 0, value: null };
+  headCache.clear();
+}
+
+/**
  * Every URL the static site publishes a file for, plus the permanent
  * redirects it can publish as forwarding pages.
  *

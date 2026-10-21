@@ -19,7 +19,7 @@
  * the site's teal. Scoped here on purpose; the rest of the site is unchanged.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Heart,
@@ -453,14 +453,16 @@ export default function FindTutors() {
   // Links written before the move still arrive as /tutors?subject=English.
   // Rewrite them once so a page has a single address and old links keep working.
   const legacySubject = searchParams.get('subject');
+  // Waits for the current slugs, so a subject whose URL an admin changed is
+  // sent to its new address rather than the old one.
   useEffect(() => {
-    if (!legacySubject) return;
+    if (!legacySubject || !slugsReady) return;
     const query = new URLSearchParams(searchParams);
     query.delete('subject');
     const search = query.toString();
     const target = tutorSearchPath(subjectFromName(legacySubject));
     navigate(`${target}${search ? `?${search}` : ''}`, { replace: true });
-  }, [legacySubject, searchParams, navigate]);
+  }, [legacySubject, slugsReady, searchParams, navigate]);
 
   // Keep one canonical URL per subject: a slug that is merely miscased is
   // corrected rather than served. A slug that matches no subject may be an old
@@ -470,9 +472,14 @@ export default function FindTutors() {
   useEffect(() => {
     if (!subjectSlug || !slugsReady) return undefined;
     let cancelled = false;
-    const search = searchParams.toString();
     const go = (path) => {
-      if (!cancelled) navigate(`${path}${search ? `?${search}` : ''}`, { replace: true });
+      if (cancelled) return;
+      // Merge the visitor's filters into any query the target already has.
+      const target = new URL(path, window.location.origin);
+      searchParams.forEach((value, key) => {
+        if (!target.searchParams.has(key)) target.searchParams.set(key, value);
+      });
+      navigate(`${target.pathname}${target.search}${target.hash}`, { replace: true });
     };
 
     if (pathSubject) {
@@ -550,7 +557,17 @@ export default function FindTutors() {
     setApplied(withUrlSubject);
   }, [urlSubject, appliedSubject]);
 
+  // Only the latest request may fill the list: an earlier, slower one (for
+  // example sent before the subject resolved) must not overwrite it.
+  const fetchIdRef = useRef(0);
+  // A subject URL that does not resolve yet may be a renamed subject whose
+  // slug is still loading; querying now would list every tutor under it.
+  const waitingForSubject = Boolean(subjectSlug) && !pathSubject && !slugsReady;
+
   const fetchTutors = useCallback(async () => {
+    if (waitingForSubject) return;
+    const fetchId = fetchIdRef.current + 1;
+    fetchIdRef.current = fetchId;
     setLoading(true);
     setError(null);
     try {
@@ -566,15 +583,17 @@ export default function FindTutors() {
         page,
         limit: PAGE_SIZE,
       });
+      if (fetchIdRef.current !== fetchId) return;
       setTutors(Array.isArray(data.tutors) ? data.tutors : []);
       setPagination(data.pagination || { page: 1, totalPages: 0, totalCount: 0 });
     } catch (err) {
+      if (fetchIdRef.current !== fetchId) return;
       setError(err.message || 'Could not load tutors');
       setTutors([]);
     } finally {
-      setLoading(false);
+      if (fetchIdRef.current === fetchId) setLoading(false);
     }
-  }, [applied, page]);
+  }, [applied, page, waitingForSubject]);
 
   useEffect(() => {
     fetchTutors();

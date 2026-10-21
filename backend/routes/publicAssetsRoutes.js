@@ -56,7 +56,7 @@ router.get('/seo-paths', getSeoPaths);
 router.get('/subjects', publicCache(60, 300), getPublicSubjects);
 router.get('/subjects/:slug', publicCache(60, 300), getPublicSubjectPage);
 // Where an old address now lives, for the static site to forward visitors.
-router.get('/redirect', publicCache(60, 300), getPublicRedirect);
+router.get('/redirect', getPublicRedirect);
 
 // Public page copy, so components can render admin-edited content.
 router.get('/page-content/:pageKey', publicCache(60, 300), getPublicPageContent);

@@ -108,7 +108,12 @@ function SubjectEditor({ subject, onSaved, onClose }) {
     }
     setSaving(true);
     try {
-      const result = await updateAdminSubject(subject.name, { ...form, slug, createRedirect });
+      // The slug is only sent when it changed, and expectedSlug lets the
+      // server refuse the save if someone else moved the page meanwhile.
+      const { slug: _unchangedSlug, ...fields } = form;
+      const payload = { ...fields, expectedSlug: subject.slug };
+      if (slug !== subject.slug) Object.assign(payload, { slug, createRedirect });
+      const result = await updateAdminSubject(subject.name, payload);
       if (result.redirect) {
         toast.success(`Saved. ${result.redirect.sourcePath} now redirects to ${result.redirect.targetUrl}`);
       } else {
@@ -207,7 +212,8 @@ function SubjectEditor({ subject, onSaved, onClose }) {
                 <span className="font-mono text-xs">{PATH_PREFIX}{subject.slug}</span> to{' '}
                 <span className="font-mono text-xs">{PATH_PREFIX}{subjectToSlug(form.slug) || '…'}</span>
                 <span className="block text-xs text-slate-500 mt-0.5">
-                  Keeps links and search results pointing at the old address working.
+                  Keeps links and search results pointing at the old address working. The new
+                  address is fully published with the next site build.
                 </span>
               </span>
             </label>
@@ -290,12 +296,14 @@ function SubjectEditor({ subject, onSaved, onClose }) {
               </div>
             </div>
             {form.imageUrl && (
-              <Input
-                className="mt-2"
-                value={form.imageAlt}
-                placeholder="Describe the image"
-                onChange={(event) => set('imageAlt', event.target.value)}
-              />
+              <label className="block mt-2">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Image alt text</span>
+                <Input
+                  value={form.imageAlt}
+                  placeholder="Describe the image"
+                  onChange={(event) => set('imageAlt', event.target.value)}
+                />
+              </label>
             )}
             <span className="block text-xs text-slate-400 mt-1">
               Shown when the page is shared on social media. Blank uses the site logo.
@@ -393,6 +401,7 @@ export default function AdminSubjectPages() {
                     size="sm"
                     onClick={() => setEditing(subject)}
                     className="gap-1.5 shrink-0"
+                    aria-label={`Edit ${subject.name} page`}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Edit

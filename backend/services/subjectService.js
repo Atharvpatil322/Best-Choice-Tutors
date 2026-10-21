@@ -46,16 +46,29 @@ export function clearSubjectCache() {
  */
 export async function ensureSubjects() {
   if (ensured) return;
-  await Subject.bulkWrite(
-    CANONICAL_SUBJECTS.map((name, index) => ({
-      updateOne: {
-        filter: { name },
-        update: { $setOnInsert: { name, slug: subjectToSlug(name), order: index } },
-        upsert: true,
-      },
-    })),
-    { ordered: false },
-  );
+  const existing = new Set((await Subject.find().select('name').lean()).map((subject) => subject.name));
+  for (const [index, name] of CANONICAL_SUBJECTS.entries()) {
+    if (existing.has(name)) continue;
+    // A subject added to the list later may find its natural slug already
+    // taken by another subject's renamed page; it then gets a numbered one
+    // instead of breaking every subject lookup.
+    const base = subjectToSlug(name);
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const slug = attempt === 1 ? base : `${base}-${attempt}`;
+      try {
+        await Subject.updateOne(
+          { name },
+          { $setOnInsert: { name, slug, order: index } },
+          { upsert: true },
+        );
+        break;
+      } catch (err) {
+        if (err?.code !== 11000 || attempt === 20) throw err;
+        // Another request may have created this subject meanwhile.
+        if (await Subject.exists({ name })) break;
+      }
+    }
+  }
   ensured = true;
 }
 
@@ -122,8 +135,23 @@ function cleanSlug(value) {
 function cleanImageUrl(value) {
   const url = String(value ?? '').trim();
   if (!url) return '';
-  if (/^https?:\/\/[^\s]+$/i.test(url) || /^\/(?!\/)[^\s]*$/.test(url)) return url;
+  // https only: an http image on an https page is blocked as mixed content.
+  if (/^https:\/\/[^\s]+$/i.test(url) || /^\/(?!\/)[^\s]*$/.test(url)) return url;
   throw new SubjectValidationError('Image must be a full https:// address or a path starting with /');
+}
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Pattern matching any spelling of a redirect target that lands on a path:
+ * relative or absolute (any host, http or https), with or without a trailing
+ * slash, in any letter case, with an optional query or fragment captured.
+ *
+ * @param {string} path
+ * @returns {RegExp}
+ */
+function targetPattern(path) {
+  return new RegExp(`^(?:https?://[^/]+)?${escapeRegExp(path)}/?([?#].*)?$`, 'i');
 }
 
 /**
@@ -131,7 +159,7 @@ function cleanImageUrl(value) {
  *
  * - Nothing may redirect away from the new address any more: it is a live page.
  * - Redirects that ended at the old address now end at the new one, so there
- *   is never a chain of hops.
+ *   is never a chain of hops. A query or fragment on the old target is kept.
  * - Optionally, the old address itself redirects to the new one.
  *
  * @param {string} oldPath
@@ -140,10 +168,20 @@ function cleanImageUrl(value) {
  * @returns {Promise<Object|null>} The redirect left at the old address, if any.
  */
 async function moveRedirects(oldPath, newPath, { createRedirect, adminId }) {
-  await Redirect.deleteMany({ sourcePath: newPath });
+  await Redirect.deleteMany({ sourcePath: { $regex: `^${escapeRegExp(newPath)}/?$`, $options: 'i' } });
 
-  const oldTargets = [oldPath, `${SITE_URL}${oldPath}`];
-  await Redirect.updateMany({ targetUrl: { $in: oldTargets } }, { $set: { targetUrl: newPath } });
+  const oldTarget = targetPattern(oldPath);
+  const pointingAtOld = await Redirect.find({ targetUrl: { $regex: oldTarget } }).select('targetUrl').lean();
+  if (pointingAtOld.length) {
+    await Redirect.bulkWrite(
+      pointingAtOld.map((record) => ({
+        updateOne: {
+          filter: { _id: record._id },
+          update: { $set: { targetUrl: `${newPath}${record.targetUrl.match(oldTarget)?.[1] || ''}` } },
+        },
+      })),
+    );
+  }
 
   let redirect = null;
   if (createRedirect) {
@@ -163,11 +201,20 @@ async function moveRedirects(oldPath, newPath, { createRedirect, adminId }) {
     );
   }
 
-  // Moving targets can never point a redirect at itself here, but a record
-  // left over from earlier edits might; such a record would loop forever.
-  await Redirect.deleteMany({ $expr: { $eq: ['$sourcePath', '$targetUrl'] } });
+  // A redirect from either address to itself would loop forever. Only the two
+  // addresses this change touched are checked, never unrelated records.
+  for (const path of [oldPath, newPath]) {
+    const record = await Redirect.findOne({ sourcePath: path }).select('targetUrl').lean();
+    if (record && targetPattern(path).test(record.targetUrl)) {
+      await Redirect.deleteOne({ _id: record._id });
+      if (redirect && String(redirect._id) === String(record._id)) redirect = null;
+    }
+  }
   return redirect;
 }
+
+/** Raised when the page moved but its redirects could not all be updated. */
+export class SubjectRedirectError extends Error {}
 
 /**
  * Update a subject page.
@@ -182,6 +229,15 @@ export async function updateSubject(name, input = {}, { adminId } = {}) {
   await ensureSubjects();
   const subject = await Subject.findOne({ name });
   if (!subject) throw new SubjectValidationError(`Unknown subject: ${name}`);
+
+  // Refuse to save over a change made since this editor was opened: an editor
+  // holding the old slug would otherwise move the page back and undo the
+  // other admin's redirect.
+  if (input.expectedSlug !== undefined && input.expectedSlug !== subject.slug) {
+    throw new SubjectConflictError(
+      `This page's URL was changed to /tutors/subject/${subject.slug} since you opened it. Reload and try again.`,
+    );
+  }
 
   for (const field of EDITABLE_FIELDS) {
     if (input[field] === undefined) continue;
@@ -205,24 +261,37 @@ export async function updateSubject(name, input = {}, { adminId } = {}) {
   subject.updatedBy = adminId || null;
   await subject.save();
 
-  if (subject.slug !== previousSlug) {
-    const oldPath = subjectPath(previousSlug);
-    const newPath = subjectPath(subject.slug);
-    redirect = await moveRedirects(oldPath, newPath, {
-      createRedirect: input.createRedirect !== false,
-      adminId,
-    });
-    // Page-level SEO overrides keyed to the old address follow the page.
-    const [oldSeo, newSeo] = await Promise.all([
-      PageSeo.findOne({ path: oldPath }),
-      PageSeo.exists({ path: newPath }),
-    ]);
-    if (oldSeo && !newSeo) {
-      oldSeo.path = newPath;
-      await oldSeo.save();
+  try {
+    if (subject.slug !== previousSlug) {
+      const oldPath = subjectPath(previousSlug);
+      const newPath = subjectPath(subject.slug);
+      try {
+        redirect = await moveRedirects(oldPath, newPath, {
+          createRedirect: input.createRedirect !== false,
+          adminId,
+        });
+        // Page-level SEO overrides keyed to the old address follow the page.
+        const [oldSeo, newSeo] = await Promise.all([
+          PageSeo.findOne({ path: oldPath }),
+          PageSeo.exists({ path: newPath }),
+        ]);
+        if (oldSeo && !newSeo) {
+          oldSeo.path = newPath;
+          await oldSeo.save();
+        }
+      } catch (err) {
+        throw new SubjectRedirectError(
+          `The page moved to ${newPath}, but its redirects could not be updated (${err.message}). ` +
+            'Check the Redirect tab in SEO settings.',
+        );
+      }
     }
+  } finally {
+    // The new slug is saved either way, so nothing may keep serving the old one.
+    clearSubjectCache();
   }
-
-  clearSubjectCache();
   return { subject: subject.toObject(), previousSlug, redirect };
 }
+
+/** Raised when the record changed since the editor loaded it. */
+export class SubjectConflictError extends Error {}

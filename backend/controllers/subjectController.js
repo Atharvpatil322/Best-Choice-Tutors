@@ -13,7 +13,10 @@ import {
   subjectBySlug,
   updateSubject,
   SubjectValidationError,
+  SubjectConflictError,
+  SubjectRedirectError,
 } from '../services/subjectService.js';
+import { clearSeoBuildCache } from './publicSeoController.js';
 
 /** Fields returned to the public site for one subject page. */
 const PUBLIC_PAGE_FIELDS = ['name', 'slug', 'seoTitle', 'metaDescription', 'h1', 'intro', 'content', 'imageUrl', 'imageAlt'];
@@ -67,6 +70,9 @@ export async function getPublicRedirect(req, res, next) {
     })
       .select('targetUrl statusCode')
       .lean();
+    // Not cached: a visitor following a just-moved address must see the new
+    // redirect, and an empty answer must not be remembered.
+    res.set('Cache-Control', 'no-store');
     return res.status(200).json({
       redirect: redirect ? { targetUrl: redirect.targetUrl, statusCode: redirect.statusCode } : null,
     });
@@ -106,7 +112,12 @@ export async function getAdminSubjects(req, res, next) {
 export async function updateAdminSubject(req, res, next) {
   if (!requireAdmin(req, res)) return;
   try {
-    const result = await updateSubject(req.params.name, req.body ?? {}, { adminId: req.user._id });
+    let result;
+    try {
+      result = await updateSubject(req.params.name, req.body ?? {}, { adminId: req.user._id });
+    } finally {
+      clearSeoBuildCache();
+    }
     try {
       await AdminAuditLog.create({
         adminId: req.user._id,
@@ -130,10 +141,17 @@ export async function updateAdminSubject(req, res, next) {
     });
   } catch (err) {
     if (err instanceof SubjectValidationError) return res.status(400).json({ message: err.message });
+    if (err instanceof SubjectConflictError) return res.status(409).json({ message: err.message });
+    if (err instanceof SubjectRedirectError) return res.status(500).json({ message: err.message });
     if (err?.name === 'ValidationError') {
       return res.status(400).json({ message: Object.values(err.errors)[0]?.message || 'Invalid subject page' });
     }
-    if (err?.code === 11000) return res.status(409).json({ message: 'Another subject already uses that URL' });
+    if (err?.code === 11000) {
+      const message = err.keyPattern?.slug
+        ? 'Another subject already uses that URL'
+        : 'Another change was saved at the same moment. Reload and try again.';
+      return res.status(409).json({ message });
+    }
     next(err);
   }
 }

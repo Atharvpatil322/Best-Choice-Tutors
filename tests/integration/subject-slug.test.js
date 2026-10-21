@@ -81,6 +81,35 @@ test('a slug another subject uses, or a malformed slug, is refused', { skip }, a
   await assert.rejects(updateSubject('Chemistry', { seoTitle: { $gt: '' } }), SubjectValidationError);
 });
 
+test('redirects aimed at any spelling of the old address move, keeping their query', { skip }, async () => {
+  await Redirect.create([
+    { sourcePath: '/old-a', targetUrl: 'https://bestchoicetutors.com/tutors/subject/geography/?ref=x' },
+    { sourcePath: '/old-b', targetUrl: '/Tutors/Subject/Geography' },
+    { sourcePath: '/old-c', targetUrl: '/tutors/subject/geography-extra' },
+  ]);
+  await updateSubject('Geography', { slug: 'geography-tutors' });
+  assert.equal((await redirectFrom('/old-a')).targetUrl, '/tutors/subject/geography-tutors?ref=x');
+  assert.equal((await redirectFrom('/old-b')).targetUrl, '/tutors/subject/geography-tutors');
+  assert.equal(
+    (await redirectFrom('/old-c')).targetUrl,
+    '/tutors/subject/geography-extra',
+    'a different page that merely starts the same is left alone',
+  );
+});
+
+test('a save from an editor opened before another admin moved the page is refused', { skip }, async () => {
+  await updateSubject('History', { slug: 'history-tutors' });
+  await assert.rejects(
+    updateSubject('History', { seoTitle: 'Stale edit', expectedSlug: 'history' }),
+    (err) => err.name === 'Error' && /changed to \/tutors\/subject\/history-tutors/.test(err.message),
+  );
+  assert.equal((await Subject.findOne({ name: 'History' }).lean()).seoTitle, '');
+});
+
+test('an http share image is refused as mixed content', { skip }, async () => {
+  await assert.rejects(updateSubject('Art', { imageUrl: 'http://example.com/a.png' }), SubjectValidationError);
+});
+
 test('page copy and search listing are saved', { skip }, async () => {
   const { subject } = await updateSubject('Music', {
     seoTitle: 'Music Tutors | Best Choice Tutors',
