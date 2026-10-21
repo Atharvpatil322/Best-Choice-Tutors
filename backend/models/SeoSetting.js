@@ -164,7 +164,10 @@ const seoSettingSchema = new mongoose.Schema(
 
     /** Last request to rebuild the public site (see sitePublishService). */
     publish: {
+      /** When the last build that actually started was requested. */
       requestedAt: { type: Date, default: null },
+      /** The last attempt, successful or not; ok and message describe it. */
+      lastAttemptAt: { type: Date, default: null },
       ok: { type: Boolean, default: null },
       message: { type: String, default: '' },
       reason: { type: String, default: '' },

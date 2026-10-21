@@ -35,13 +35,13 @@ export function isPublishConfigured() {
  *
  * @param {Object} result
  */
-async function recordPublish(result) {
+async function recordPublish(fields) {
   try {
     // timestamps off: recording a publish is not an SEO edit, and must not
     // make the settings look changed since the last publish.
     await SeoSetting.updateOne(
       { singleton: 'global' },
-      { $set: { publish: result } },
+      { $set: fields },
       { upsert: true, setDefaultsOnInsert: true, timestamps: false },
     );
   } catch (err) {
@@ -104,13 +104,18 @@ async function runPublish(reason) {
     clearTimeout(timer);
   }
 
-  await recordPublish({
-    requestedAt,
-    ok: result.ok,
-    message: result.message,
-    reason: [...new Set(reasons)].join(', ').slice(0, 500),
-    pendingSince: null,
-  });
+  const attempt = {
+    'publish.lastAttemptAt': requestedAt,
+    'publish.ok': result.ok,
+    'publish.message': result.message,
+    'publish.reason': [...new Set(reasons)].join(', ').slice(0, 500),
+  };
+  // Only a build that actually started moves the "published up to" point and
+  // clears the waiting flag; after a failure the edits still count as
+  // unpublished and are retried at the next scheduled build.
+  await recordPublish(
+    result.ok ? { ...attempt, 'publish.requestedAt': requestedAt, 'publish.pendingSince': null } : attempt,
+  );
   return { ...result, configured: true };
 }
 

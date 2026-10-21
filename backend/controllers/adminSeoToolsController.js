@@ -419,7 +419,9 @@ async function finalTarget(source, target, excludeId) {
       .select('targetUrl')
       .lean();
     if (!next) return current;
-    current = next.targetUrl;
+    // Keep the query and fragment the admin entered (a campaign tag, an
+    // anchor) when skipping past the intermediate address.
+    current = withQueryOf(current, next.targetUrl);
   }
   throw new RedirectRuleError('The target already passes through too many redirects.');
 }
@@ -1036,7 +1038,15 @@ async function publishStatus() {
   return {
     configured: isPublishConfigured(),
     pending: isPublishPending() || Boolean(settings.publish?.pendingSince),
-    last: last ? { at: last, ok: settings.publish.ok, message: settings.publish.message, reason: settings.publish.reason } : null,
+    last: settings.publish?.lastAttemptAt || last
+      ? {
+          at: settings.publish.lastAttemptAt || last,
+          ok: settings.publish.ok,
+          message: settings.publish.message,
+          reason: settings.publish.reason,
+          publishedAt: last,
+        }
+      : null,
     changesSinceLast: pages + redirects + subjects + blogs + settingsChanged,
   };
 }
