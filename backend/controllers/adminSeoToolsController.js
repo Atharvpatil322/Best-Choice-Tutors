@@ -20,7 +20,7 @@ import { buildSeoHead } from '../services/seoHtmlService.js';
 import { missingOrganizationFields } from '../services/seoSchemaBuilders.js';
 import { SITE_URL } from '../services/seoSchemaBuilders.js';
 import { noteSeoChange } from '../services/seoChangeService.js';
-import { publishNow, isPublishConfigured, isPublishPending } from '../services/sitePublishService.js';
+import { publishNow, isPublishConfigured, isPublishPending, nextPublishAt } from '../services/sitePublishService.js';
 import { collectBuildPaths } from './publicSeoController.js';
 import PageSeo from '../models/PageSeo.js';
 import Blog from '../models/Blog.js';
@@ -1049,7 +1049,12 @@ async function publishStatus() {
   ]);
   return {
     configured: isPublishConfigured(),
-    pending: isPublishPending() || Boolean(settings.publish?.pendingSince),
+    // Only a build that is actually scheduled counts as pending. After a
+    // failed build whose retries ran out the edits are simply unpublished,
+    // and the dashboard asks the admin to publish.
+    pending: isPublishPending(),
+    nextAttemptAt: nextPublishAt(),
+    retrying: isPublishPending() && settings.publish?.ok === false,
     last: settings.publish?.lastAttemptAt || last
       ? {
           at: settings.publish.lastAttemptAt || last,

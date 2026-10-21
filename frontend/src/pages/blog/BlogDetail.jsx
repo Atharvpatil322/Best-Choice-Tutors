@@ -38,7 +38,10 @@ export default function BlogDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug) return undefined;
+    // Answers for a post the visitor has already left are ignored, so a slow
+    // lookup never replaces the current post or navigates away from it.
+    let cancelled = false;
     // Render the cached article immediately (if any) and refresh in the background.
     const cached = getCachedBlogBySlug(slug)?.blog || null;
     setBlog(cached);
@@ -46,13 +49,14 @@ export default function BlogDetail() {
     setError(null);
     getBlogBySlug(slug)
       .then((data) => {
-        setBlog(data.blog || null);
+        if (!cancelled) setBlog(data.blog || null);
       })
       .catch(async (err) => {
-        if (cached) return;
+        if (cancelled || cached) return;
         // The post may have moved to a new address. The static site cannot
         // answer with a redirect itself, so the app forwards the visitor.
         const target = await findRedirect(`/blog/${slug}`).catch(() => null);
+        if (cancelled) return;
         if (target) {
           forwardVisitor(target, navigate);
           return;
@@ -60,8 +64,11 @@ export default function BlogDetail() {
         setError(err.message || 'Blog not found');
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [slug, navigate]);
 
   const handleShare = () => {

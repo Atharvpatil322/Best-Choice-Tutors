@@ -20,10 +20,18 @@ import SeoSetting from '../models/SeoSetting.js';
 /** Quiet period after the last edit before an automatic build starts. */
 const AUTO_PUBLISH_DELAY_MS = 2 * 60 * 1000;
 const HOOK_TIMEOUT_MS = 15 * 1000;
+/**
+ * Waits before retrying a build whose deploy hook call failed. After the last
+ * one the edits stay unpublished until the admin publishes or edits again, so
+ * a broken hook is not called forever.
+ */
+const RETRY_DELAYS_MS = [5 * 60 * 1000, 15 * 60 * 1000, 60 * 60 * 1000];
 
 let pendingTimer = null;
+let pendingAt = null;
 let pendingReasons = new Set();
 let inFlight = null;
+let retriesUsed = 0;
 
 /** Whether a deploy hook is configured. */
 export function isPublishConfigured() {
@@ -70,6 +78,7 @@ async function runPublish(reason) {
   if (pendingTimer) {
     clearTimeout(pendingTimer);
     pendingTimer = null;
+    pendingAt = null;
   }
   const reasons = [...pendingReasons, reason].filter(Boolean);
   pendingReasons = new Set();
@@ -112,8 +121,17 @@ async function runPublish(reason) {
   };
   // Only a build that actually started moves the "published up to" point and
   // clears the waiting flag; after a failure the edits still count as
-  // unpublished and are retried at the next scheduled build.
+  // unpublished.
   await recordPublish(result.ok ? { ...attempt, 'publish.requestedAt': requestedAt } : attempt);
+  if (result.ok) {
+    retriesUsed = 0;
+  } else if (!pendingTimer && retriesUsed < RETRY_DELAYS_MS.length) {
+    // Nothing newer has armed a build, so retry this one after a pause.
+    for (const item of reasons) pendingReasons.add(item);
+    pendingReasons.add('retry after a failed build');
+    armTimer(RETRY_DELAYS_MS[retriesUsed]);
+    retriesUsed += 1;
+  }
   if (result.ok && !pendingTimer) {
     // Cleared only if nothing newer is waiting: an edit saved while the hook
     // was being called arms a new build, and its marker must survive.
@@ -136,6 +154,8 @@ async function runPublish(reason) {
 export function schedulePublish(reason) {
   if (!isPublishConfigured()) return;
   if (reason) pendingReasons.add(reason);
+  // A new edit starts a fresh cycle, with its own retries if the hook fails.
+  retriesUsed = 0;
   armTimer();
   // Remembered in the database too, so a restart within the quiet period
   // (every deploy restarts the API) does not lose the build.
@@ -146,12 +166,14 @@ export function schedulePublish(reason) {
   ).catch((err) => console.error('Recording pending publish failed:', err?.message));
 }
 
-function armTimer() {
+function armTimer(delayMs = AUTO_PUBLISH_DELAY_MS) {
   if (pendingTimer) clearTimeout(pendingTimer);
+  pendingAt = new Date(Date.now() + delayMs);
   pendingTimer = setTimeout(() => {
     pendingTimer = null;
+    pendingAt = null;
     publishNow('').catch((err) => console.error('Automatic site publish failed:', err?.message));
-  }, AUTO_PUBLISH_DELAY_MS);
+  }, delayMs);
   // Never keep the process alive just to publish.
   pendingTimer.unref?.();
 }
@@ -172,7 +194,12 @@ export async function resumePendingPublish() {
   }
 }
 
-/** Whether an automatic build is waiting for the quiet period to end. */
+/** Whether an automatic build (or a retry) is scheduled. */
 export function isPublishPending() {
   return Boolean(pendingTimer);
+}
+
+/** When the scheduled build will run, or null when none is scheduled. */
+export function nextPublishAt() {
+  return pendingAt;
 }

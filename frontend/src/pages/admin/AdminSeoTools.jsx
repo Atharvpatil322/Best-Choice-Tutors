@@ -150,7 +150,9 @@ function DashboardTab() {
           <p className="text-sm text-slate-600 mt-1">
             {publish.configured
               ? publish.pending
-                ? 'A site build starts automatically in a couple of minutes.'
+                ? publish.retrying
+                  ? `The last build did not start. It is tried again automatically${publish.nextAttemptAt ? ` at ${new Date(publish.nextAttemptAt).toLocaleTimeString()}` : ''}.`
+                  : 'A site build starts automatically in a couple of minutes.'
                 : publish.changesSinceLast > 0
                   ? `${publish.changesSinceLast} change(s) are not on the live site yet. Publish now to build it.`
                   : 'Everything is published. Edits go live automatically a couple of minutes after you make them.'
