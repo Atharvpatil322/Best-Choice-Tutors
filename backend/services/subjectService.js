@@ -305,6 +305,11 @@ async function applySubjectUpdate(name, input = {}, { adminId } = {}) {
         ]);
         if (oldSeo && !newSeo) {
           oldSeo.path = newPath;
+          // A canonical that named the old address would now point at a
+          // redirect; a canonical aimed anywhere else is kept as chosen.
+          if (oldSeo.canonicalUrl && targetPattern(oldPath).test(oldSeo.canonicalUrl)) {
+            oldSeo.canonicalUrl = `${SITE_URL}${newPath}`;
+          }
           await oldSeo.save();
         }
       } catch (err) {

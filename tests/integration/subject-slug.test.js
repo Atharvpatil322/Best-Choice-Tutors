@@ -69,10 +69,22 @@ test('unticking "create a redirect" leaves the old address without one', { skip 
 });
 
 test('a page-level SEO override follows the page to its new address', { skip }, async () => {
-  await PageSeo.create({ path: '/tutors/subject/biology', title: 'Biology override' });
+  await PageSeo.create({
+    path: '/tutors/subject/biology',
+    title: 'Biology override',
+    canonicalUrl: 'https://bestchoicetutors.com/tutors/subject/biology',
+  });
+  await PageSeo.create({
+    path: '/tutors/subject/economics',
+    canonicalUrl: 'https://bestchoicetutors.com/tutors',
+  });
   await updateSubject('Biology', { slug: 'biology-tutors' });
+  await updateSubject('Economics', { slug: 'economics-tutors' });
   assert.equal(await PageSeo.exists({ path: '/tutors/subject/biology' }), null);
-  assert.ok(await PageSeo.exists({ path: '/tutors/subject/biology-tutors' }));
+  const moved = await PageSeo.findOne({ path: '/tutors/subject/biology-tutors' }).lean();
+  assert.equal(moved.canonicalUrl, 'https://bestchoicetutors.com/tutors/subject/biology-tutors');
+  const kept = await PageSeo.findOne({ path: '/tutors/subject/economics-tutors' }).lean();
+  assert.equal(kept.canonicalUrl, 'https://bestchoicetutors.com/tutors', 'a deliberate canonical elsewhere is kept');
 });
 
 test('a slug another subject uses, or a malformed slug, is refused', { skip }, async () => {
