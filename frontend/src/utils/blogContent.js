@@ -25,6 +25,86 @@ export function isHtmlContent(content) {
 }
 
 /**
+ * Escape a stray "<" that does not start a tag, so text such as "grades < 5"
+ * survives being parsed as HTML. Real inline tags are left alone: the public
+ * page renders older posts' lines as HTML, and converting must not change what
+ * readers already see.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeStrayAngles(text) {
+  return text.replace(/<(?![a-zA-Z/!])/g, '&lt;');
+}
+
+/**
+ * Apply the inline markers older posts use: **bold** and [text](url) links.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function inlineMarkdownToHtml(text) {
+  return escapeStrayAngles(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
+}
+
+/**
+ * Convert an older markdown-ish post into HTML the rich text editor can load.
+ *
+ * The editor parses whatever it is given as HTML, so loading the raw text
+ * would collapse every line into one paragraph and show "## " literally - and
+ * saving would then store that flattened version over the original. The rules
+ * match the line-by-line rendering in BlogDetail, so a converted post looks
+ * the same once saved. Consecutive list lines become a single list.
+ *
+ * @param {string} content - Plain-text post body.
+ * @returns {string} HTML for the editor.
+ */
+export function markdownToHtml(content) {
+  if (typeof content !== 'string' || !content.trim()) return '';
+
+  const blocks = [];
+  let list = null;
+
+  const closeList = () => {
+    if (!list) return;
+    blocks.push(`<${list.tag}>${list.items.map((item) => `<li><p>${item}</p></li>`).join('')}</${list.tag}>`);
+    list = null;
+  };
+
+  const addListItem = (tag, text) => {
+    if (list && list.tag !== tag) closeList();
+    if (!list) list = { tag, items: [] };
+    list.items.push(inlineMarkdownToHtml(text));
+  };
+
+  content.split(/\r?\n/).forEach((rawLine) => {
+    const line = rawLine.trimEnd();
+
+    if (line.startsWith('### ')) {
+      closeList();
+      blocks.push(`<h3>${inlineMarkdownToHtml(line.slice(4))}</h3>`);
+    } else if (line.startsWith('## ')) {
+      closeList();
+      blocks.push(`<h2>${inlineMarkdownToHtml(line.slice(3))}</h2>`);
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      addListItem('ul', line.slice(2));
+    } else if (/^\d+\.\s/.test(line)) {
+      addListItem('ol', line.replace(/^\d+\.\s/, ''));
+    } else if (line.trim() === '') {
+      closeList();
+    } else {
+      closeList();
+      blocks.push(`<p>${inlineMarkdownToHtml(line)}</p>`);
+    }
+  });
+  closeList();
+
+  return blocks.join('');
+}
+
+/**
  * Sanitise editor HTML for rendering.
  *
  * The content is admin-authored, but it still passes through here: an admin

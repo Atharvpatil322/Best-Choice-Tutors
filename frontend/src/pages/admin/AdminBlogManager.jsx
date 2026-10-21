@@ -3,17 +3,18 @@
  * Admin-only CRUD for blog posts. List, create, edit, publish, delete.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FileText, Plus, Edit3, Trash2, ExternalLink, 
-  Eye, EyeOff, Search, X, Check, Loader2 
+import {
+  FileText, Plus, Edit3, Trash2, ExternalLink,
+  Eye, EyeOff, Search, X, Check, Loader2, ImagePlus
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
 import {
   getAllBlogsAdmin,
+  getBlogByIdAdmin,
   createBlogAdmin,
   updateBlogAdmin,
   deleteBlogAdmin,
@@ -21,6 +22,7 @@ import {
 } from '@/services/blogService';
 import { toast } from 'sonner';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import { isHtmlContent, markdownToHtml } from '@/utils/blogContent';
 import '../../styles/Profile.css';
 
 function formatDate(iso) {
@@ -62,6 +64,25 @@ function AdminBlogManager() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+  // Local preview of a newly picked image, so the admin sees what will be
+  // uploaded before saving. Revoked when replaced so the blob is not leaked.
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  // The post whose full record is being fetched for editing, if any.
+  const [loadingEditId, setLoadingEditId] = useState(null);
+  // Only the most recent Edit click may fill the form: a slower response for
+  // an earlier click must not overwrite the post the admin actually opened.
+  const editRequestRef = useRef(0);
+  const imageInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl('');
+      return undefined;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const fetchBlogs = async (page = 1) => {
     if (!isAdmin) return;
@@ -103,22 +124,52 @@ function AdminBlogManager() {
     setImageFile(null);
     setEditingId(null);
     setShowForm(false);
+    // Abandon any edit still loading, so it cannot reopen the form.
+    editRequestRef.current += 1;
+    setLoadingEditId(null);
   };
 
-  const handleEdit = (blog) => {
-    setFormData({
-      title: blog.title,
-      excerpt: blog.excerpt || '',
-      content: blog.content || '',
-      author: blog.author || 'Best Choice Tutors',
-      category: blog.category || 'General',
-      imageUrl: blog.imageUrl || '',
-      imageAlt: blog.imageAlt || '',
-      status: blog.status || 'DRAFT',
-    });
-    setImageFile(null);
-    setEditingId(blog._id);
-    setShowForm(true);
+  /**
+   * Open a post for editing.
+   *
+   * The list endpoint leaves out the post body to keep the list light, so the
+   * form is filled from the full record instead of the list row. Filling it
+   * from the row opened every post with an empty editor, and saving then
+   * failed with "content is required". The form only opens once the full
+   * record has arrived, so nothing can be saved half-loaded.
+   */
+  const handleEdit = async (blog) => {
+    const requestId = editRequestRef.current + 1;
+    editRequestRef.current = requestId;
+    setLoadingEditId(blog._id);
+    try {
+      const { blog: full } = await getBlogByIdAdmin(blog._id);
+      if (editRequestRef.current !== requestId) return;
+      if (!full) throw new Error('Blog not found');
+
+      const rawContent = full.content || '';
+      setFormData({
+        title: full.title || '',
+        excerpt: full.excerpt || '',
+        // Older posts are markdown-ish text; the editor needs HTML or it
+        // flattens them into a single paragraph.
+        content: isHtmlContent(rawContent) ? rawContent : markdownToHtml(rawContent),
+        author: full.author || 'Best Choice Tutors',
+        category: full.category || 'General',
+        imageUrl: full.imageUrl || '',
+        imageAlt: full.imageAlt || '',
+        status: full.status || 'DRAFT',
+      });
+      setImageFile(null);
+      setEditingId(full._id);
+      setShowForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      if (editRequestRef.current !== requestId) return;
+      toast.error(err.message || 'Failed to load blog');
+    } finally {
+      if (editRequestRef.current === requestId) setLoadingEditId(null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -324,41 +375,76 @@ function AdminBlogManager() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   Featured Image
                 </label>
+                {/* The file input cannot show an image that is already saved,
+                    which made editing look like it required a new upload. The
+                    saved or newly picked image is shown instead, and the input
+                    is only opened when the admin chooses to replace it. */}
                 <input
+                  ref={imageInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                  onChange={(e) => {
+                    setImageFile(e.target.files?.[0] || null);
+                    // Clear the input so picking the same file again still fires.
+                    e.target.value = '';
+                  }}
+                  className="hidden"
                 />
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  {imageFile && (
-                    <span className="text-xs font-medium text-slate-600">
-                      Selected: {imageFile.name}
-                    </span>
-                  )}
-                  {formData.imageUrl && !imageFile && (
-                    <a
-                      href={formData.imageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-[#1A365D] underline underline-offset-2"
-                    >
-                      View current image
-                    </a>
-                  )}
-                  {formData.imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData({ ...formData, imageUrl: '', imageAlt: '' });
-                        setImageFile(null);
-                      }}
-                      className="text-xs font-medium text-red-600 hover:text-red-700"
-                    >
-                      Remove image
-                    </button>
-                  )}
-                </div>
+                {imagePreviewUrl || formData.imageUrl ? (
+                  <div className="flex flex-wrap items-start gap-4">
+                    <img
+                      src={imagePreviewUrl || formData.imageUrl}
+                      alt={formData.imageAlt || 'Featured image'}
+                      className="h-32 w-56 rounded-lg border border-slate-200 object-cover bg-slate-50"
+                    />
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-medium text-slate-600">
+                        {imageFile ? `New image: ${imageFile.name} (uploads on save)` : 'Current image'}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => imageInputRef.current?.click()}
+                          className="gap-2"
+                        >
+                          <ImagePlus className="h-4 w-4" />
+                          Replace image
+                        </Button>
+                        {imageFile && formData.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setImageFile(null)}
+                            className="text-xs font-medium text-slate-600 hover:text-slate-800"
+                          >
+                            Keep current image
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, imageUrl: '', imageAlt: '' });
+                            setImageFile(null);
+                          }}
+                          className="text-xs font-medium text-red-600 hover:text-red-700"
+                        >
+                          Remove image
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <ImagePlus className="h-4 w-4" />
+                    Upload image
+                  </Button>
+                )}
               </div>
 
               <div>
@@ -469,9 +555,14 @@ function AdminBlogManager() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEdit(blog)}
+                      disabled={loadingEditId !== null}
                       title="Edit"
                     >
-                      <Edit3 className="h-4 w-4" />
+                      {loadingEditId === blog._id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Edit3 className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       size="sm"
