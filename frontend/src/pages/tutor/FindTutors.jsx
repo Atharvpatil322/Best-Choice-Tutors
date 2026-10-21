@@ -465,11 +465,12 @@ export default function FindTutors() {
     navigate(`${target}${search ? `?${search}` : ''}`, { replace: true });
   }, [legacySubject, slugsReady, searchParams, navigate]);
 
-  // Keep one canonical URL per subject: a slug that is merely miscased is
-  // corrected rather than served. A slug that matches no subject may be an old
-  // address an admin has moved, so the redirect list is asked first; only then
-  // does it fall back to the full list. Nothing is decided until the current
-  // slugs have loaded, or a renamed subject would bounce to the full list.
+  // Keep one canonical URL per subject. The subject list in this tab may be a
+  // cached copy from before an admin renamed a subject, so every subject URL
+  // is checked against the live page lookup:
+  // - the page exists: its slug is recorded, and a miscased URL is corrected;
+  // - it does not: the address may have moved, so the redirect list is asked,
+  //   and only then does the visitor fall back to the full tutor list.
   useEffect(() => {
     if (!subjectSlug || !slugsReady) return undefined;
     let cancelled = false;
@@ -483,21 +484,12 @@ export default function FindTutors() {
       navigate(`${target.pathname}${target.search}${target.hash}`, { replace: true });
     };
 
-    if (pathSubject) {
-      const canonicalPath = tutorSearchPath(pathSubject);
-      if (canonicalPath !== `/tutors/subject/${subjectSlug}`) go(canonicalPath);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    // The subject list may be a cached copy from before an admin renamed a
-    // subject, so ask for this page directly before treating it as unknown.
     getSubjectPage(subjectSlug.toLowerCase())
       .then((page) => {
         if (cancelled) return null;
         if (page?.name) {
           setSubjectSlug(page.name, page.slug);
+          if (subjectSlug !== page.slug) go(`/tutors/subject/${page.slug}`);
           return null;
         }
         return findRedirect(`/tutors/subject/${subjectSlug}`).then((target) => ({ target }));
@@ -514,7 +506,7 @@ export default function FindTutors() {
     return () => {
       cancelled = true;
     };
-  }, [subjectSlug, pathSubject, slugsReady, searchParams, navigate]);
+  }, [subjectSlug, slugsReady, searchParams, navigate]);
 
   // Draft holds what the sidebar shows; applied is what the query actually uses,
   // so the results only change when "Apply Filters" is pressed.

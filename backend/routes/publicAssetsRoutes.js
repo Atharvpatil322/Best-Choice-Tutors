@@ -54,7 +54,7 @@ router.get('/seo-paths', getSeoPaths);
 
 // Subject pages: current slugs for links, and one page's content.
 router.get('/subjects', publicCache(60, 300), getPublicSubjects);
-router.get('/subjects/:slug', publicCache(60, 300), getPublicSubjectPage);
+router.get('/subjects/:slug', getPublicSubjectPage);
 // Where an old address now lives, for the static site to forward visitors.
 router.get('/redirect', getPublicRedirect);
 

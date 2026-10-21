@@ -42,6 +42,9 @@ export async function getPublicSubjects(req, res, next) {
  */
 export async function getPublicSubjectPage(req, res, next) {
   try {
+    // Not cached by browsers: this is how the app confirms a subject URL is
+    // current, so a copy from before a rename must never be reused.
+    res.set('Cache-Control', 'no-store');
     const subject = await subjectBySlug(req.params.slug);
     if (!subject) return res.status(404).json({ message: 'Subject not found' });
     return res.status(200).json({ subject: pick(subject, PUBLIC_PAGE_FIELDS) });
