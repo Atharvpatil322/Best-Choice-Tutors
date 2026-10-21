@@ -53,6 +53,12 @@ export function subjectToSlug(subject) {
  */
 
 const slugByName = new Map();
+/**
+ * Slugs the live page lookup has confirmed, by slug. These win when a URL is
+ * resolved: the list above may be a cached copy, and after one subject moves
+ * away from a slug and another takes it, both could otherwise claim the URL.
+ */
+const confirmedNameBySlug = new Map();
 const listeners = new Set();
 let registryVersion = 0;
 let registryLoaded = false;
@@ -66,6 +72,7 @@ let registryLoaded = false;
  */
 export function setSubjectSlugs(subjects, { settled = true } = {}) {
   slugByName.clear();
+  confirmedNameBySlug.clear();
   for (const { name, slug } of subjects || []) {
     if (name && slug) slugByName.set(name, slug);
   }
@@ -82,7 +89,12 @@ export function setSubjectSlugs(subjects, { settled = true } = {}) {
  * @param {string} slug
  */
 export function setSubjectSlug(name, slug) {
-  if (!name || !slug || slugByName.get(name) === slug) return;
+  if (!name || !slug) return;
+  if (slugByName.get(name) === slug && confirmedNameBySlug.get(slug) === name) return;
+  for (const [confirmedSlug, confirmedName] of confirmedNameBySlug) {
+    if (confirmedName === name) confirmedNameBySlug.delete(confirmedSlug);
+  }
+  confirmedNameBySlug.set(slug, name);
   slugByName.set(name, slug);
   registryVersion += 1;
   listeners.forEach((listener) => listener());
@@ -125,6 +137,7 @@ export function slugForSubject(subject) {
 export function slugToSubject(slug) {
   const normalized = subjectToSlug(slug);
   if (!normalized) return null;
+  if (confirmedNameBySlug.has(normalized)) return confirmedNameBySlug.get(normalized);
   return (
     CANONICAL_SUBJECTS.find(
       (subject) => subject !== SUBJECT_OTHER && slugForSubject(subject) === normalized,
