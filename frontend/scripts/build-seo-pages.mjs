@@ -21,9 +21,11 @@
  *
  * The host rewrites every blog and subject URL to that page's file, so a
  * build that published none would turn them all into 404s. Requests are
- * retried, since the API may be restarting for the same deploy. If the page
- * list still cannot be fetched the build fails, and the host keeps serving
- * the previous deploy. A page whose head cannot be fetched still gets the
+ * retried, since the API may be restarting for the same deploy, and the page
+ * list is waited for: the site and the API deploy from the same push, so this
+ * build can reach the previous API, which does not know the route yet. If the
+ * page list still cannot be fetched the build fails, and the host keeps
+ * serving the previous deploy. A page whose head cannot be fetched still gets the
  * plain app shell, so it loads normally. Set SEO_PAGES_OPTIONAL=1 to skip
  * instead of failing.
  *
@@ -38,6 +40,9 @@ const DIST = path.resolve(process.cwd(), 'dist');
 const SHELL = path.join(DIST, 'spa-shell.html');
 const TIMEOUT_MS = 45000;
 const ATTEMPTS = 6;
+/** How long the build waits for an API that cannot list pages yet. */
+const LIST_WAIT_MS = 10 * 60 * 1000;
+const LIST_POLL_MS = 15 * 1000;
 const CONCURRENCY = 6;
 const OPTIONAL = process.env.SEO_PAGES_OPTIONAL === '1';
 
@@ -81,6 +86,27 @@ async function getJson(url) {
     }
   }
   throw lastError;
+}
+
+/**
+ * GET the page list, waiting while the API cannot answer it yet - including
+ * a 404 from an API older than this build, which goes away once the API's
+ * own deploy finishes.
+ *
+ * @param {string} url
+ * @returns {Promise<Object>}
+ */
+async function getPageList(url) {
+  const deadline = Date.now() + LIST_WAIT_MS;
+  for (;;) {
+    try {
+      return await getJson(url);
+    } catch (err) {
+      if (Date.now() + LIST_POLL_MS > deadline) throw err;
+      console.log(`[seo-pages] page list not available yet (${err.message}); asking again in ${LIST_POLL_MS / 1000}s`);
+      await wait(LIST_POLL_MS);
+    }
+  }
 }
 
 /* Tag matching. Mirrors matcherForKey and applySeoHead in
@@ -231,7 +257,7 @@ async function main() {
 
   let list;
   try {
-    list = await getJson(`${origin}/api/public/seo-paths`);
+    list = await getPageList(`${origin}/api/public/seo-paths`);
   } catch (err) {
     if (OPTIONAL) {
       console.warn(`[seo-pages] skipped: could not list pages (${err.message})`);
