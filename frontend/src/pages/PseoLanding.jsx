@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
@@ -20,16 +20,33 @@ import Seo from '@/components/Seo';
 import NotFound from './NotFound';
 import { getPseoPage } from '@/services/seoToolsService';
 import { tutorSearchPath } from '@/constants/subjects';
+import { findRedirect, forwardVisitor } from '@/services/subjectPageService';
+import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
 import '@/styles/LandingPage.css';
 
 export default function PseoLanding() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [page, setPage] = useState(undefined); // undefined = loading
+  // Re-render when subject page URLs load, so the browse link is current.
+  useSubjectSlugs();
   useEffect(() => {
     let cancelled = false;
     setPage(undefined);
     getPseoPage(pathname)
-      .then((result) => !cancelled && setPage(result || null))
+      .then(async (result) => {
+        if (cancelled) return;
+        if (result) {
+          setPage(result);
+          return;
+        }
+        // Not a generated page. The address may have moved: the static site
+        // cannot answer with a redirect itself, so the app forwards here.
+        const target = await findRedirect(pathname).catch(() => null);
+        if (cancelled) return;
+        if (target) forwardVisitor(target, navigate);
+        else setPage(null);
+      })
       .catch(() => !cancelled && setPage(null));
     return () => {
       cancelled = true;

@@ -3,14 +3,14 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import FooterSection from '@/components/landing/FooterSection';
 import Seo from '@/components/Seo';
-import { ArticleSchema } from '@/components/seo/index';
 import { DecodedImage } from '@/components/DecodedImage';
 import { getBlogBySlug, getCachedBlogBySlug } from '@/services/blogService';
 import { isHtmlContent, sanitizeBlogHtml } from '@/utils/blogContent';
+import { findRedirect, forwardVisitor } from '@/services/subjectPageService';
 import { Calendar, Clock, User, ArrowLeft, Share2 } from 'lucide-react';
 import '@/styles/LandingPage.css';
 import '@/styles/BlogContent.css';
@@ -32,12 +32,16 @@ function getReadingTime(content) {
 
 export default function BlogDetail() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [blog, setBlog] = useState(() => getCachedBlogBySlug(slug)?.blog || null);
   const [loading, setLoading] = useState(() => !getCachedBlogBySlug(slug));
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug) return undefined;
+    // Answers for a post the visitor has already left are ignored, so a slow
+    // lookup never replaces the current post or navigates away from it.
+    let cancelled = false;
     // Render the cached article immediately (if any) and refresh in the background.
     const cached = getCachedBlogBySlug(slug)?.blog || null;
     setBlog(cached);
@@ -45,15 +49,27 @@ export default function BlogDetail() {
     setError(null);
     getBlogBySlug(slug)
       .then((data) => {
-        setBlog(data.blog || null);
+        if (!cancelled) setBlog(data.blog || null);
       })
-      .catch((err) => {
-        if (!cached) setError(err.message || 'Blog not found');
+      .catch(async (err) => {
+        if (cancelled || cached) return;
+        // The post may have moved to a new address. The static site cannot
+        // answer with a redirect itself, so the app forwards the visitor.
+        const target = await findRedirect(`/blog/${slug}`).catch(() => null);
+        if (cancelled) return;
+        if (target) {
+          forwardVisitor(target, navigate);
+          return;
+        }
+        setError(err.message || 'Blog not found');
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
-  }, [slug]);
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, navigate]);
 
   const handleShare = () => {
     if (navigator.share) {
@@ -111,22 +127,16 @@ export default function BlogDetail() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
       <Seo
-        title={`${blog.title} | Best Choice Tutors`}
-        description={blog.excerpt}
+        title={blog.seoTitle || `${blog.title} | Best Choice Tutors`}
+        description={blog.metaDescription || blog.excerpt}
         ogTitle={blog.title}
         ogDescription={blog.excerpt}
         ogType="article"
         ogUrl={articleUrl}
+        ogImage={blog.imageUrl || undefined}
       />
-      <ArticleSchema
-        url={articleUrl}
-        headline={blog.title}
-        description={blog.excerpt}
-        imageUrl={blog.imageUrl || undefined}
-        authorName={blog.author || 'Best Choice Tutors'}
-        datePublished={blog.publishedAt || blog.createdAt}
-        dateModified={blog.updatedAt}
-      />
+      {/* BlogPosting and breadcrumb structured data are written into this
+          post's HTML at build time (backend/services/seoHtmlService.js). */}
       <Header />
 
       <main className="flex-1">

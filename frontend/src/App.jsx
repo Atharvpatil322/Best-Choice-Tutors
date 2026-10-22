@@ -10,7 +10,6 @@ import {
 } from 'react-router-dom';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { Toaster } from '@/components/ui/sonner';
-import { BreadcrumbSchema } from '@/components/seo/index';
 import DedupeServerSeo from '@/components/seo/DedupeServerSeo';
 import LandingPage from '@/components/landing/LandingPage';
 import Login from '@/pages/auth/Login';
@@ -127,7 +126,9 @@ function AppRootLayout() {
   return (
     <>
       <AuthenticatedNavigationGuard />
-      <BreadcrumbSchema />
+      {/* Breadcrumb structured data is written into each public page's HTML
+          at build time; it is not emitted here, where it also ran on admin
+          and dashboard routes. */}
       <DedupeServerSeo />
       <Outlet />
     </>
@@ -282,7 +283,7 @@ const router = createBrowserRouter([
           { path: 'support/:ticketId', element: <Suspense fallback={<RouteFallback />}><AdminSupportTicketDetail /></Suspense> },
         ],
       },
-      // Blog routes as top-level public pages (outside AppRootLayout to avoid AuthNavigationGuard conflicts)
+      // Blog routes: public pages inside the root layout.
       {
         path: '/blog',
         element: <Suspense fallback={<RouteFallback />}><BlogList /></Suspense>,

@@ -79,6 +79,79 @@ const seoSettingSchema = new mongoose.Schema(
       yandex: { type: String, default: '', trim: true },
     },
 
+    // ---------------------------------------------------------- organization
+    /**
+     * Business identity published as Organization and WebSite structured data
+     * on the homepage. Every field is optional: blank fields are left out of
+     * the markup rather than shipped as placeholders, and name, URL, logo and
+     * description fall back to the brand defaults.
+     */
+    organization: {
+      type: {
+        type: String,
+        enum: ['EducationalOrganization', 'Organization', 'OnlineBusiness', 'LocalBusiness'],
+        default: 'EducationalOrganization',
+      },
+      name: { type: String, default: '', trim: true, maxlength: 200 },
+      legalName: { type: String, default: '', trim: true, maxlength: 200 },
+      alternateName: { type: String, default: '', trim: true, maxlength: 200 },
+      slogan: { type: String, default: '', trim: true, maxlength: 200 },
+      description: { type: String, default: '', trim: true, maxlength: 1000 },
+      url: { type: String, default: '', trim: true, maxlength: 500 },
+      logo: { type: String, default: '', trim: true, maxlength: 500 },
+      image: { type: String, default: '', trim: true, maxlength: 500 },
+      email: { type: String, default: '', trim: true, maxlength: 200 },
+      telephone: { type: String, default: '', trim: true, maxlength: 50 },
+      contactPoints: {
+        type: [
+          {
+            _id: false,
+            contactType: { type: String, default: '', trim: true, maxlength: 100 },
+            telephone: { type: String, default: '', trim: true, maxlength: 50 },
+            email: { type: String, default: '', trim: true, maxlength: 200 },
+            areaServed: { type: String, default: '', trim: true, maxlength: 100 },
+            availableLanguage: { type: [String], default: [] },
+          },
+        ],
+        default: [],
+      },
+      /** No public premises: address, map position and opening hours are left out. */
+      onlineOnly: { type: Boolean, default: false },
+      address: {
+        streetAddress: { type: String, default: '', trim: true, maxlength: 200 },
+        addressLocality: { type: String, default: '', trim: true, maxlength: 100 },
+        addressRegion: { type: String, default: '', trim: true, maxlength: 100 },
+        postalCode: { type: String, default: '', trim: true, maxlength: 20 },
+        addressCountry: { type: String, default: '', trim: true, maxlength: 2 },
+      },
+      geo: {
+        latitude: { type: String, default: '', trim: true, maxlength: 20 },
+        longitude: { type: String, default: '', trim: true, maxlength: 20 },
+      },
+      openingHours: {
+        type: [
+          {
+            _id: false,
+            days: { type: [String], default: [] },
+            opens: { type: String, default: '', trim: true, maxlength: 5 },
+            closes: { type: String, default: '', trim: true, maxlength: 5 },
+          },
+        ],
+        default: [],
+      },
+      priceRange: { type: String, default: '', trim: true, maxlength: 50 },
+      sameAs: { type: [String], default: [] },
+      foundingDate: { type: String, default: '', trim: true, maxlength: 10 },
+      founders: { type: [String], default: [] },
+      areaServed: { type: [String], default: [] },
+      knowsAbout: { type: [String], default: [] },
+      companyNumber: { type: String, default: '', trim: true, maxlength: 50 },
+      vatID: { type: String, default: '', trim: true, maxlength: 50 },
+      taxID: { type: String, default: '', trim: true, maxlength: 50 },
+      websiteName: { type: String, default: '', trim: true, maxlength: 200 },
+      websiteAlternateName: { type: String, default: '', trim: true, maxlength: 200 },
+    },
+
     // --------------------------------------------------------------- schema
     /** Toggles for each structured-data type the renderer can emit. */
     schemaToggles: {
@@ -87,6 +160,19 @@ const seoSettingSchema = new mongoose.Schema(
       service: { type: Boolean, default: true },
       article: { type: Boolean, default: true },
       organization: { type: Boolean, default: true },
+    },
+
+    /** Last request to rebuild the public site (see sitePublishService). */
+    publish: {
+      /** When the last build that actually started was requested. */
+      requestedAt: { type: Date, default: null },
+      /** The last attempt, successful or not; ok and message describe it. */
+      lastAttemptAt: { type: Date, default: null },
+      ok: { type: Boolean, default: null },
+      message: { type: String, default: '' },
+      reason: { type: String, default: '' },
+      /** Set while an automatic build waits for its quiet period. */
+      pendingSince: { type: Date, default: null },
     },
 
     /** Admin who last saved these settings. */

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X, Loader2, ExternalLink } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import FAQ_ITEMS from '../../utils/faqData';
-import { FAQSchema } from '../seo/index';
 import { getActiveFaqs } from '@/services/faqService';
 
 /**
@@ -55,10 +54,9 @@ export default function FaqSection({ subject }) {
 
   return (
     <section className="faq-section">
-      {/* FAQ Schema is injected alongside the UI from the same data source.
-          Only once there is something to describe: an FAQPage with no entries
-          is worse than none at all. */}
-      {faqItems && faqItems.length > 0 && <FAQSchema faqItems={faqItems} />}
+      {/* The FAQPage structured data for these questions is written into the
+          page HTML at build time (backend/services/seoHtmlService.js), from
+          the same FAQ records this section loads. */}
       <div className="faq-container">
         <h2 className="faq-main-title">Frequently Asked Questions</h2>
 
@@ -70,12 +68,30 @@ export default function FaqSection({ subject }) {
           <div className="faq-list">
             {(faqItems || []).map((faq, index) => {
               const isOpen = activeIndex === index;
+              const answerId = `faq-answer-${subject ? subject.replace(/\W+/g, '-') : 'general'}-${index}`;
               return (
                 <div
                   key={faq._id || index}
                   className={`faq-item ${isOpen ? 'faq-open' : 'faq-closed'}`}
                 >
-<div className="faq-header" onClick={() => toggleFaq(index)}>
+                {/* Not a <button>: the header can hold a link, and a link
+                    inside a button is invalid. Keyboard access is added by
+                    hand instead. */}
+                <div
+                  className="faq-header"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  aria-controls={answerId}
+                  onClick={() => toggleFaq(index)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggleFaq(index);
+                    }
+                  }}
+                >
                     <div className="faq-question-wrapper">
                       <h3 className="faq-question">{faq.question}</h3>
                       {faq.link && (
@@ -97,11 +113,12 @@ export default function FaqSection({ subject }) {
                     </div>
                   </div>
 
-                  {isOpen && (
-                    <div className="faq-body">
-                      <p className="faq-answer">{faq.answer}</p>
-                    </div>
-                  )}
+                  {/* Every answer stays in the page, hidden while closed. The
+                      FAQ structured data describes all of them, and search
+                      engines only credit answers that are actually on the page. */}
+                  <div className="faq-body" id={answerId} hidden={!isOpen}>
+                    <p className="faq-answer">{faq.answer}</p>
+                  </div>
                 </div>
               );
             })}

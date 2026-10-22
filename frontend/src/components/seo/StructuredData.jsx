@@ -12,6 +12,7 @@
  */
 
 import { Helmet } from 'react-helmet-async';
+import { jsonForScript } from '@/utils/jsonForScript';
 
 /**
  * @param {Object|null} schema - JSON-LD object; nothing renders when absent.
@@ -22,7 +23,7 @@ export default function StructuredData({ schema, id = 'schema-org' }) {
   return (
     <Helmet>
       <script type="application/ld+json" data-seo={id}>
-        {JSON.stringify(schema)}
+        {jsonForScript(schema)}
       </script>
     </Helmet>
   );

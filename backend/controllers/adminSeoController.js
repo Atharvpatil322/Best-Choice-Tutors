@@ -1,6 +1,13 @@
 import PageSeo from '../models/PageSeo.js';
 import AdminAuditLog from '../models/AdminAuditLog.js';
 
+import { noteSeoChange } from '../services/seoChangeService.js';
+
+/**
+ * Lower-cased path with a leading slash and no trailing slash. Pages are
+ * looked up in lower case, so an override typed as "/About" must be stored as
+ * "/about" or it would never apply.
+ */
 function normalizePath(rawPath) {
   if (!rawPath || typeof rawPath !== 'string') return '';
   let path = rawPath.trim();
@@ -9,21 +16,31 @@ function normalizePath(rawPath) {
   if (path.length > 1) {
     path = path.replace(/\/+/g, '/').replace(/\/$/, '');
   }
-  return path;
+  return path.toLowerCase();
 }
 
-function buildSeoPayload(body) {
-  return {
-    title: body.title?.trim() ?? '',
-    description: body.description?.trim() ?? '',
-    canonicalUrl: body.canonicalUrl?.trim() ?? '',
-    keywords: body.keywords?.trim() ?? '',
-    ogTitle: body.ogTitle?.trim() ?? '',
-    ogDescription: body.ogDescription?.trim() ?? '',
-    ogImage: body.ogImage?.trim() ?? '',
-    ogType: body.ogType?.trim() || 'website',
-    noindex: Boolean(body.noindex),
-  };
+const TEXT_FIELDS = ['title', 'description', 'canonicalUrl', 'keywords', 'ogTitle', 'ogDescription', 'ogImage'];
+const OG_TYPES = ['', 'website', 'article'];
+
+/**
+ * The page-meta fields present in a request. Fields the request leaves out
+ * are not touched, so an editor that does not show a field can never wipe it.
+ * An empty og:type means "decide from the page" (article for blog posts).
+ *
+ * @param {Object} body
+ * @returns {Object}
+ */
+function buildSeoPayload(body = {}) {
+  const payload = {};
+  for (const field of TEXT_FIELDS) {
+    if (body[field] !== undefined && body[field] !== null) payload[field] = String(body[field]).trim();
+  }
+  if (body.ogType !== undefined) {
+    const ogType = String(body.ogType ?? '').trim();
+    payload.ogType = OG_TYPES.includes(ogType) ? ogType : '';
+  }
+  if (body.noindex !== undefined) payload.noindex = Boolean(body.noindex);
+  return payload;
 }
 
 export async function getSeoConfigs(req, res, next) {
@@ -84,6 +101,7 @@ export async function createSeoConfig(req, res, next) {
         },
       });
 
+      noteSeoChange('page meta');
       return res.status(200).json({ message: 'SEO configuration updated', config: updated, upserted: true });
     }
 
@@ -100,6 +118,7 @@ export async function createSeoConfig(req, res, next) {
       },
     });
 
+    noteSeoChange('page meta');
     return res.status(201).json({ message: 'SEO configuration created', config });
   } catch (err) {
     next(err);
@@ -148,6 +167,7 @@ export async function updateSeoConfig(req, res, next) {
       },
     });
 
+    noteSeoChange('page meta');
     return res.status(200).json({ message: 'SEO configuration updated', config: updated });
   } catch (err) {
     next(err);
@@ -177,6 +197,7 @@ export async function deleteSeoConfig(req, res, next) {
       },
     });
 
+    noteSeoChange('page meta');
     return res.status(200).json({ message: 'SEO configuration deleted' });
   } catch (err) {
     next(err);

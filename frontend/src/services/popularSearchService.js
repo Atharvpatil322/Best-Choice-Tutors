@@ -3,6 +3,7 @@
  * Public and admin popular search keywords API calls.
  */
 
+import { cacheMode, changeShared, sharedRequest } from "@/utils/sharedRequest";
 import { getAuthToken } from "./authService.js";
 
 const API_BASE_URL =
@@ -40,12 +41,13 @@ const requestJson = async (paths, options, fallbackMessage) => {
  * GET /api/popular-searches
  * @returns {Promise<{ popularSearches: Array }>}
  */
-export const getActivePopularSearches = async () => {
-  return requestJson("/popular-searches", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  }, "Failed to fetch popular searches");
-};
+export const getActivePopularSearches = () =>
+  sharedRequest("popular-searches", ({ fresh }) =>
+    requestJson("/popular-searches", {
+      method: "GET",
+      cache: cacheMode(fresh),
+      headers: { "Content-Type": "application/json" },
+    }, "Failed to fetch popular searches"));
 
 /**
  * Get all popular searches (admin only)
@@ -78,19 +80,20 @@ export const getAllPopularSearchesAdmin = async (params = {}) => {
  * @param {Object} searchData - { label, query, order?, isActive? }
  * @returns {Promise<{ message: string, popularSearch: Object }>}
  */
-export const createPopularSearchAdmin = async (searchData) => {
-  const token = getAuthToken();
-  if (!token) throw new Error("Authentication required");
+export const createPopularSearchAdmin = (searchData) =>
+  changeShared("popular-searches", async () => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
 
-  return requestJson(["/admin/popular-searches", "/admin/popular-search"], {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(searchData),
-  }, "Failed to create popular search");
-};
+    return requestJson(["/admin/popular-searches", "/admin/popular-search"], {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(searchData),
+    }, "Failed to create popular search");
+  });
 
 /**
  * Update a popular search (admin only)
@@ -99,23 +102,24 @@ export const createPopularSearchAdmin = async (searchData) => {
  * @param {Object} searchData
  * @returns {Promise<{ message: string, popularSearch: Object }>}
  */
-export const updatePopularSearchAdmin = async (id, searchData) => {
-  const token = getAuthToken();
-  if (!token) throw new Error("Authentication required");
+export const updatePopularSearchAdmin = (id, searchData) =>
+  changeShared("popular-searches", async () => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
 
-  const encodedId = encodeURIComponent(id);
-  return requestJson([
-    `/admin/popular-searches/${encodedId}`,
-    `/admin/popular-search/${encodedId}`,
-  ], {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(searchData),
-  }, "Failed to update popular search");
-};
+    const encodedId = encodeURIComponent(id);
+    return requestJson([
+      `/admin/popular-searches/${encodedId}`,
+      `/admin/popular-search/${encodedId}`,
+    ], {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(searchData),
+    }, "Failed to update popular search");
+  });
 
 /**
  * Delete a popular search (admin only)
@@ -123,19 +127,20 @@ export const updatePopularSearchAdmin = async (id, searchData) => {
  * @param {string} id
  * @returns {Promise<{ message: string }>}
  */
-export const deletePopularSearchAdmin = async (id) => {
-  const token = getAuthToken();
-  if (!token) throw new Error("Authentication required");
+export const deletePopularSearchAdmin = (id) =>
+  changeShared("popular-searches", async () => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
 
-  const encodedId = encodeURIComponent(id);
-  return requestJson([
-    `/admin/popular-searches/${encodedId}`,
-    `/admin/popular-search/${encodedId}`,
-  ], {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  }, "Failed to delete popular search");
-};
+    const encodedId = encodeURIComponent(id);
+    return requestJson([
+      `/admin/popular-searches/${encodedId}`,
+      `/admin/popular-search/${encodedId}`,
+    ], {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }, "Failed to delete popular search");
+  });

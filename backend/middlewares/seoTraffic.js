@@ -16,6 +16,7 @@
 import Redirect from '../models/Redirect.js';
 import NotFoundLog from '../models/NotFoundLog.js';
 import PseoPage from '../models/PseoPage.js';
+import { subjectBySlug } from '../services/subjectService.js';
 
 /** Paths handled by the API, sockets or the build output — never page routes. */
 const NON_PAGE_PREFIXES = ['/api', '/socket.io', '/assets', '/images'];
@@ -110,6 +111,9 @@ export function applyRedirects() {
       Redirect.updateOne(
         { _id: match.redirect._id },
         { $inc: { hits: 1 }, $set: { lastHitAt: new Date() } },
+        // A hit is not an edit: leaving updatedAt alone keeps the SEO
+        // dashboard's "changed since the last build" count honest.
+        { timestamps: false },
       ).catch(() => {});
 
       const query = req.originalUrl.includes('?')
@@ -143,23 +147,46 @@ export function logNotFound() {
       const pseo = await PseoPage.exists({ path: path.toLowerCase(), isActive: true });
       if (pseo) return next();
 
-      const now = new Date();
-      await NotFoundLog.findOneAndUpdate(
-        { path },
-        {
-          $inc: { hits: 1 },
-          $set: {
-            lastSeenAt: now,
-            lastReferrer: (req.get('referer') || '').slice(0, 500),
-            lastUserAgent: (req.get('user-agent') || '').slice(0, 300),
-          },
-          $setOnInsert: { firstSeenAt: now },
-        },
-        { upsert: true },
-      );
+      // Subject pages are real only while a subject uses the slug; an old or
+      // mistyped one is a broken link worth logging.
+      const subject = /^\/tutors\/subject\/([^/]+)$/.exec(path);
+      if (subject && (await subjectBySlug(subject[1]))) return next();
+
+      await recordNotFound(path, req.get('referer'), req.get('user-agent'));
     } catch (err) {
       console.error('404 logging failed:', err?.message);
     }
     return next();
   };
+}
+
+/**
+ * Count a visit to a path that matches no page.
+ *
+ * @param {string} path
+ * @param {string} [referrer]
+ * @param {string} [userAgent]
+ */
+/** Distinct missing paths kept at most; new ones are dropped beyond this. */
+const MAX_LOGGED_PATHS = 5000;
+
+export async function recordNotFound(path, referrer, userAgent) {
+  const now = new Date();
+  // Repeat visits to a logged path always count; a new path is only added
+  // while the log is below its cap, so it cannot be filled without limit.
+  const known = await NotFoundLog.exists({ path });
+  if (!known && (await NotFoundLog.estimatedDocumentCount()) >= MAX_LOGGED_PATHS) return;
+  await NotFoundLog.findOneAndUpdate(
+    { path },
+    {
+      $inc: { hits: 1 },
+      $set: {
+        lastSeenAt: now,
+        lastReferrer: String(referrer || '').slice(0, 500),
+        lastUserAgent: String(userAgent || '').slice(0, 300),
+      },
+      $setOnInsert: { firstSeenAt: now },
+    },
+    { upsert: true },
+  );
 }

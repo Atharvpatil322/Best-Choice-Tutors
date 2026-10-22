@@ -13,7 +13,6 @@ import FaqSection from "./FaqSection";
 import FooterSection from "./FooterSection";
 import WhyChooseUs from "./WhyChooseUs";
 import Seo from "../Seo";
-import { LocalBusinessSchema, ServiceSchema } from "../seo/index";
 
 function LandingPage() {
   return (
@@ -26,9 +25,9 @@ function LandingPage() {
         ogDescription="Connect with expert tutors for Mathematics, Physics, English and Languages. Learn online or in-person with a trusted UK tutoring platform."
         ogType="website"
       />
-      {/* Schema injection for homepage */}
-      <LocalBusinessSchema />
-      <ServiceSchema />
+      {/* Organization, WebSite, Service and FAQ structured data for the
+          homepage are written into the page HTML at build time from the
+          admin SEO settings (backend/services/seoHtmlService.js). */}
       <Header />
       <main className="w-full overflow-x-hidden">
 <HeroSection />

@@ -46,6 +46,12 @@ async function request(path, options = {}) {
 /** Counts for the SEO overview tab. */
 export const getSeoDashboard = () => request('/dashboard');
 
+/** Rebuild the public site now, so recent SEO edits go live. */
+export const publishSite = () => request('/publish', { method: 'POST' });
+
+/** Every public page path, for suggestions in the editors. */
+export const getKnownPaths = () => request('/known-paths');
+
 /* --------------------------------------------------------------- settings */
 
 /** Fetch site-wide SEO settings. */
@@ -57,6 +63,13 @@ export const getSeoSettings = () => request('/settings');
  */
 export const updateSeoSettings = (payload) =>
   request('/settings', { method: 'PATCH', body: payload });
+
+/**
+ * Homepage structured data as the next build will publish it, plus the
+ * recommended Organization fields still missing.
+ * @returns {Promise<{ schemas: Object[], missing: string[] }>}
+ */
+export const getSchemaPreview = () => request('/schema-preview');
 
 /* -------------------------------------------------------------- redirects */
 

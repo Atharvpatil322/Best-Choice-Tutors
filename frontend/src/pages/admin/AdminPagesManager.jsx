@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import AdminBenefitManager from './AdminBenefitManager';
 import AdminFaqManager from './AdminFaqManager';
+import AdminSubjectPages from './AdminSubjectPages';
 import {
   getPageRegistry,
   getAdminPageContent,
@@ -342,14 +343,23 @@ export default function AdminPagesManager() {
         })}
       </div>
 
+      {/* Subject pages: URL, search listing and copy for each subject page. */}
+      {active === 'subjects' && <AdminSubjectPages />}
+
       {activeTab?.type === 'embed' ? (
         // Existing managers, embedded unchanged.
         active === 'benefits' ? <AdminBenefitManager /> : <AdminFaqManager />
       ) : (
         <Card className="rounded-2xl border-gray-100 shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base text-[#1A365D]">{activeTab?.label}</CardTitle>
-            <CardDescription>Section-by-section content for this page.</CardDescription>
+            <CardTitle className="text-base text-[#1A365D]">
+              {active === 'subjects' ? 'Homepage subject tiles' : activeTab?.label}
+            </CardTitle>
+            <CardDescription>
+              {active === 'subjects'
+                ? 'The level tiles in the Subjects section of the homepage.'
+                : 'Section-by-section content for this page.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (

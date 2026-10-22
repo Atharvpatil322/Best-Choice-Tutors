@@ -3,17 +3,18 @@
  * Admin-only CRUD for blog posts. List, create, edit, publish, delete.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FileText, Plus, Edit3, Trash2, ExternalLink, 
-  Eye, EyeOff, Search, X, Check, Loader2 
+import {
+  FileText, Plus, Edit3, Trash2, ExternalLink,
+  Eye, EyeOff, Search, X, Check, Loader2, ImagePlus
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentRole, getStoredUser } from '@/services/authService';
 import {
   getAllBlogsAdmin,
+  getBlogByIdAdmin,
   createBlogAdmin,
   updateBlogAdmin,
   deleteBlogAdmin,
@@ -21,6 +22,7 @@ import {
 } from '@/services/blogService';
 import { toast } from 'sonner';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import { isHtmlContent, markdownToHtml } from '@/utils/blogContent';
 import '../../styles/Profile.css';
 
 function formatDate(iso) {
@@ -58,10 +60,44 @@ function AdminBlogManager() {
     imageUrl: '',
     imageAlt: '',
     status: 'DRAFT',
+    seoTitle: '',
+    metaDescription: '',
+    slug: '',
   });
   const [saving, setSaving] = useState(false);
+  // The post as loaded, to tell whether its URL handle changed.
+  const [loadedPost, setLoadedPost] = useState(null);
+  const [createRedirect, setCreateRedirect] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+  // Local preview of a newly picked image, so the admin sees what will be
+  // uploaded before saving. Revoked when replaced so the blob is not leaked.
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  // The post whose full record is being fetched for editing, if any.
+  const [loadingEditId, setLoadingEditId] = useState(null);
+  // Only the most recent Edit click may fill the form: a slower response for
+  // an earlier click must not overwrite the post the admin actually opened.
+  const editRequestRef = useRef(0);
+  const imageInputRef = useRef(null);
+  // The form as it was when opened, to tell whether the admin has changed it.
+  const formSnapshotRef = useRef('');
+
+  const isFormDirty = () =>
+    showForm && (Boolean(imageFile) || JSON.stringify(formData) !== formSnapshotRef.current);
+
+  /** Ask before throwing away edits the admin has not saved. */
+  const confirmDiscard = () =>
+    !isFormDirty() || window.confirm('You have unsaved changes. Discard them?');
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl('');
+      return undefined;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const fetchBlogs = async (page = 1) => {
     if (!isAdmin) return;
@@ -90,7 +126,7 @@ function AdminBlogManager() {
   }, [isAdmin, statusFilter]);
 
   const resetForm = () => {
-    setFormData({
+    const emptyForm = {
       title: '',
       excerpt: '',
       content: '',
@@ -99,26 +135,74 @@ function AdminBlogManager() {
       imageUrl: '',
       imageAlt: '',
       status: 'DRAFT',
-    });
+      seoTitle: '',
+      metaDescription: '',
+      slug: '',
+    };
+    setLoadedPost(null);
+    setCreateRedirect(true);
+    setFormData(emptyForm);
+    formSnapshotRef.current = JSON.stringify(emptyForm);
     setImageFile(null);
     setEditingId(null);
     setShowForm(false);
+    // Abandon any edit still loading, so it cannot reopen the form.
+    editRequestRef.current += 1;
+    setLoadingEditId(null);
   };
 
-  const handleEdit = (blog) => {
-    setFormData({
-      title: blog.title,
-      excerpt: blog.excerpt || '',
-      content: blog.content || '',
-      author: blog.author || 'Best Choice Tutors',
-      category: blog.category || 'General',
-      imageUrl: blog.imageUrl || '',
-      imageAlt: blog.imageAlt || '',
-      status: blog.status || 'DRAFT',
-    });
-    setImageFile(null);
-    setEditingId(blog._id);
-    setShowForm(true);
+  /**
+   * Open a post for editing.
+   *
+   * The list endpoint leaves out the post body to keep the list light, so the
+   * form is filled from the full record instead of the list row. Filling it
+   * from the row opened every post with an empty editor, and saving then
+   * failed with "content is required". The form only opens once the full
+   * record has arrived, so nothing can be saved half-loaded.
+   */
+  const handleEdit = async (blog) => {
+    if (!confirmDiscard()) return;
+    const requestId = editRequestRef.current + 1;
+    editRequestRef.current = requestId;
+    // Close whatever form is open while the post loads, so nothing typed in
+    // the meantime can be silently replaced when the response arrives.
+    setShowForm(false);
+    setLoadingEditId(blog._id);
+    try {
+      const { blog: full } = await getBlogByIdAdmin(blog._id);
+      if (editRequestRef.current !== requestId) return;
+      if (!full) throw new Error('Blog not found');
+
+      const rawContent = full.content || '';
+      const loaded = {
+        title: full.title || '',
+        excerpt: full.excerpt || '',
+        // Older posts are markdown-ish text; the editor needs HTML or it
+        // flattens them into a single paragraph.
+        content: isHtmlContent(rawContent) ? rawContent : markdownToHtml(rawContent),
+        author: full.author || 'Best Choice Tutors',
+        category: full.category || 'General',
+        imageUrl: full.imageUrl || '',
+        imageAlt: full.imageAlt || '',
+        status: full.status || 'DRAFT',
+        seoTitle: full.seoTitle || '',
+        metaDescription: full.metaDescription || '',
+        slug: full.slug || '',
+      };
+      setFormData(loaded);
+      setLoadedPost({ slug: full.slug, status: full.status });
+      setCreateRedirect(true);
+      formSnapshotRef.current = JSON.stringify(loaded);
+      setImageFile(null);
+      setEditingId(full._id);
+      setShowForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      if (editRequestRef.current !== requestId) return;
+      toast.error(err.message || 'Failed to load blog');
+    } finally {
+      if (editRequestRef.current === requestId) setLoadingEditId(null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -135,11 +219,20 @@ function AdminBlogManager() {
         const uploaded = await uploadBlogImageAdmin(imageFile);
         imageUrl = uploaded.imageUrl;
       }
-      const payload = { ...formData, imageUrl };
+      // The URL handle is only sent when it was changed; a new post gets its
+      // handle from the title on the server.
+      const { slug, ...fields } = formData;
+      const payload = { ...fields, imageUrl };
 
       if (editingId) {
+        const slugChanged = loadedPost && slug && slug !== loadedPost.slug;
+        if (slugChanged) Object.assign(payload, { slug, createRedirect });
         const data = await updateBlogAdmin(editingId, payload);
-        toast.success(data.message || 'Blog updated');
+        toast.success(
+          data.redirect
+            ? `Saved. ${data.redirect.sourcePath} now redirects to ${data.redirect.targetUrl}`
+            : data.message || 'Blog updated',
+        );
       } else {
         const data = await createBlogAdmin(payload);
         toast.success(data.message || 'Blog created');
@@ -241,7 +334,14 @@ function AdminBlogManager() {
             Drafts
           </Button>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true); }} className="gap-2">
+        <Button
+          onClick={() => {
+            if (!confirmDiscard()) return;
+            resetForm();
+            setShowForm(true);
+          }}
+          className="gap-2"
+        >
           <Plus className="h-4 w-4" />
           New Blog Post
         </Button>
@@ -311,7 +411,7 @@ function AdminBlogManager() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Content *</label>
                 <RichTextEditor
                   value={formData.content}
-                  onChange={(html) => setFormData({ ...formData, content: html })}
+                  onChange={(html) => setFormData((current) => ({ ...current, content: html }))}
                   placeholder="Write your blog content here..."
                 />
                 <p className="text-xs text-slate-400 mt-1">
@@ -320,45 +420,80 @@ function AdminBlogManager() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+              <div role="group" aria-labelledby="blog-featured-image-label">
+                <span id="blog-featured-image-label" className="block text-sm font-medium text-slate-700 mb-1">
                   Featured Image
-                </label>
+                </span>
+                {/* The file input cannot show an image that is already saved,
+                    which made editing look like it required a new upload. The
+                    saved or newly picked image is shown instead, and the input
+                    is only opened when the admin chooses to replace it. */}
                 <input
+                  ref={imageInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                  onChange={(e) => {
+                    setImageFile(e.target.files?.[0] || null);
+                    // Clear the input so picking the same file again still fires.
+                    e.target.value = '';
+                  }}
+                  className="hidden"
                 />
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  {imageFile && (
-                    <span className="text-xs font-medium text-slate-600">
-                      Selected: {imageFile.name}
-                    </span>
-                  )}
-                  {formData.imageUrl && !imageFile && (
-                    <a
-                      href={formData.imageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-[#1A365D] underline underline-offset-2"
-                    >
-                      View current image
-                    </a>
-                  )}
-                  {formData.imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData({ ...formData, imageUrl: '', imageAlt: '' });
-                        setImageFile(null);
-                      }}
-                      className="text-xs font-medium text-red-600 hover:text-red-700"
-                    >
-                      Remove image
-                    </button>
-                  )}
-                </div>
+                {imagePreviewUrl || formData.imageUrl ? (
+                  <div className="flex flex-wrap items-start gap-4">
+                    <img
+                      src={imagePreviewUrl || formData.imageUrl}
+                      alt={formData.imageAlt || 'Featured image'}
+                      className="h-32 w-56 rounded-lg border border-slate-200 object-cover bg-slate-50"
+                    />
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-medium text-slate-600" aria-live="polite">
+                        {imageFile ? `New image: ${imageFile.name} (uploads on save)` : 'Current image'}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => imageInputRef.current?.click()}
+                          className="gap-2"
+                        >
+                          <ImagePlus className="h-4 w-4" />
+                          Replace image
+                        </Button>
+                        {imageFile && formData.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setImageFile(null)}
+                            className="text-xs font-medium text-slate-600 hover:text-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FD1C5]"
+                          >
+                            Keep current image
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, imageUrl: '', imageAlt: '' });
+                            setImageFile(null);
+                          }}
+                          className="text-xs font-medium text-red-600 hover:text-red-700 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FD1C5]"
+                        >
+                          Remove image
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <ImagePlus className="h-4 w-4" />
+                    Upload image
+                  </Button>
+                )}
               </div>
 
               <div>
@@ -376,6 +511,93 @@ function AdminBlogManager() {
                 <p className="text-xs text-slate-400 mt-1">
                   Read aloud by screen readers and used by search engines to understand the image.
                 </p>
+              </div>
+
+              {/* Search engine listing: page title, description and, for an
+                  existing post, the URL handle. */}
+              <div className="rounded-lg border border-slate-200 p-4 space-y-3">
+                <p className="text-sm font-semibold text-[#1A365D]">Search engine listing</p>
+                <div>
+                  <label className="flex items-center justify-between text-sm font-medium text-slate-700 mb-1">
+                    SEO title
+                    <span className={`text-xs ${formData.seoTitle.length > 70 ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {formData.seoTitle.length} of 70
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.seoTitle}
+                    onChange={(e) => setFormData((current) => ({ ...current, seoTitle: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                    placeholder={`${formData.title || 'Post title'} | Best Choice Tutors`}
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center justify-between text-sm font-medium text-slate-700 mb-1">
+                    Meta description
+                    <span className={`text-xs ${formData.metaDescription.length > 160 ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {formData.metaDescription.length} of 160
+                    </span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.metaDescription}
+                    onChange={(e) => setFormData((current) => ({ ...current, metaDescription: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4FD1C5] focus:border-transparent"
+                    placeholder={formData.excerpt || 'Blank uses the excerpt'}
+                  />
+                </div>
+                {editingId && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="blog-url-handle">
+                      URL handle
+                    </label>
+                    <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#4FD1C5]">
+                      <span className="px-3 flex items-center bg-slate-50 text-sm text-slate-500 whitespace-nowrap">
+                        /blog/
+                      </span>
+                      <input
+                        id="blog-url-handle"
+                        type="text"
+                        value={formData.slug}
+                        onChange={(e) =>
+                          setFormData((current) => ({
+                            ...current,
+                            slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'),
+                          }))
+                        }
+                        onBlur={() =>
+                          setFormData((current) => ({
+                            ...current,
+                            slug: current.slug.replace(/-+/g, '-').replace(/^-|-$/g, ''),
+                          }))
+                        }
+                        className="flex-1 min-w-0 px-3 py-2 text-sm outline-none"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Changing the title no longer changes the address; edit it here when you mean to.
+                    </p>
+                    {loadedPost?.status === 'PUBLISHED' && formData.slug && formData.slug !== loadedPost.slug && (
+                      <label className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={createRedirect}
+                          onChange={(e) => setCreateRedirect(e.target.checked)}
+                        />
+                        <span>
+                          Create a URL redirect from{' '}
+                          <span className="font-mono text-xs">/blog/{loadedPost.slug}</span> to{' '}
+                          <span className="font-mono text-xs">/blog/{formData.slug}</span>
+                          <span className="block text-xs text-slate-500 mt-0.5">
+                            Keeps links and search results pointing at the old address working.
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -469,9 +691,14 @@ function AdminBlogManager() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEdit(blog)}
+                      disabled={loadingEditId !== null || saving}
                       title="Edit"
                     >
-                      <Edit3 className="h-4 w-4" />
+                      {loadingEditId === blog._id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Edit3 className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       size="sm"

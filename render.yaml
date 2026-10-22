@@ -84,9 +84,14 @@ services:
     # page as a duplicate. Anything that does not run JavaScript, including
     # social link previews, saw the homepage title on every page.
     #
-    # Each source matches that exact path only, so /blog/<slug> and every other
-    # dynamic route still falls through to the SPA shell at the end.
-    # Keep this list in step with the `routes` array in vite.config.js.
+    # Each source matches that exact path only. Keep this list in step with
+    # the `routes` array in vite.config.js.
+    #
+    # Blog posts and subject pages get their own file too, written by
+    # scripts/build-seo-pages.mjs with the right title, canonical and
+    # structured data; the two placeholder rules point at those files. A post
+    # published after the last build has no file until the next deploy - the
+    # site's 404.html is the app shell, so the page still loads in the browser.
     routes:
       - type: rewrite
         source: /about
@@ -109,8 +114,16 @@ services:
       - type: rewrite
         source: /tutors
         destination: /tutors/index.html
-      # Everything else - dynamic routes, signed-in areas, unknown paths - is
-      # handled by the single-page app.
+      - type: rewrite
+        source: /blog/:slug
+        destination: /blog/:slug/index.html
+      - type: rewrite
+        source: /tutors/subject/:slug
+        destination: /tutors/subject/:slug/index.html
+      # Everything else - signed-in areas, generated landing pages, unknown
+      # paths - is handled by the single-page app. spa-shell.html is the plain
+      # app shell: index.html is the prerendered homepage, and serving it here
+      # gave every such URL the homepage's canonical and structured data.
       - type: rewrite
         source: /*
-        destination: /index.html
+        destination: /spa-shell.html

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { createSeoConfig, deleteSeoConfig, getSeoConfigs, updateSeoConfig } from '@/services/seoService';
+import { getKnownPaths } from '@/services/seoToolsService';
 import { toast } from 'sonner';
 
 const DUMMY_SEO = {
@@ -37,9 +38,29 @@ function emptyForm() {
     description: '',
     keywords: '',
     canonicalUrl: '',
+    ogTitle: '',
     ogDescription: '',
     ogImage: '',
+    ogType: '',
     noindex: false,
+  };
+}
+
+/** Every editable field of a saved configuration, for the form. */
+function formFromConfig(config) {
+  return {
+    id: config._id,
+    path: config.path,
+    title: config.title || '',
+    description: config.description || '',
+    keywords: config.keywords || '',
+    canonicalUrl: config.canonicalUrl || '',
+    ogTitle: config.ogTitle || '',
+    ogDescription: config.ogDescription || '',
+    ogImage: config.ogImage || '',
+    // Older records saved "website" for every page; blank means automatic.
+    ogType: config.ogType === 'article' ? 'article' : config.ogType === 'website' ? 'website' : '',
+    noindex: Boolean(config.noindex),
   };
 }
 
@@ -133,20 +154,17 @@ export default function AdminSeoManager() {
   );
 
   useEffect(() => {
-    if (selectedConfig) {
-      setForm({
-        id: selectedConfig._id,
-        path: selectedConfig.path,
-        title: selectedConfig.title || '',
-        description: selectedConfig.description || '',
-        keywords: selectedConfig.keywords || '',
-        canonicalUrl: selectedConfig.canonicalUrl || '',
-        ogDescription: selectedConfig.ogDescription || '',
-        ogImage: selectedConfig.ogImage || '',
-        noindex: Boolean(selectedConfig.noindex),
-      });
-    }
+    if (selectedConfig) setForm(formFromConfig(selectedConfig));
   }, [selectedConfig]);
+
+  // Public page paths, offered as suggestions so an override is never saved
+  // against a path that does not exist.
+  const [knownPaths, setKnownPaths] = useState([]);
+  useEffect(() => {
+    getKnownPaths()
+      .then((data) => setKnownPaths(data.paths || []))
+      .catch(() => setKnownPaths([]));
+  }, []);
 
   const preview = {
     path: form.path || DUMMY_SEO.path,
@@ -173,8 +191,10 @@ export default function AdminSeoManager() {
         description: form.description,
         keywords: form.keywords,
         canonicalUrl: form.canonicalUrl,
+        ogTitle: form.ogTitle,
         ogDescription: form.ogDescription,
         ogImage: form.ogImage,
+        ogType: form.ogType,
         noindex: form.noindex,
       };
 
@@ -239,8 +259,19 @@ export default function AdminSeoManager() {
                     value={form.path}
                     onChange={(event) => handleChange('path', event.target.value)}
                     placeholder="/about"
+                    list="seo-known-paths"
                     required
                   />
+                  <datalist id="seo-known-paths">
+                    {knownPaths.map((path) => (
+                      <option key={path} value={path} />
+                    ))}
+                  </datalist>
+                  {form.path && knownPaths.length > 0 && !knownPaths.includes(form.path.trim().toLowerCase()) && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      This is not one of the site's public pages, so the override may never be shown.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Canonical URL</label>
@@ -297,6 +328,26 @@ export default function AdminSeoManager() {
                     placeholder="Enter comma-separated keywords"
                     rows={2}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Share title</label>
+                  <Input
+                    value={form.ogTitle}
+                    onChange={(event) => handleChange('ogTitle', event.target.value)}
+                    placeholder="Title shown when this page is shared (blank uses the page title)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Share type</label>
+                  <select
+                    value={form.ogType}
+                    onChange={(event) => handleChange('ogType', event.target.value)}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
+                  >
+                    <option value="">Automatic (article for blog posts, website otherwise)</option>
+                    <option value="website">Website</option>
+                    <option value="article">Article</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Share description</label>
@@ -390,15 +441,7 @@ export default function AdminSeoManager() {
                             <Button
                               type="button"
                               variant="secondary"
-                              onClick={() => setForm({
-                                id: config._id,
-                                path: config.path,
-                                title: config.title || '',
-                                description: config.description || '',
-                                keywords: config.keywords || '',
-                                canonicalUrl: config.canonicalUrl || '',
-                                ogDescription: config.ogDescription || '',
-                              })}
+                              onClick={() => setForm(formFromConfig(config))}
                             >
                               Edit
                             </Button>

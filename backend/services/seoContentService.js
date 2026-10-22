@@ -16,8 +16,7 @@ import PageSeo from '../models/PageSeo.js';
 import Benefit from '../models/Benefit.js';
 import PseoPage from '../models/PseoPage.js';
 import SeoSetting from '../models/SeoSetting.js';
-import { CANONICAL_SUBJECTS } from '../constants/subjects.js';
-import { subjectToSlug } from '../utils/subjectSlug.js';
+import { listSubjects } from './subjectService.js';
 
 /** Public site origin. Overridable so staging advertises its own hostname. */
 const SITE_URL = (process.env.SITE_URL || 'https://bestchoicetutors.com').replace(/\/+$/, '');
@@ -27,7 +26,7 @@ const SITE_URL = (process.env.SITE_URL || 'https://bestchoicetutors.com').replac
  * crawl priority and change cadence to advertise for each.
  * Kept in sync with the router definitions in frontend/src/App.jsx.
  */
-const PUBLIC_ROUTES = [
+export const PUBLIC_ROUTES = [
   { path: '/', changefreq: 'daily', priority: '1.0' },
   { path: '/about', changefreq: 'monthly', priority: '0.7' },
   { path: '/how-it-works', changefreq: 'monthly', priority: '0.8' },
@@ -36,13 +35,23 @@ const PUBLIC_ROUTES = [
   { path: '/tutors', changefreq: 'daily', priority: '0.9' },
   { path: '/privacy', changefreq: 'yearly', priority: '0.3' },
   { path: '/terms', changefreq: 'yearly', priority: '0.3' },
-  // One entry per subject, matching the URLs the tutor search actually serves.
-  ...CANONICAL_SUBJECTS.map((subject) => ({
-    path: `/tutors/subject/${subjectToSlug(subject)}`,
+];
+
+/**
+ * Subject page routes, from the subject records so an admin's slug change is
+ * reflected everywhere URLs are listed.
+ *
+ * @returns {Promise<Array<{ path: string, name: string, changefreq: string, priority: string }>>}
+ */
+export async function subjectRoutes() {
+  const subjects = await listSubjects();
+  return subjects.map((subject) => ({
+    path: `/tutors/subject/${subject.slug}`,
+    name: subject.name,
     changefreq: 'weekly',
     priority: '0.8',
-  })),
-];
+  }));
+}
 
 /**
  * Path prefixes that must never be advertised to crawlers, either because they
@@ -109,11 +118,16 @@ const ALLOWED_CRAWLERS = [
  * @returns {Promise<Object>} The SeoSetting document.
  */
 export async function getSeoSettings() {
-  let settings = await SeoSetting.findOne({ singleton: 'global' });
-  if (!settings) {
-    settings = await SeoSetting.create({ singleton: 'global' });
-  }
-  return settings;
+  const settings = await SeoSetting.findOne({ singleton: 'global' });
+  if (settings) return settings;
+  // Upsert rather than create: the build requests many pages at once, and
+  // several first requests racing to create the document would otherwise
+  // collide on the unique singleton key.
+  return SeoSetting.findOneAndUpdate(
+    { singleton: 'global' },
+    { $setOnInsert: { singleton: 'global' } },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
 }
 
 /**
@@ -138,7 +152,7 @@ function escapeXml(value) {
  * @param {string} path - Site-relative path beginning with a slash.
  * @returns {boolean} True when the path is public and indexable.
  */
-function isPublicPath(path) {
+export function isPublicPath(path) {
   if (typeof path !== 'string' || !path.startsWith('/')) return false;
   return !DISALLOWED_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`),
@@ -174,7 +188,7 @@ async function collectSitemapEntries() {
           .sort({ publishedAt: -1 })
           .lean()
       : Promise.resolve([]),
-    PageSeo.find().select('path updatedAt').lean(),
+    PageSeo.find().select('path updatedAt noindex').lean(),
     settings.sitemapIncludePseo
       ? PseoPage.find({ isActive: true }).select('path updatedAt').lean()
       : Promise.resolve([]),
@@ -183,7 +197,7 @@ async function collectSitemapEntries() {
   // No lastmod for these: their content is not tracked with a timestamp, and a
   // date that silently changes to "today" on every request teaches crawlers to
   // ignore the field. Omitting it is valid and honest.
-  const entries = PUBLIC_ROUTES.map((route) => ({
+  const entries = [...PUBLIC_ROUTES, ...(await subjectRoutes())].map((route) => ({
     path: route.path,
     lastmod: null,
     changefreq: route.changefreq,
@@ -203,6 +217,7 @@ async function collectSitemapEntries() {
   // Page-level SEO overrides may describe landing pages not present in the
   // fixed list (for example campaign or subject pages added by the SEO team).
   for (const config of seoConfigs) {
+    if (config.noindex) continue;
     entries.push({
       path: config.path,
       lastmod: toSitemapDate(config.updatedAt),
@@ -220,12 +235,19 @@ async function collectSitemapEntries() {
     });
   }
 
-  const excluded = new Set((settings.sitemapExcludePaths || []).map((p) => p.replace(/\/+$/, '')));
+  // Compared in one form - lower case, no trailing slash, "/" for the
+  // homepage - so "/Terms" excludes "/terms" and "/" excludes the homepage.
+  const sitemapKey = (value) => (String(value).replace(/\/+$/, '') || '/').toLowerCase();
+  const excluded = new Set((settings.sitemapExcludePaths || []).map(sitemapKey));
+  // A page hidden from search results must not be advertised to crawlers.
+  for (const config of seoConfigs) {
+    if (config.noindex) excluded.add(sitemapKey(config.path));
+  }
 
   const seen = new Set();
   return entries.filter((entry) => {
     if (!isPublicPath(entry.path)) return false;
-    if (excluded.has(entry.path.replace(/\/+$/, ''))) return false;
+    if (excluded.has(sitemapKey(entry.path))) return false;
     const normalized = entry.path === '/' ? '/' : entry.path.replace(/\/+$/, '');
     if (seen.has(normalized)) return false;
     seen.add(normalized);
@@ -355,6 +377,24 @@ export async function buildLlmsTxt() {
     sections.push(`- [${describeRoute(route.path)}](${SITE_URL}${route.path})`);
   }
 
+  const generatedPages = settings.sitemapIncludePseo
+    ? await PseoPage.find({ isActive: true }).select('path title').sort({ path: 1 }).limit(200).lean()
+    : [];
+  if (generatedPages.length > 0) {
+    sections.push('', '## Tutors by subject and area', '');
+    for (const page of generatedPages) {
+      sections.push(`- [${page.title || page.path}](${SITE_URL}${page.path})`);
+    }
+  }
+
+  const subjects = await subjectRoutes();
+  if (subjects.length > 0) {
+    sections.push('', '## Tutors by subject', '');
+    for (const route of subjects) {
+      sections.push(`- [${route.name} tutors](${SITE_URL}${route.path})`);
+    }
+  }
+
   if (activeBenefits.length > 0) {
     sections.push('', '## Why families choose us', '');
     for (const benefit of activeBenefits) {
@@ -393,6 +433,7 @@ function describeRoute(path) {
     '/how-it-works': 'How it works - finding and booking a tutor',
     '/contact': 'Contact and support',
     '/blog': 'Blog - tutoring guides and study advice',
+    '/tutors': 'Find a tutor - browse and filter verified tutors',
     '/privacy': 'Privacy policy',
     '/terms': 'Terms and conditions',
   };

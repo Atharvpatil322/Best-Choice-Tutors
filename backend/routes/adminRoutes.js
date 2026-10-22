@@ -1,5 +1,6 @@
 import express from "express";
 import * as seoTools from "../controllers/adminSeoToolsController.js";
+import { getAdminSubjects, updateAdminSubject } from "../controllers/subjectController.js";
 import * as pageContent from "../controllers/pageContentController.js";
 import { authenticate } from "../middlewares/auth.js";
 import { upload } from "../middlewares/upload.js";
@@ -165,10 +166,17 @@ router.get("/pages/:pageKey", authenticate, pageContent.getAdminPageContent);
 router.put("/pages/:pageKey/:sectionKey", authenticate, pageContent.updatePageSection);
 router.delete("/pages/:pageKey/:sectionKey", authenticate, pageContent.resetPageSection);
 
+// Subject pages: slug, search listing and page copy per subject.
+router.get("/subjects", authenticate, getAdminSubjects);
+router.put("/subjects/:name", authenticate, updateAdminSubject);
+
 router.get("/seo-tools/dashboard", authenticate, seoTools.getSeoDashboard);
+router.post("/seo-tools/publish", authenticate, seoTools.publishSite);
+router.get("/seo-tools/known-paths", authenticate, seoTools.listKnownPaths);
 
 router.get("/seo-tools/settings", authenticate, seoTools.getSettings);
 router.patch("/seo-tools/settings", authenticate, seoTools.updateSettings);
+router.get("/seo-tools/schema-preview", authenticate, seoTools.getSchemaPreview);
 
 router.get("/seo-tools/redirects", authenticate, seoTools.listRedirects);
 router.post("/seo-tools/redirects", authenticate, seoTools.createRedirect);

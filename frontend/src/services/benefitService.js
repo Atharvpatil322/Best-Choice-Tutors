@@ -3,6 +3,7 @@
  * Public and admin "Why Choose Us" benefit API calls.
  */
 
+import { cacheMode, changeShared, sharedRequest } from "@/utils/sharedRequest";
 import { getAuthToken } from "./authService.js";
 
 const API_BASE_URL =
@@ -40,12 +41,14 @@ const requestJson = async (paths, options, fallbackMessage) => {
  * GET /api/benefits
  * @returns {Promise<{ benefits: Array }>}
  */
-export const getActiveBenefits = async () => {
-  return requestJson("/benefits", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  }, "Failed to fetch benefits");
-};
+export const getActiveBenefits = () =>
+  // Shared, so the Why Choose Us section and the footer make one request.
+  sharedRequest("benefits", ({ fresh }) =>
+    requestJson("/benefits", {
+      method: "GET",
+      cache: cacheMode(fresh),
+      headers: { "Content-Type": "application/json" },
+    }, "Failed to fetch benefits"));
 
 /**
  * Get all benefits (admin only)
@@ -78,19 +81,20 @@ export const getAllBenefitsAdmin = async (params = {}) => {
  * @param {Object} benefitData - { title, description, icon?, order?, isActive? }
  * @returns {Promise<{ message: string, benefit: Object }>}
  */
-export const createBenefitAdmin = async (benefitData) => {
-  const token = getAuthToken();
-  if (!token) throw new Error("Authentication required");
+export const createBenefitAdmin = (benefitData) =>
+  changeShared("benefits", async () => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
 
-  return requestJson(["/admin/benefits", "/admin/why-choose-us", "/admin/benefit"], {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(benefitData),
-  }, "Failed to create benefit");
-};
+    return requestJson(["/admin/benefits", "/admin/why-choose-us", "/admin/benefit"], {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(benefitData),
+    }, "Failed to create benefit");
+  });
 
 /**
  * Update a benefit (admin only)
@@ -99,24 +103,25 @@ export const createBenefitAdmin = async (benefitData) => {
  * @param {Object} benefitData
  * @returns {Promise<{ message: string, benefit: Object }>}
  */
-export const updateBenefitAdmin = async (id, benefitData) => {
-  const token = getAuthToken();
-  if (!token) throw new Error("Authentication required");
+export const updateBenefitAdmin = (id, benefitData) =>
+  changeShared("benefits", async () => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
 
-  const encodedId = encodeURIComponent(id);
-  return requestJson([
-    `/admin/benefits/${encodedId}`,
-    `/admin/why-choose-us/${encodedId}`,
-    `/admin/benefit/${encodedId}`,
-  ], {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(benefitData),
-  }, "Failed to update benefit");
-};
+    const encodedId = encodeURIComponent(id);
+    return requestJson([
+      `/admin/benefits/${encodedId}`,
+      `/admin/why-choose-us/${encodedId}`,
+      `/admin/benefit/${encodedId}`,
+    ], {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(benefitData),
+    }, "Failed to update benefit");
+  });
 
 /**
  * Delete a benefit (admin only)
@@ -124,20 +129,21 @@ export const updateBenefitAdmin = async (id, benefitData) => {
  * @param {string} id
  * @returns {Promise<{ message: string }>}
  */
-export const deleteBenefitAdmin = async (id) => {
-  const token = getAuthToken();
-  if (!token) throw new Error("Authentication required");
+export const deleteBenefitAdmin = (id) =>
+  changeShared("benefits", async () => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
 
-  const encodedId = encodeURIComponent(id);
-  return requestJson([
-    `/admin/benefits/${encodedId}`,
-    `/admin/why-choose-us/${encodedId}`,
-    `/admin/benefit/${encodedId}`,
-  ], {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  }, "Failed to delete benefit");
-};
+    const encodedId = encodeURIComponent(id);
+    return requestJson([
+      `/admin/benefits/${encodedId}`,
+      `/admin/why-choose-us/${encodedId}`,
+      `/admin/benefit/${encodedId}`,
+    ], {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }, "Failed to delete benefit");
+  });

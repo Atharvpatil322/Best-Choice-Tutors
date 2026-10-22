@@ -19,7 +19,7 @@
  * the site's teal. Scoped here on purpose; the rest of the site is unchanged.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Heart,
@@ -47,9 +47,15 @@ import {
   CANONICAL_SUBJECTS,
   SUBJECT_OTHER,
   slugToSubject,
+  subjectFromName,
+  setSubjectSlug,
   tutorSearchPath,
 } from '@/constants/subjects';
+import { useSubjectSlugs } from '@/hooks/useSubjectSlugs';
+import { getSubjectPage, findRedirect } from '@/services/subjectPageService';
+import { sanitizeBlogHtml } from '@/utils/blogContent';
 import '@/styles/LandingPage.css';
+import '@/styles/BlogContent.css';
 
 /** Subjects offered in the sidebar, excluding the free-text "Other" option. */
 const SUBJECT_OPTIONS = CANONICAL_SUBJECTS.filter((subject) => subject !== SUBJECT_OTHER);
@@ -425,29 +431,88 @@ export default function FindTutors() {
   // The subject lives in the path (/tutors/subject/english), so the URL reads
   // as a page rather than a query. Everything else stays a query parameter,
   // because those are transient filters rather than a place on the site.
+  // Subject slugs are editable in the admin panel, so they load from the API;
+  // `ready` says whether an unknown slug can be trusted to be unknown.
+  const { ready: slugsReady } = useSubjectSlugs();
   const pathSubject = slugToSubject(subjectSlug);
+
+  // Admin-written content for this subject page: heading, intro, body copy
+  // and search listing. Missing fields fall back to the built-in copy.
+  const [subjectPage, setSubjectPage] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setSubjectPage(null);
+    if (!pathSubject || !subjectSlug) return undefined;
+    getSubjectPage(subjectSlug.toLowerCase())
+      .then((page) => {
+        if (!cancelled) setSubjectPage(page);
+      })
+      // Without the admin copy the page still works with its built-in text.
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pathSubject, subjectSlug]);
 
   // Links written before the move still arrive as /tutors?subject=English.
   // Rewrite them once so a page has a single address and old links keep working.
   const legacySubject = searchParams.get('subject');
+  // Waits for the current slugs, so a subject whose URL an admin changed is
+  // sent to its new address rather than the old one.
   useEffect(() => {
-    if (!legacySubject) return;
+    if (!legacySubject || !slugsReady) return;
     const query = new URLSearchParams(searchParams);
     query.delete('subject');
     const search = query.toString();
-    const target = tutorSearchPath(slugToSubject(legacySubject));
+    const target = tutorSearchPath(subjectFromName(legacySubject));
     navigate(`${target}${search ? `?${search}` : ''}`, { replace: true });
-  }, [legacySubject, searchParams, navigate]);
+  }, [legacySubject, slugsReady, searchParams, navigate]);
 
-  // Keep one canonical URL per subject: an unknown slug falls back to the full
-  // list, and a slug that is merely miscased is corrected rather than served.
+  // Keep one canonical URL per subject. The subject list in this tab may be a
+  // cached copy from before an admin renamed a subject, so every subject URL
+  // is checked against the live page lookup:
+  // - the page exists: its slug is recorded, and a miscased URL is corrected;
+  // - it does not: the address may have moved, so the redirect list is asked,
+  //   and only then does the visitor fall back to the full tutor list.
   useEffect(() => {
-    if (!subjectSlug) return;
-    const canonicalPath = tutorSearchPath(pathSubject);
-    if (canonicalPath === `/tutors/subject/${subjectSlug}`) return;
-    const search = searchParams.toString();
-    navigate(`${canonicalPath}${search ? `?${search}` : ''}`, { replace: true });
-  }, [subjectSlug, pathSubject, searchParams, navigate]);
+    if (!subjectSlug || !slugsReady) return undefined;
+    let cancelled = false;
+    const go = (path) => {
+      if (cancelled) return;
+      // Merge the visitor's filters into any query the target already has.
+      const target = new URL(path, window.location.origin);
+      searchParams.forEach((value, key) => {
+        if (!target.searchParams.has(key)) target.searchParams.set(key, value);
+      });
+      navigate(`${target.pathname}${target.search}${target.hash}`, { replace: true });
+    };
+
+    getSubjectPage(subjectSlug.toLowerCase())
+      .then((page) => {
+        if (cancelled) return null;
+        if (page?.name) {
+          setSubjectSlug(page.name, page.slug);
+          if (subjectSlug !== page.slug) go(`/tutors/subject/${page.slug}`);
+          return null;
+        }
+        return findRedirect(`/tutors/subject/${subjectSlug}`).then((target) => ({ target }));
+      })
+      .then((result) => {
+        if (cancelled || !result) return;
+        const { target } = result;
+        if (target && /^https?:\/\//i.test(target)) {
+          window.location.replace(target);
+          return;
+        }
+        go(target || '/tutors');
+      })
+      // The lookup itself failed, so nothing is known about this URL: stay on
+      // it rather than send the visitor away from what may be a valid page.
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [subjectSlug, slugsReady, searchParams, navigate]);
 
   // Draft holds what the sidebar shows; applied is what the query actually uses,
   // so the results only change when "Apply Filters" is pressed.
@@ -503,7 +568,17 @@ export default function FindTutors() {
     setApplied(withUrlSubject);
   }, [urlSubject, appliedSubject]);
 
+  // Only the latest request may fill the list: an earlier, slower one (for
+  // example sent before the subject resolved) must not overwrite it.
+  const fetchIdRef = useRef(0);
+  // A subject URL that does not resolve yet may be a renamed subject whose
+  // slug is still loading; querying now would list every tutor under it.
+  const waitingForSubject = Boolean(subjectSlug) && !pathSubject && !slugsReady;
+
   const fetchTutors = useCallback(async () => {
+    if (waitingForSubject) return;
+    const fetchId = fetchIdRef.current + 1;
+    fetchIdRef.current = fetchId;
     setLoading(true);
     setError(null);
     try {
@@ -519,15 +594,17 @@ export default function FindTutors() {
         page,
         limit: PAGE_SIZE,
       });
+      if (fetchIdRef.current !== fetchId) return;
       setTutors(Array.isArray(data.tutors) ? data.tutors : []);
       setPagination(data.pagination || { page: 1, totalPages: 0, totalCount: 0 });
     } catch (err) {
+      if (fetchIdRef.current !== fetchId) return;
       setError(err.message || 'Could not load tutors');
       setTutors([]);
     } finally {
-      setLoading(false);
+      if (fetchIdRef.current === fetchId) setLoading(false);
     }
-  }, [applied, page]);
+  }, [applied, page, waitingForSubject]);
 
   useEffect(() => {
     fetchTutors();
@@ -641,11 +718,16 @@ export default function FindTutors() {
     <div className="min-h-screen w-full overflow-x-hidden flex flex-col">
       <Seo
         title={
-          activeSubject
+          subjectPage?.seoTitle ||
+          (activeSubject
             ? `${activeSubject} Tutors | Best Choice Tutors`
-            : 'Find Your Perfect Tutor | Best Choice Tutors'
+            : 'Find Your Perfect Tutor | Best Choice Tutors')
         }
-        description="Browse verified tutors, compare profiles and rates, and book the right tutor for your learning goals."
+        description={
+          subjectPage?.metaDescription ||
+          'Browse verified tutors, compare profiles and rates, and book the right tutor for your learning goals.'
+        }
+        ogImage={subjectPage?.imageUrl || undefined}
       />
       <Header />
 
@@ -677,13 +759,19 @@ export default function FindTutors() {
                   )}
 
                   <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1A365D] tracking-tight leading-tight">
-                    Find Your <br className="hidden sm:block" />
-                    <span className="text-[#1A365D]">Perfect Tutor</span>
+                    {subjectPage?.h1 ? (
+                      subjectPage.h1
+                    ) : (
+                      <>
+                        Find Your <br className="hidden sm:block" />
+                        <span className="text-[#1A365D]">Perfect Tutor</span>
+                      </>
+                    )}
                   </h1>
 
                   <p className="mt-3 text-sm text-slate-600 max-w-md">
-                    Browse experienced tutors, compare their profiles, and find the right tutor for
-                    your learning goals.
+                    {subjectPage?.intro ||
+                      'Browse experienced tutors, compare their profiles, and find the right tutor for your learning goals.'}
                   </p>
 
                   <div className="mt-5 flex flex-wrap items-center gap-y-3">
@@ -885,6 +973,16 @@ export default function FindTutors() {
             </div>
           </div>
         )}
+
+        {/* Admin-written copy for this subject, below the results. */}
+        {subjectPage?.content ? (
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+            <div
+              className="blog-rich-content max-w-3xl text-slate-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: sanitizeBlogHtml(subjectPage.content) }}
+            />
+          </section>
+        ) : null}
 
         {/* Shared sections, reused as-is */}
         {/* Answers for the subject being browsed. The section hides itself

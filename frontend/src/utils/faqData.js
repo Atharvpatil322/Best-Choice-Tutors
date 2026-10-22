@@ -1,7 +1,7 @@
 /**
  * Shared FAQ Data Source
  * Single source of truth for FAQ questions and answers.
- * Used by both the FAQ UI component and the FAQ schema generator.
+ * Fallback for the FAQ section when the API cannot be reached.
  */
 
 const FAQ_ITEMS = [
@@ -31,25 +31,6 @@ const FAQ_ITEMS = [
       'You can book a tutoring session by contacting us through our website, submitting an inquiry form, or reaching out to our support team.',
   },
 ];
-
-/**
- * Returns the FAQ items array.
- * @returns {Array<{question: string, answer: string}>}
- */
-export function getFaqItems() {
-  return FAQ_ITEMS;
-}
-
-/**
- * Returns FAQ items formatted for JSON-LD FAQ schema.
- * @returns {Array<{question: string, answer: string}>}
- */
-export function getFaqForSchema() {
-  return FAQ_ITEMS.map((item) => ({
-    question: item.question,
-    answer: item.answer,
-  }));
-}
 
 export default FAQ_ITEMS;
 
