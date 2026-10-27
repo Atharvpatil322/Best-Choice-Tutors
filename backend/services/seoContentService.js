@@ -90,6 +90,37 @@ const ROBOTS_DISALLOW = DISALLOWED_PREFIXES.flatMap((prefix) =>
 );
 
 /**
+ * Read-only API paths the public pages load their content from.
+ *
+ * The same robots.txt is served on the API host, where `Disallow: /api` also
+ * stopped search engines fetching a post's text while rendering the page, so
+ * blog and subject pages looked empty and were reported as soft 404s. These
+ * Allow lines are longer than `/api`, so they win for these paths only; the
+ * rest of the API stays disallowed. They match nothing on the site itself.
+ */
+const ROBOTS_ALLOW_API = [
+  '/api/blog',
+  '/api/faq',
+  '/api/benefits',
+  '/api/why-choose-us',
+  '/api/popular-searches',
+  '/api/public/',
+  '/api/tutors',
+];
+
+/**
+ * The Allow and Disallow lines of one robots.txt group.
+ *
+ * @returns {string[]}
+ */
+export function robotsRuleLines() {
+  return [
+    ...ROBOTS_ALLOW_API.map((rule) => `Allow: ${rule}`),
+    ...ROBOTS_DISALLOW.map((rule) => `Disallow: ${rule}`),
+  ];
+}
+
+/**
  * Crawlers granted explicit access, covering search engines, social link
  * unfurlers and AI assistants. Listing them individually documents intent and
  * survives a future tightening of the catch-all rule.
@@ -314,12 +345,12 @@ export async function buildRobotsTxt() {
     return ['User-agent: *', 'Disallow: /', ''].join('\n');
   }
 
-  const disallowLines = ROBOTS_DISALLOW.map((rule) => `Disallow: ${rule}`);
+  const ruleLines = robotsRuleLines();
 
-  const lines = ['User-agent: *', ...disallowLines, ''];
+  const lines = ['User-agent: *', ...ruleLines, ''];
 
   for (const crawler of ALLOWED_CRAWLERS) {
-    lines.push(`User-agent: ${crawler}`, 'Allow: /', ...disallowLines, '');
+    lines.push(`User-agent: ${crawler}`, 'Allow: /', ...ruleLines, '');
   }
 
   lines.push(`Sitemap: ${SITE_URL}/sitemap.xml`, '');
