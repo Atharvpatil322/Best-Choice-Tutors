@@ -177,7 +177,17 @@ if (hasFrontendBuild) {
   // redirect: false stops express.static answering "/about" with a 301 to
   // "/about/" just because a prerendered directory exists there. That hop costs
   // a round trip and produces a URL that disagrees with the canonical tag.
-  app.use(express.static(frontendDist, { index: false, redirect: false }));
+  app.use(
+    express.static(frontendDist, {
+      index: false,
+      redirect: false,
+      // Blog and subject pages are built as extension-less HTML files named
+      // like their URL (see frontend/scripts/build-seo-pages.mjs).
+      setHeaders: (res, filePath) => {
+        if (!path.extname(filePath)) res.type("html");
+      },
+    }),
+  );
 
   // Record page paths that match no known route, so the SEO team can see which
   // broken links deserve a redirect. Runs after static files so real assets are

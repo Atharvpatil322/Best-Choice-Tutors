@@ -221,9 +221,22 @@ function redirectPage(target) {
  * @param {string} sitePath
  * @returns {string|null}
  */
+/**
+ * Blog posts and subject pages are written as a file named exactly like the
+ * URL, with no extension, instead of <path>/index.html. The host serves a file
+ * that exists at the requested path as it is, so these pages need no rewrite
+ * rule. That matters for a post published after the last build: with no file
+ * yet, its URL falls through to the app shell, which loads the post. A rewrite
+ * to a missing file is answered with an empty page instead. render.yaml sets
+ * Content-Type: text/html for these paths.
+ */
+const FLAT_PAGE = /^\/(blog|tutors\/subject)\/[^/]+$/;
+
 function fileForPath(sitePath) {
   const segments = sitePath.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
-  const file = path.join(DIST, ...segments, 'index.html');
+  const file = FLAT_PAGE.test(sitePath)
+    ? path.join(DIST, ...segments)
+    : path.join(DIST, ...segments, 'index.html');
   return file.startsWith(DIST) ? file : null;
 }
 
