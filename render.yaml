@@ -89,9 +89,19 @@ services:
     #
     # Blog posts and subject pages get their own file too, written by
     # scripts/build-seo-pages.mjs with the right title, canonical and
-    # structured data; the two placeholder rules point at those files. A post
-    # published after the last build has no file until the next deploy - the
-    # site's 404.html is the app shell, so the page still loads in the browser.
+    # structured data. Each file is named exactly like its URL (no extension),
+    # so the host serves it directly and no rule is needed; the headers below
+    # mark them as HTML. A post published after the last build has no file
+    # yet, so its URL falls through to the app shell, which loads the post.
+    # Do not add rewrites for these paths: a rewrite to a missing file is
+    # answered with an empty page.
+    headers:
+      - path: /blog/*
+        name: Content-Type
+        value: text/html; charset=utf-8
+      - path: /tutors/subject/*
+        name: Content-Type
+        value: text/html; charset=utf-8
     routes:
       - type: rewrite
         source: /about
@@ -114,12 +124,6 @@ services:
       - type: rewrite
         source: /tutors
         destination: /tutors/index.html
-      - type: rewrite
-        source: /blog/:slug
-        destination: /blog/:slug/index.html
-      - type: rewrite
-        source: /tutors/subject/:slug
-        destination: /tutors/subject/:slug/index.html
       # Everything else - signed-in areas, generated landing pages, unknown
       # paths - is handled by the single-page app. spa-shell.html is the plain
       # app shell: index.html is the prerendered homepage, and serving it here

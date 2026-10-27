@@ -159,6 +159,15 @@ const resolveHtmlFileForRoute = async (requestPath) => {
   // Guard against path traversal escaping the build directory.
   if (!prerendered.startsWith(frontendDist)) return { file: fallbackHtml, prerendered: false };
 
+  // Blog and subject pages are a single file named like the URL.
+  const flatPage = path.join(frontendDist, ...safeSegments);
+  try {
+    const stat = await fs.promises.stat(flatPage);
+    if (stat.isFile()) return { file: flatPage, prerendered: true };
+  } catch {
+    // Not built as a flat page; try the directory form.
+  }
+
   try {
     await fs.promises.access(prerendered, fs.constants.R_OK);
     return { file: prerendered, prerendered: true };
@@ -177,7 +186,12 @@ if (hasFrontendBuild) {
   // redirect: false stops express.static answering "/about" with a 301 to
   // "/about/" just because a prerendered directory exists there. That hop costs
   // a round trip and produces a URL that disagrees with the canonical tag.
-  app.use(express.static(frontendDist, { index: false, redirect: false }));
+  // Only paths with a file extension are assets. Blog and subject pages are
+  // built as extension-less HTML files named like their URL (see
+  // frontend/scripts/build-seo-pages.mjs); they go through the HTML handler
+  // below, so they get the live status code and SEO tags.
+  const serveAssets = express.static(frontendDist, { index: false, redirect: false });
+  app.use((req, res, next) => (path.extname(req.path) ? serveAssets(req, res, next) : next()));
 
   // Record page paths that match no known route, so the SEO team can see which
   // broken links deserve a redirect. Runs after static files so real assets are
