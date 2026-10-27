@@ -64,6 +64,13 @@ app.use(
 );
 app.use(express.urlencoded({ extended: true }));
 
+// API responses are data, not pages: crawlers may fetch the public ones to
+// render the site, but none of them should appear in search results.
+app.use("/api", (req, res, next) => {
+  res.set("X-Robots-Tag", "noindex");
+  next();
+});
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/learner", learnerProfileRoutes);
